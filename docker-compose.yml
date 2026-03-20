@@ -1,0 +1,26 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: pickty-postgres
+    environment:
+      POSTGRES_USER: pickty
+      POSTGRES_PASSWORD: ***
+      POSTGRES_DB: pickty
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  valkey:
+    image: valkey/valkey:9
+    container_name: pickty-valkey
+    ports:
+      - "6379:6379"
+    volumes:
+      - valkeydata:/data
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  valkeydata:

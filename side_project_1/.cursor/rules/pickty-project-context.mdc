@@ -1,0 +1,116 @@
+---
+description: Pickty 프로젝트 전체 컨텍스트 — 코딩 전 항상 숙지
+alwaysApply: true
+---
+
+# Pickty (픽티) — 프로젝트 컨텍스트
+
+티어표 만들기 & 이상형 월드컵 서비스. 누구나 방을 만들고 지인들과 함께 참여할 수 있으며, 실시간 참여/집계 기능은 스트리머-시청자 구도에서도 활용 가능한 차별화 포인트다.
+
+## 레포 구조
+
+- `side_project_1/` — **Frontend** (Next.js, App Router)
+- `side_project_2/` — **Backend** (Kotlin, Spring Boot)
+
+## 확정 버전 스택
+
+| 영역 | 기술 | 버전 |
+|------|------|------|
+| Frontend | Next.js (App Router) | 16.x |
+| Frontend | React | 19 |
+| Frontend | Tailwind CSS | 4.x (설정파일 없이 CSS 변수 방식) |
+| Frontend | TypeScript | 5.x |
+| Frontend | 상태관리 | Zustand |
+| Frontend | 폼 관리 | react-hook-form 7.x |
+| Frontend | 스키마 검증 | zod 4.x |
+| Frontend | DnD | dnd-kit |
+| Backend | Kotlin | 2.2.x (K2 컴파일러 / start.spring.io 기본 제공) |
+| Backend | Spring Boot | 4.0.x (Spring Framework 7 기반) |
+| Backend | JVM | Java 25 LTS |
+| DB | PostgreSQL | 17.x |
+| Cache/RT | Valkey | 9.x |
+| Infra | Front 배포 | Vercel |
+| Infra | Back 배포 | Docker (Oracle Cloud/AWS/GCP 예정) |
+
+## 핵심 기획 원칙
+
+### Guest First (비로그인 우선)
+- **기본 원칙**: 티어표 참여, 월드컵 참여 등 핵심 기능은 로그인 없이 사용 가능
+- **로그인 필요 기능**: 템플릿 직접 생성, 내 티어표/결과 저장, 마이페이지
+- **이유**: 로그인 강요는 이탈률 폭발로 이어짐. 쓰다가 저장하고 싶을 때 자연스럽게 유도
+- **프론트**: Zustand persist / LocalStorage로 비로그인 상태 임시 저장
+- **백엔드**: API 기본 permitAll(), 인증 필요 엔드포인트만 명시적으로 잠금
+- **DB**: Tier/WorldCup 등 데이터의 user_id는 Nullable (비로그인 생성 허용)
+
+## 핵심 기능
+
+1. **Tier Maker** — 방 생성 → 참여자 티어표 제출 → 통계/평균 시각화
+2. **Ideal Type World Cup** — 방 생성 → 참여자 투표 → 실시간 집계
+3. **Template Platform** — 이미지 업로드, 티어/월드컵 템플릿 생성·공유
+4. **Auth** — 자체 로그인 + 소셜 로그인 (Google·Naver·Kakao 필수 / Chzzk·SOOP·Twitch 1차 확장 / Discord·X·Apple 차후 검토)
+
+## 개발 환경 / 워크플로우
+
+- **OS**: Windows
+- **IDE**: IntelliJ IDEA 2025, Cursor
+- **AI 협업 방식**: 웹 AI(Gemini)로 설계·조사 → Cursor AI(Claude Sonnet)로 실제 구현
+  - Gemini 제안 내용은 반드시 Claude가 버전/라이선스 등 사실 검증 후 적용
+
+## Git 계정 관리 규칙
+
+개인 PC와 회사 PC를 모두 사용하기 때문에 커밋 author 오염을 방지하기 위해 **각 프로젝트에 로컬 git config가 고정**되어 있다.
+
+| 구분 | 계정 | 이메일 |
+|---|---|---|
+| 개인 GitHub (사용) | `sleep5115` | `85235927+sleep5115@users.noreply.github.com` |
+| 개인 Gmail | — | `sleep5165@gmail.com` |
+| 회사 계정 (프로젝트에서 완전 배제) | `sleep5165` | `sleep5165@maybeone.co.kr` |
+
+- 두 프로젝트 모두 로컬 git config에 개인 noreply 이메일로 고정되어 있음
+- **회사 PC에서 클론 후 작업 시 반드시 아래 명령어 실행 (프로젝트 폴더 각각)**:
+  ```
+  git config user.email "85235927+sleep5115@users.noreply.github.com"
+  git config user.name "sleep5115"
+  ```
+- 절대로 `git config --global`로 설정하지 말 것 (회사 글로벌 config 오염 방지)
+
+## 진행 현황 파일 관리 규칙
+
+웹 AI(Gemini)는 이 프로젝트 코드를 직접 볼 수 없다. 따라서 진행 현황을 별도 파일로 관리하며, **작업을 완료할 때마다 반드시 이 파일을 업데이트**해야 한다.
+
+이 파일은 아래 세 곳에 동일하게 존재한다. 내용을 수정할 때는 **반드시 세 파일 모두 동일하게 업데이트**해야 한다.
+
+- `CursorProjects/PROGRESS.md`
+- `CursorProjects/side_project_1/PROGRESS.md`
+- `CursorProjects/side_project_2/PROGRESS.md`
+
+Gemini에게 컨텍스트를 전달할 때는 이 파일 내용을 복사해서 붙여넣으면 된다.
+
+## 커서룰즈 관리 규칙
+
+이 룰 파일은 아래 세 곳에 동일하게 존재한다. 내용을 수정할 때는 **반드시 세 파일 모두 동일하게 업데이트**해야 한다.
+
+- `CursorProjects/.cursor/rules/pickty-project-context.mdc`
+- `CursorProjects/side_project_1/.cursor/rules/pickty-project-context.mdc`
+- `CursorProjects/side_project_2/.cursor/rules/pickty-project-context.mdc`
+
+## 브랜치 전략
+
+| 브랜치 | 용도 |
+|---|---|
+| `main` | 운영(배포) 전용 — 직접 push 금지 |
+| `dev` | 기본 개발 브랜치 — GitHub 디폴트 브랜치 |
+| `feat/*` | 기능 개발 (dev에서 분기 → dev로 merge) |
+
+- 평소 작업은 `dev` 브랜치에서 진행
+- 배포 시에만 `dev` → `main` merge
+- GitHub 디폴트 브랜치: `dev`
+
+## 코딩 규칙
+
+- Frontend는 반드시 **App Router** 방식 사용 (`pages/` 금지)
+- Tailwind는 v4 방식 — `tailwind.config.js` 대신 CSS 변수로 테마 관리
+- 컴포넌트는 `'use client'` / `'use server'` 명시 철저히 구분
+- Backend API는 RESTful, 인증은 Spring Security OAuth2
+- Cache/Real-time은 **Valkey** 사용 (Redis SSPL 라이선스 이슈로 대체, 프로토콜 100% 호환)
+- 공통 네이밍: 프론트 파일명 `kebab-case`, 컴포넌트명 `PascalCase`

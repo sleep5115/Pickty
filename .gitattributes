@@ -1,0 +1,13 @@
+# 기본: LF 통일
+* text=auto eol=lf
+
+# Windows 배치 파일은 CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# 바이너리
+*.jar binary
+*.png binary
+*.jpg binary
+*.ico binary
+*.svg text eol=lf

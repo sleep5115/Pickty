@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --bg-base: #f8fafc;
+  --bg-surface: #f1f5f9;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --border-subtle: #e2e8f0;
+
+  /* Brand */
+  --brand-from: #7c3aed;
+  --brand-via: #d946ef;
+  --brand-to: #ec4899;
+}
+
+.dark {
+  --bg-base: #09090b;
+  --bg-surface: #18181b;
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1aa;
+  --border-subtle: #27272a;
+}
+
+/* Autofill overrides for dark-themed inputs */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #f4f4f5;
+  -webkit-box-shadow: 0 0 0px 1000px #27272a inset;
+  transition: background-color 5000s ease-in-out 0s;
+}

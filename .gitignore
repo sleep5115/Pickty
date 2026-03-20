@@ -1,0 +1,43 @@
+# ========================
+# Secrets (절대 커밋 금지)
+# ========================
+**/application-local.yaml
+**/.env
+**/.env.local
+**/.env.*.local
+
+# ========================
+# Frontend (Next.js)
+# ========================
+**/node_modules/
+**/.next/
+**/out/
+**/.vercel/
+
+# ========================
+# Backend (Spring Boot / Gradle)
+# ========================
+**/.gradle/
+**/build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+**/gradle.properties
+**/out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+# ========================
+# IDE
+# ========================
+.idea/
+**/*.iws
+**/*.iml
+**/*.ipr
+.vscode/
+.kotlin/
+
+# ========================
+# OS
+# ========================
+.DS_Store
+Thumbs.db
