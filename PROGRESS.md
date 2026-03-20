@@ -7,11 +7,17 @@
 
 ## 레포 구조 (모노레포)
 
-- **레포**: https://github.com/sleep5115/Pickty
+- **레포**: https://github.com/sleep5115/Pickty (단일 모노레포)
 - `frontend/` — Frontend (Next.js App Router)
 - `backend/` — Backend (Kotlin, Spring Boot)
 - `docker-compose.yml` — PostgreSQL 17 + Valkey 9 로컬 환경
 - `PROGRESS.md` — 이 파일 (루트 단일 파일로 관리)
+
+### 브랜치 전략
+| 브랜치 | 용도 |
+|---|---|
+| `main` | 배포용 — 직접 push 금지, `dev` PR로만 머지. 머지 시 자동 배포 예정 |
+| `dev` | 기본 브랜치 — 평소 개발 작업 |
 
 ---
 
@@ -20,7 +26,7 @@
 | 영역 | 상태 | 비고 |
 |---|---|---|
 | 개발 환경 세팅 | ✅ 완료 | |
-| 모노레포 전환 | ✅ 완료 | frontend/ + backend/ 폴더 구조 확정 |
+| 모노레포 전환 | ✅ 완료 | frontend/ + backend/ 폴더 구조, 브랜치 전략 확정 |
 | Frontend 기초 | ✅ 완료 | |
 | Backend 기초 | ✅ 완료 | |
 | Auth — 엔티티/도메인 설계 | ✅ 완료 | User, SocialAccount 엔티티 완성 |
