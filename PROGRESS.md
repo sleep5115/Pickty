@@ -43,7 +43,7 @@
 ### 개발 환경
 - Docker Compose로 PostgreSQL 17 + Valkey 9 로컬 구동 (`CursorProjects/docker-compose.yml`)
 - DB 접속 정보는 `application-local.yaml`로 분리 후 gitignore 처리
-- **로컬 DB 접속 정보**: `localhost:5432` / DB: `pickty` / User: `pickty` / PW: `***`
+- **로컬 DB 접속 정보**: `localhost:5432` / DB: `pickty` (접속 정보는 `application-local.yaml` 참고)
 - Google OAuth2 client-id / client-secret 발급 및 `application-local.yaml`에 적용 완료 (gitignore됨)
 - 모노레포(Pickty) 전환 완료: 기존 side_project_1, side_project_2 분리 레포 → 단일 레포 통합
 
@@ -183,8 +183,8 @@ docker compose up -d
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/pickty
-    username: pickty
-    password: ***
+    username: <db-username>
+    password: <db-password>
   data:
     redis:
       host: localhost
@@ -195,11 +195,11 @@ spring:
       client:
         registration:
           google:
-            client-id: "Google Cloud Console에서 발급받은 Client ID"
-            client-secret: "Google Cloud Console에서 발급받은 Client Secret"
+            client-id: <google-client-id>
+            client-secret: <google-client-secret>
 
 jwt:
-  secret: "***"
+  secret: <jwt-secret-32chars-이상>
 ```
 
 **회사 PC** (`backend/src/main/resources/application-local.yaml`):
@@ -207,8 +207,8 @@ jwt:
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5442/pickty
-    username: pickty
-    password: ***
+    username: <db-username>
+    password: <db-password>
   data:
     redis:
       host: localhost
@@ -219,11 +219,11 @@ spring:
       client:
         registration:
           google:
-            client-id: "Google Cloud Console에서 발급받은 Client ID"
-            client-secret: "Google Cloud Console에서 발급받은 Client Secret"
+            client-id: <google-client-id>
+            client-secret: <google-client-secret>
 
 jwt:
-  secret: "***"
+  secret: <jwt-secret-32chars-이상>
 ```
 
 ---
