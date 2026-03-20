@@ -164,19 +164,29 @@ global/
 
 ## 로컬 세팅 가이드
 
-### 공통 (클론 후 최초 1회)
+### 새 PC 최초 세팅 (전체 순서)
 ```bash
+# 1. 코드 클론 + git config
+git clone https://github.com/sleep5115/Pickty.git
+cd Pickty
 git config user.name "sleep5115"
 git config user.email "85235927+sleep5115@users.noreply.github.com"
-```
 
-### Docker 컨테이너 기동
-```bash
-# CursorProjects/ 폴더에서
+# 2. 로컬 설정 파일 복사 (실제 값은 pickty-config 레포에 있음)
+git clone https://github.com/sleep5115/pickty-config.git
+copy pickty-config\application-local.yaml backend\src\main\resources\application-local.yaml
+rmdir /s /q pickty-config
+# 집 PC라면 포트 그대로, 회사 PC라면 postgresql 5442 / redis 6380 으로 수정
+
+# 3. Docker 기동
 docker compose up -d
 ```
 
-### application-local.yaml (gitignore됨 — 각 PC에서 직접 생성)
+### application-local.yaml 관리
+- 실제 값은 **https://github.com/sleep5115/pickty-config** (private 레포) 에서 관리
+- 변경 시: pickty-config 레포의 파일 수정 후 push → 다음 PC에서 pull
+
+### application-local.yaml 구조 참고 (플레이스홀더)
 
 **집 PC** (`backend/src/main/resources/application-local.yaml`):
 ```yaml

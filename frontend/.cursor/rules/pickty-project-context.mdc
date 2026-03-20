@@ -58,11 +58,23 @@ alwaysApply: true
 | 개인 Gmail | — | `sleep5165@gmail.com` |
 | 회사 계정 (프로젝트에서 완전 배제) | `sleep5165` | `sleep5165@maybeone.co.kr` |
 
-- **회사 PC에서 클론 후 작업 시 반드시 아래 명령어 실행**:
-  ```
-  git config user.email "85235927+sleep5115@users.noreply.github.com"
+- **새 PC에서 처음 세팅할 때 반드시 아래 순서대로 실행**:
+  ```bash
+  # 1. 코드 클론
+  git clone https://github.com/sleep5115/Pickty.git
+  cd Pickty
   git config user.name "sleep5115"
+  git config user.email "85235927+sleep5115@users.noreply.github.com"
+
+  # 2. 로컬 설정 파일 받아서 복사 (집 PC: 5432/6379, 회사 PC: 5442/6380으로 포트 수정)
+  git clone https://github.com/sleep5115/pickty-config.git
+  copy pickty-config\application-local.yaml backend\src\main\resources\application-local.yaml
+  rmdir /s /q pickty-config
+
+  # 3. Docker 컨테이너 기동
+  docker compose up -d
   ```
+- `backend/src/main/resources/application-local.yaml`이 없으면 위 2번 단계를 먼저 수행할 것
 - 절대로 `git config --global`로 설정하지 말 것 (회사 글로벌 config 오염 방지)
 
 ## 진행 현황 파일 관리 규칙
