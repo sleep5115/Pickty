@@ -10,7 +10,7 @@ class UserService(
     fun getMe(userId: Long): UserResponse {
         val user = userRepository.findById(userId)
             .orElseThrow { NoSuchElementException("User not found: $userId") }
-        val providers = socialAccountRepository.findAllByUserId(userId)
+        val providers = socialAccountRepository.findAllByUser_Id(userId)
             .map { it.provider.name }
         return UserResponse(
             id = user.id!!,
