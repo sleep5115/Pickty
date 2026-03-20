@@ -8,8 +8,8 @@
 ## 레포 구조 (모노레포)
 
 - **레포**: https://github.com/sleep5115/Pickty
-- `side_project_1/` — Frontend (Next.js App Router) ← 추후 `frontend/`로 rename 예정
-- `side_project_2/` — Backend (Kotlin, Spring Boot) ← 추후 `backend/`로 rename 예정
+- `frontend/` — Frontend (Next.js App Router)
+- `backend/` — Backend (Kotlin, Spring Boot)
 - `docker-compose.yml` — PostgreSQL 17 + Valkey 9 로컬 환경
 - `PROGRESS.md` — 이 파일 (루트 단일 파일로 관리)
 
@@ -20,7 +20,7 @@
 | 영역 | 상태 | 비고 |
 |---|---|---|
 | 개발 환경 세팅 | ✅ 완료 | |
-| 모노레포 전환 | ✅ 완료 | Pickty 레포로 통합 |
+| 모노레포 전환 | ✅ 완료 | frontend/ + backend/ 폴더 구조 확정 |
 | Frontend 기초 | ✅ 완료 | |
 | Backend 기초 | ✅ 완료 | |
 | Auth — 엔티티/도메인 설계 | ✅ 완료 | User, SocialAccount 엔티티 완성 |
@@ -41,7 +41,7 @@
 - Google OAuth2 client-id / client-secret 발급 및 `application-local.yaml`에 적용 완료 (gitignore됨)
 - 모노레포(Pickty) 전환 완료: 기존 side_project_1, side_project_2 분리 레포 → 단일 레포 통합
 
-### Frontend (`side_project_1/`)
+### Frontend (`frontend/`)
 - Next.js 16 + React 19 + Tailwind CSS v4 + TypeScript 기본 세팅 완료
 - `next-themes` + `zustand` 설치
 - 다크/라이트 모드 토글 구현 (`ThemeProvider`, `ThemeToggle` 컴포넌트)
@@ -61,7 +61,7 @@
   - 소셜 로그인 실패 시 에러 배너 표시
 - **Zustand auth store** (`src/lib/store/auth-store.ts`) — JWT 토큰 상태 관리
 
-### Backend (`side_project_2/`)
+### Backend (`backend/`)
 - Spring Boot 4.0.3 + Kotlin 2.2.21 기본 세팅 완료
 - JVM 타겟: JDK 25 toolchain + 컴파일 타겟 JVM 24
 - 서버 기동 확인 (`localhost:8080`)
@@ -105,7 +105,7 @@
 
 ## 핵심 코드 구조
 
-### Frontend (`side_project_1/src/`)
+### Frontend (`frontend/src/`)
 ```
 app/
 ├── layout.tsx                  # ThemeProvider, suppressHydrationWarning
@@ -124,7 +124,7 @@ lib/
 └── store/auth-store.ts         # Zustand JWT 상태 관리
 ```
 
-### Backend (`side_project_2/src/main/kotlin/com/pickty/server/`)
+### Backend (`backend/src/main/kotlin/com/pickty/server/`)
 ```
 ServerApplication.kt
 domain/
@@ -172,7 +172,7 @@ docker compose up -d
 
 ### application-local.yaml (gitignore됨 — 각 PC에서 직접 생성)
 
-**집 PC** (`side_project_2/src/main/resources/application-local.yaml`):
+**집 PC** (`backend/src/main/resources/application-local.yaml`):
 ```yaml
 spring:
   datasource:
@@ -196,7 +196,7 @@ jwt:
   secret: "***"
 ```
 
-**회사 PC** (`side_project_2/src/main/resources/application-local.yaml`):
+**회사 PC** (`backend/src/main/resources/application-local.yaml`):
 ```yaml
 spring:
   datasource:

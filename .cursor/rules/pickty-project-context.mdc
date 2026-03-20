@@ -10,8 +10,8 @@ alwaysApply: true
 ## 레포 구조 (모노레포)
 
 - **레포**: https://github.com/sleep5115/Pickty (단일 모노레포)
-- `side_project_1/` — **Frontend** (Next.js, App Router) ← 추후 `frontend/`로 rename 예정
-- `side_project_2/` — **Backend** (Kotlin, Spring Boot) ← 추후 `backend/`로 rename 예정
+- `frontend/` — **Frontend** (Next.js, App Router)
+- `backend/` — **Backend** (Kotlin, Spring Boot)
 - `docker-compose.yml` — PostgreSQL 17 + Valkey 9
 
 ## 확정 버전 스택
@@ -77,8 +77,8 @@ alwaysApply: true
 Cursor 창을 여러 개 띄우기 때문에 룰 파일은 아래 세 곳에 동일하게 존재한다. 내용을 수정할 때는 **반드시 세 파일 모두 동일하게 업데이트**해야 한다.
 
 - `CursorProjects/.cursor/rules/pickty-project-context.mdc`
-- `CursorProjects/side_project_1/.cursor/rules/pickty-project-context.mdc`
-- `CursorProjects/side_project_2/.cursor/rules/pickty-project-context.mdc`
+- `CursorProjects/frontend/.cursor/rules/pickty-project-context.mdc`
+- `CursorProjects/backend/.cursor/rules/pickty-project-context.mdc`
 
 ## 코딩 규칙
 
