@@ -7,10 +7,12 @@ alwaysApply: true
 
 티어표 메이커 & 이상형 월드컵 메이커. 스트리머 모드로 시청자 참여/집계/실시간 진행을 차별점으로 삼는다.
 
-## 레포 구조
+## 레포 구조 (모노레포)
 
-- `side_project_1/` — **Frontend** (Next.js, App Router)
-- `side_project_2/` — **Backend** (Kotlin, Spring Boot)
+- **레포**: https://github.com/sleep5115/Pickty (단일 모노레포)
+- `side_project_1/` — **Frontend** (Next.js, App Router) ← 추후 `frontend/`로 rename 예정
+- `side_project_2/` — **Backend** (Kotlin, Spring Boot) ← 추후 `backend/`로 rename 예정
+- `docker-compose.yml` — PostgreSQL 17 + Valkey 9
 
 ## 확정 버전 스택
 
@@ -48,7 +50,7 @@ alwaysApply: true
 
 ## Git 계정 관리 규칙
 
-개인 PC와 회사 PC를 모두 사용하기 때문에 커밋 author 오염을 방지하기 위해 **각 프로젝트에 로컬 git config가 고정**되어 있다.
+개인 PC와 회사 PC를 모두 사용하기 때문에 커밋 author 오염을 방지하기 위해 **레포 루트에 로컬 git config가 고정**되어 있다.
 
 | 구분 | 계정 | 이메일 |
 |---|---|---|
@@ -56,8 +58,7 @@ alwaysApply: true
 | 개인 Gmail | — | `sleep5165@gmail.com` |
 | 회사 계정 (프로젝트에서 완전 배제) | `sleep5165` | `sleep5165@maybeone.co.kr` |
 
-- 두 프로젝트 모두 로컬 git config에 개인 noreply 이메일로 고정되어 있음
-- **회사 PC에서 클론 후 작업 시 반드시 아래 명령어 실행 (프로젝트 폴더 각각)**:
+- **회사 PC에서 클론 후 작업 시 반드시 아래 명령어 실행**:
   ```
   git config user.email "85235927+sleep5115@users.noreply.github.com"
   git config user.name "sleep5115"
@@ -68,17 +69,12 @@ alwaysApply: true
 
 웹 AI(Gemini)는 이 프로젝트 코드를 직접 볼 수 없다. 따라서 진행 현황을 별도 파일로 관리하며, **작업을 완료할 때마다 반드시 이 파일을 업데이트**해야 한다.
 
-이 파일은 아래 세 곳에 동일하게 존재한다. 내용을 수정할 때는 **반드시 세 파일 모두 동일하게 업데이트**해야 한다.
-
-- `CursorProjects/PROGRESS.md`
-- `CursorProjects/side_project_1/PROGRESS.md`
-- `CursorProjects/side_project_2/PROGRESS.md`
-
-Gemini에게 컨텍스트를 전달할 때는 이 파일 내용을 복사해서 붙여넣으면 된다.
+- **`CursorProjects/PROGRESS.md` 단일 파일로 관리** (모노레포 전환으로 단순화)
+- Gemini에게 컨텍스트를 전달할 때는 이 파일 내용을 복사해서 붙여넣으면 된다.
 
 ## 커서룰즈 관리 규칙
 
-이 룰 파일은 아래 세 곳에 동일하게 존재한다. 내용을 수정할 때는 **반드시 세 파일 모두 동일하게 업데이트**해야 한다.
+Cursor 창을 여러 개 띄우기 때문에 룰 파일은 아래 세 곳에 동일하게 존재한다. 내용을 수정할 때는 **반드시 세 파일 모두 동일하게 업데이트**해야 한다.
 
 - `CursorProjects/.cursor/rules/pickty-project-context.mdc`
 - `CursorProjects/side_project_1/.cursor/rules/pickty-project-context.mdc`
