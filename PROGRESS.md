@@ -27,12 +27,14 @@
 |---|---|---|
 | 개발 환경 세팅 | ✅ 완료 | |
 | 모노레포 전환 | ✅ 완료 | frontend/ + backend/ 폴더 구조, 브랜치 전략 확정 |
+| 로컬 설정 관리 | ✅ 완료 | pickty-config private 레포로 PC 간 공유 |
+| Auth — Frontend ↔ Backend 연동 | ✅ 완료 | Google OAuth2 E2E 완성, 대시보드 유저 정보 표시 |
 | Frontend 기초 | ✅ 완료 | |
 | Backend 기초 | ✅ 완료 | |
 | Auth — 엔티티/도메인 설계 | ✅ 완료 | User, SocialAccount 엔티티 완성 |
 | Auth — 로그인/회원가입 UI | ✅ 완료 | 소셜 로그인 팝업 흐름 포함 |
 | Auth — Backend OAuth2 구현 | ✅ 완료 | SecurityConfig, JWT, OAuth2 핸들러 완성 |
-| Auth — Frontend ↔ Backend 연동 | 🔧 진행중 | Google OAuth2 크레덴셜 적용 완료, 실제 통신 테스트 필요 |
+| Auth — Frontend ↔ Backend 연동 | ✅ 완료 | Google OAuth2 E2E 완성, JWT 저장, 대시보드 유저 정보 표시 |
 | Tier Maker | ⬜ 미시작 | |
 | Ideal Type World Cup | ⬜ 미시작 | |
 
@@ -240,8 +242,8 @@ jwt:
 
 ## 다음 작업 예정
 
-- [ ] Google OAuth2 실제 로그인 흐름 E2E 테스트 (프론트 팝업 → 백엔드 → JWT 수신 확인)
-- [ ] Frontend: JWT 수신 후 Zustand store 저장 → 인증 상태 기반 UI 분기 (로그인/로그아웃 버튼)
+- [ ] Backend: Refresh Token 재발급 API (`POST /auth/refresh`)
+- [ ] Backend: 로그아웃 API (`POST /auth/logout`) — Valkey Refresh Token 삭제
 - [ ] Backend: Refresh Token 재발급 API (`POST /auth/refresh`)
 - [ ] Backend: 로그아웃 API (`POST /auth/logout`) — Refresh Token 삭제
 - [ ] Backend: 자체 회원가입/로그인 API (`POST /auth/signup`, `POST /auth/login`)
