@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/lib/store/auth-store';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema, type LoginFormValues } from '@/lib/schemas/auth';
@@ -82,6 +83,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { setAccessToken } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [socialError, setSocialError] = useState<string | null>(null);
 
@@ -98,8 +100,8 @@ export default function LoginPage() {
       if (event.origin !== window.location.origin) return;
 
       if (event.data?.type === 'OAUTH_SUCCESS') {
-        // TODO: Zustand store에 토큰 저장
-        router.push('/');
+        setAccessToken(event.data.token as string);
+        router.push('/dashboard');
       } else if (event.data?.type === 'OAUTH_ERROR') {
         setSocialError('소셜 로그인에 실패했습니다. 다시 시도해 주세요.');
       }

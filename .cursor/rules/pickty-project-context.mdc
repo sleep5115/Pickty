@@ -109,3 +109,36 @@ Cursor는 루트 폴더(`CursorProjects/`) 하나만 열어서 사용한다.
 - Backend API는 RESTful, 인증은 Spring Security OAuth2
 - Cache/Real-time은 **Valkey** 사용 (Redis SSPL 라이선스 이슈로 대체, 프로토콜 100% 호환)
 - 공통 네이밍: 프론트 파일명 `kebab-case`, 컴포넌트명 `PascalCase`
+
+## Backend 주의사항
+
+### Jackson 3.x 패키지명
+Spring Boot 4.x는 Jackson 3.x를 사용하며 패키지명이 변경되었다. `com.fasterxml.jackson`을 쓰면 컴파일 에러 발생.
+
+```kotlin
+// ❌ BAD (Jackson 2.x 구패키지)
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.core.type.TypeReference
+
+// ✅ GOOD (Jackson 3.x)
+import tools.jackson.databind.ObjectMapper
+import tools.jackson.core.type.TypeReference
+```
+
+### CORS 설정
+`SecurityConfig`에 반드시 `CorsConfigurationSource` 빈을 선언하고 `.cors { it.configurationSource(...) }`로 연결해야 한다. 없으면 프론트엔드 API 호출이 전부 CORS error로 막힌다.
+
+```kotlin
+@Bean
+fun corsConfigurationSource(): CorsConfigurationSource {
+    val config = CorsConfiguration().apply {
+        allowedOrigins = listOf("http://localhost:3002")
+        allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "OPTIONS")
+        allowedHeaders = listOf("*")
+        allowCredentials = true
+    }
+    return UrlBasedCorsConfigurationSource().apply {
+        registerCorsConfiguration("/**", config)
+    }
+}
+```

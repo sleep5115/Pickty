@@ -102,7 +102,7 @@
         → OAuth2SuccessHandler: JWT 발급
           → 성공: 팝업을 /auth/callback?token={JWT} 로 리다이렉트
             → [auth/callback/page.tsx] postMessage({ type:'OAUTH_SUCCESS', token }) → window.close()
-              → [login/page.tsx] 토큰 수신 → Zustand store 저장 → router.push('/')
+              → [login/page.tsx] 토큰 수신 → Zustand store 저장 → router.push('/dashboard')
           → 실패: 팝업을 /auth/callback?error=... 로 리다이렉트
             → postMessage({ type:'OAUTH_ERROR' }) → window.close()
               → [login/page.tsx] 에러 배너 표시
@@ -122,6 +122,7 @@ app/
 ├── login/page.tsx              # 로그인 (react-hook-form + zod + OAuth2 팝업)
 ├── signup/page.tsx             # 회원가입
 ├── auth/callback/page.tsx      # OAuth2 팝업 콜백
+├── dashboard/page.tsx          # 내 계정 대시보드 (유저 정보 + Google OAuth raw 속성 표시)
 ├── tier/page.tsx               # 더미 티어 대시보드
 └── worldcup/page.tsx           # 더미 월드컵 대시보드
 components/
@@ -146,6 +147,9 @@ domain/
 └── user/
     ├── User.kt / SocialAccount.kt / Provider.kt / Role.kt
     ├── UserRepository.kt / SocialAccountRepository.kt
+    ├── UserController.kt                               # GET /api/v1/user/me, GET /api/v1/user/me/oauth-raw
+    ├── UserService.kt                                  # getMe, getOAuthRaw (Valkey 30분 캐시)
+    └── UserResponse.kt                                 # DTO
 global/
 ├── common/BaseTimeEntity.kt
 ├── config/
@@ -244,8 +248,6 @@ jwt:
 
 - [ ] Backend: Refresh Token 재발급 API (`POST /auth/refresh`)
 - [ ] Backend: 로그아웃 API (`POST /auth/logout`) — Valkey Refresh Token 삭제
-- [ ] Backend: Refresh Token 재발급 API (`POST /auth/refresh`)
-- [ ] Backend: 로그아웃 API (`POST /auth/logout`) — Refresh Token 삭제
 - [ ] Backend: 자체 회원가입/로그인 API (`POST /auth/signup`, `POST /auth/login`)
 - [ ] Frontend: 자체 로그인/회원가입 폼 → 백엔드 API 연동
 - [ ] 네이버 / 카카오 OAuth2 앱 등록 및 크레덴셜 발급

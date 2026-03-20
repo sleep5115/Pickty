@@ -25,10 +25,39 @@ const PROVIDER_STYLE: Record<string, { label: string; className: string }> = {
   SOOP:    { label: 'SOOP',    className: 'bg-[#FF6B35] text-white' },
 };
 
+function RawAttrValue({ value }: { value: unknown }) {
+  if (value === null || value === undefined) {
+    return <span className="text-zinc-500">null</span>;
+  }
+  if (typeof value === 'boolean') {
+    return <span className={value ? 'text-green-400' : 'text-red-400'}>{String(value)}</span>;
+  }
+  if (typeof value === 'number') {
+    return <span className="text-amber-400">{String(value)}</span>;
+  }
+  if (typeof value === 'object') {
+    return (
+      <span className="text-zinc-400 font-mono text-xs">
+        {JSON.stringify(value, null, 2)}
+      </span>
+    );
+  }
+  const str = String(value);
+  if (str.startsWith('http')) {
+    return (
+      <a href={str} target="_blank" rel="noopener noreferrer" className="text-violet-400 hover:text-violet-300 underline break-all">
+        {str}
+      </a>
+    );
+  }
+  return <span className="text-zinc-100 break-all">{str}</span>;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const { accessToken, clearAuth } = useAuthStore();
   const [user, setUser] = useState<UserInfo | null>(null);
+  const [oauthRaw, setOauthRaw] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tokenVisible, setTokenVisible] = useState(false);
@@ -39,14 +68,23 @@ export default function DashboardPage() {
       return;
     }
 
-    fetch(`${API_URL}/api/v1/user/me`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    })
-      .then((res) => {
+    const headers = { Authorization: `Bearer ${accessToken}` };
+
+    Promise.all([
+      fetch(`${API_URL}/api/v1/user/me`, { headers }).then((res) => {
         if (!res.ok) throw new Error(`${res.status}`);
         return res.json() as Promise<UserInfo>;
+      }),
+      fetch(`${API_URL}/api/v1/user/me/oauth-raw`, { headers }).then((res) => {
+        if (res.status === 204) return null;
+        if (!res.ok) return null;
+        return res.json() as Promise<Record<string, unknown>>;
+      }),
+    ])
+      .then(([userData, rawData]) => {
+        setUser(userData);
+        setOauthRaw(rawData);
       })
-      .then((data) => setUser(data))
       .catch((err) => setError(`유저 정보를 불러오지 못했습니다. (${err.message})`))
       .finally(() => setLoading(false));
   }, [accessToken, router]);
@@ -149,6 +187,47 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Google OAuth Raw Attributes */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <h2 className="text-sm font-semibold text-zinc-300">Google OAuth2 Raw Attributes</h2>
+            {oauthRaw ? (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/15 text-green-400 border border-green-500/20">
+                캐시됨 (30분)
+              </span>
+            ) : (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-500 border border-zinc-700">
+                만료됨 — 재로그인 필요
+              </span>
+            )}
+          </div>
+
+          {oauthRaw ? (
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="border-b border-zinc-800">
+                  <th className="text-left py-2 pr-4 text-xs font-medium text-zinc-500 w-1/3">Key</th>
+                  <th className="text-left py-2 text-xs font-medium text-zinc-500">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(oauthRaw).map(([key, value]) => (
+                  <tr key={key} className="border-b border-zinc-800/50 last:border-0">
+                    <td className="py-2.5 pr-4 font-mono text-xs text-fuchsia-400 align-top">{key}</td>
+                    <td className="py-2.5 font-mono text-xs align-top">
+                      <RawAttrValue value={value} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="text-sm text-zinc-500">
+              raw 속성 캐시가 만료되었습니다. 로그아웃 후 다시 로그인하면 표시됩니다.
+            </p>
+          )}
         </div>
 
         {/* JWT 토큰 (디버그용) */}

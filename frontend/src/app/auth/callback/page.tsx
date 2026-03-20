@@ -25,7 +25,7 @@ function CallbackHandler() {
       window.close();
     } else {
       // 팝업이 아닌 경우 (팝업 차단 후 리다이렉트 fallback)
-      window.location.href = token ? '/' : '/login?error=oauth_failed';
+      window.location.href = token ? '/dashboard' : '/login?error=oauth_failed';
     }
   }, [searchParams]);
 
