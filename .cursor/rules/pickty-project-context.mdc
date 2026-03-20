@@ -14,6 +14,12 @@ alwaysApply: true
 - `backend/` — **Backend** (Kotlin, Spring Boot)
 - `docker-compose.yml` — PostgreSQL 17 + Valkey 9
 
+### 브랜치 전략
+| 브랜치 | 용도 |
+|---|---|
+| `main` | 배포용 — GitHub 룰셋 없음, 관례로 직접 push 금지. `dev` PR로만 머지 |
+| `dev` | 기본 브랜치 — 평소 개발 작업, force push 허용 |
+
 ## 확정 버전 스택
 
 | 영역 | 기술 | 버전 |
