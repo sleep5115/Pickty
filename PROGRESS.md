@@ -246,8 +246,12 @@ jwt:
 
 ## 다음 작업 예정
 
+### Auth (나중에 재개)
+- [ ] 네이버 / 카카오 OAuth2 앱 등록 및 크레덴셜 발급 (구글과 동일한 방식으로, raw attributes 확인하며 진행)
 - [ ] Backend: Refresh Token 재발급 API (`POST /auth/refresh`)
 - [ ] Backend: 로그아웃 API (`POST /auth/logout`) — Valkey Refresh Token 삭제
 - [ ] Backend: 자체 회원가입/로그인 API (`POST /auth/signup`, `POST /auth/login`)
 - [ ] Frontend: 자체 로그인/회원가입 폼 → 백엔드 API 연동
-- [ ] 네이버 / 카카오 OAuth2 앱 등록 및 크레덴셜 발급
+
+### 다음 세션에서 할 작업 (Auth 외)
+- 미정 — Tier Maker / Ideal Type World Cup 중 결정
