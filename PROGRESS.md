@@ -244,14 +244,50 @@ jwt:
 
 ---
 
-## 다음 작업 예정
+## 개발 진행 방향 (로드맵)
 
-### Auth (나중에 재개)
-- [ ] 네이버 / 카카오 OAuth2 앱 등록 및 크레덴셜 발급 (구글과 동일한 방식으로, raw attributes 확인하며 진행)
-- [ ] Backend: Refresh Token 재발급 API (`POST /auth/refresh`)
-- [ ] Backend: 로그아웃 API (`POST /auth/logout`) — Valkey Refresh Token 삭제
-- [ ] Backend: 자체 회원가입/로그인 API (`POST /auth/signup`, `POST /auth/login`)
-- [ ] Frontend: 자체 로그인/회원가입 폼 → 백엔드 API 연동
+MVP 우선 원칙 — "동작하는 핵심 기능"을 먼저, 완성도는 나중에 올린다.
 
-### 다음 세션에서 할 작업 (Auth 외)
-- 미정 — Tier Maker / Ideal Type World Cup 중 결정
+### Phase 1 — 뼈대 (현재 단계)
+> 목표: 앱을 돌아다닐 수 있는 최소한의 구조 완성
+
+- [x] 구글 OAuth2 로그인 E2E
+- [ ] **글로벌 레이아웃 / GNB** — 헤더(로고, 메뉴, 로그인 상태), 기본 페이지 구조
+- [ ] **프론트 로그아웃** — Zustand 토큰 삭제 + 홈 리다이렉트 (백엔드 Valkey 삭제는 나중)
+- [ ] (선택) `/tier`, `/worldcup` 진입 경로 연결
+
+> ⚠️ 백엔드 완벽한 로그아웃(Refresh Token 삭제), 자체 회원가입/로그인, 네이버/카카오는  
+> 핵심 서비스 개발 후 Auth 고도화 단계에서 한꺼번에 처리
+
+### Phase 2 — 핵심 서비스 기획
+> 목표: 코드 치기 전에 "무엇을 만들지" 확정
+
+- [ ] **Tier Maker 화면 기획** — 유저 흐름, 필요한 데이터, API 스펙 초안
+- [ ] **Ideal Type World Cup 화면 기획** — 유저 흐름, 토너먼트 진행 방식, 실시간 여부
+- [ ] 스트리머 모드 범위 결정 (1차 MVP에 포함할지 여부)
+
+> 기획이 확정돼야 프론트 컴포넌트 구조와 백엔드 API 설계를 헤매지 않고 진행 가능
+
+### Phase 3 — 핵심 서비스 구현
+> 목표: 실제로 동작하는 Tier Maker / World Cup
+
+- [ ] 백엔드 API 설계 및 구현 (템플릿, 항목, 결과 저장 등)
+- [ ] 프론트엔드 서비스 화면 구현
+- [ ] 이미지 업로드 (S3 or 외부 스토리지 연동)
+- [ ] 스트리머 모드 (실시간 집계, Valkey pub/sub 또는 WebSocket)
+
+### Phase 4 — Auth 고도화 & 운영 준비
+> 목표: 서비스가 동작한 후 완성도 올리기
+
+- [ ] 네이버 / 카카오 OAuth2 추가
+- [ ] 자체 회원가입 / 로그인
+- [ ] Refresh Token 재발급 / 완전한 로그아웃
+- [ ] 배포 환경 구성 (Vercel + Docker)
+
+---
+
+## 다음 작업 예정 (Phase 1)
+
+- [ ] 글로벌 레이아웃 / GNB 구현
+- [ ] 프론트 로그아웃 처리
+- [ ] Tier Maker / World Cup 기획 확정 후 Phase 2 → 3 진입
