@@ -1,0 +1,30 @@
+package com.pickty.server.domain.tier
+
+import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
+import java.util.UUID
+
+interface TierResultRepository : JpaRepository<TierResult, UUID> {
+
+    fun countByTemplate_Id(templateId: UUID): Long
+
+    @Query(
+        """
+        SELECT r FROM TierResult r
+        JOIN FETCH r.template t
+        WHERE r.id = :id
+        """,
+    )
+    fun findByIdWithTemplate(@Param("id") id: UUID): TierResult?
+
+    @Query(
+        """
+        SELECT r FROM TierResult r
+        JOIN FETCH r.template t
+        WHERE r.userId = :userId
+        ORDER BY r.createdAt DESC
+        """,
+    )
+    fun findByUserIdWithTemplateOrderByCreatedAtDesc(@Param("userId") userId: Long): List<TierResult>
+}

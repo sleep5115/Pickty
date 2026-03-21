@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -79,10 +79,16 @@ function EyeIcon({ open }: { open: boolean }) {
   );
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
+const API_URL = process.env.NEXT_PUBLIC_API_URL?.trim() || 'http://localhost:8080';
 
-export default function LoginPage() {
+function safeReturnPath(raw: string | null): string {
+  if (raw && raw.startsWith('/') && !raw.startsWith('//')) return raw;
+  return '/dashboard';
+}
+
+function LoginPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { setAccessToken } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [socialError, setSocialError] = useState<string | null>(null);
@@ -101,7 +107,7 @@ export default function LoginPage() {
 
       if (event.data?.type === 'OAUTH_SUCCESS') {
         setAccessToken(event.data.token as string);
-        router.push('/dashboard');
+        router.push(safeReturnPath(searchParams.get('returnTo')));
       } else if (event.data?.type === 'OAUTH_ERROR') {
         setSocialError('소셜 로그인에 실패했습니다. 다시 시도해 주세요.');
       }
@@ -109,7 +115,7 @@ export default function LoginPage() {
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [router]);
+  }, [router, searchParams, setAccessToken]);
 
   const onSubmit = async (data: LoginFormValues) => {
     // TODO: 자체 로그인 API 연동
@@ -139,7 +145,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-4 py-12">
+    <div className="flex-1 flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
@@ -148,15 +154,15 @@ export default function LoginPage() {
               Pickty
             </span>
           </Link>
-          <p className="mt-2 text-sm text-zinc-400">티어표 만들기 & 이상형 월드컵</p>
+          <p className="mt-2 text-sm text-slate-500 dark:text-zinc-400">티어표 만들기 & 이상형 월드컵</p>
         </div>
 
         {/* Card */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl shadow-black/50">
-          <h1 className="text-xl font-bold text-zinc-100 mb-6">로그인</h1>
+        <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-8 shadow-xl shadow-black/10 dark:shadow-black/50">
+          <h1 className="text-xl font-bold text-slate-900 dark:text-zinc-100 mb-6">로그인</h1>
 
           {socialError && (
-            <div className="mb-4 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-sm text-red-400">
+            <div className="mb-4 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-sm text-red-500 dark:text-red-400">
               {socialError}
             </div>
           )}
@@ -164,7 +170,7 @@ export default function LoginPage() {
           {/* Email/Password Form */}
           <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-zinc-300 mb-1.5">
+              <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-1.5">
                 이메일
               </label>
               <input
@@ -172,16 +178,16 @@ export default function LoginPage() {
                 type="email"
                 autoComplete="email"
                 placeholder="example@email.com"
-                className="w-full px-4 py-2.5 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-100 placeholder-zinc-500 text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/40 transition-colors"
+                className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/40 transition-colors"
                 {...register('email')}
               />
               {errors.email && (
-                <p className="mt-1.5 text-xs text-red-400">{errors.email.message}</p>
+                <p className="mt-1.5 text-xs text-red-500 dark:text-red-400">{errors.email.message}</p>
               )}
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-zinc-300 mb-1.5">
+              <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-1.5">
                 비밀번호
               </label>
               <div className="relative">
@@ -190,20 +196,20 @@ export default function LoginPage() {
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
                   placeholder="비밀번호를 입력하세요"
-                  className="w-full px-4 py-2.5 pr-11 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-100 placeholder-zinc-500 text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/40 transition-colors"
+                  className="w-full px-4 py-2.5 pr-11 rounded-xl bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/40 transition-colors"
                   {...register('password')}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300 transition-colors"
                   aria-label={showPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
                 >
                   <EyeIcon open={showPassword} />
                 </button>
               </div>
               {errors.password && (
-                <p className="mt-1.5 text-xs text-red-400">{errors.password.message}</p>
+                <p className="mt-1.5 text-xs text-red-500 dark:text-red-400">{errors.password.message}</p>
               )}
             </div>
 
@@ -218,9 +224,9 @@ export default function LoginPage() {
 
           {/* Divider */}
           <div className="my-6 flex items-center gap-3">
-            <div className="flex-1 h-px bg-zinc-800" />
-            <span className="text-xs text-zinc-500 font-medium">또는</span>
-            <div className="flex-1 h-px bg-zinc-800" />
+            <div className="flex-1 h-px bg-slate-200 dark:bg-zinc-800" />
+            <span className="text-xs text-slate-400 dark:text-zinc-500 font-medium">또는</span>
+            <div className="flex-1 h-px bg-slate-200 dark:bg-zinc-800" />
           </div>
 
           {/* Wide Social Buttons */}
@@ -228,7 +234,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => handleSocialLogin('google')}
-              className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl bg-white hover:bg-gray-50 text-gray-700 font-medium text-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+              className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl bg-white hover:bg-gray-50 border border-slate-200 text-gray-700 font-medium text-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
             >
               <GoogleIcon />
               <span className="flex-1 text-center">Google로 계속하기</span>
@@ -257,7 +263,7 @@ export default function LoginPage() {
 
           {/* Circular Social Buttons */}
           <div className="mt-5 flex items-center justify-center gap-4">
-            <div className="flex-1 h-px bg-zinc-800" />
+            <div className="flex-1 h-px bg-slate-200 dark:bg-zinc-800" />
             <div className="flex gap-3">
               <button
                 type="button"
@@ -273,7 +279,7 @@ export default function LoginPage() {
                 type="button"
                 aria-label="치지직으로 로그인"
                 onClick={() => handleSocialLogin('chzzk')}
-                className="w-11 h-11 rounded-full flex items-center justify-center bg-zinc-800 border border-zinc-700 overflow-hidden transition-all duration-200 hover:scale-110 hover:border-[#00FF77] active:scale-95 cursor-pointer"
+                className="w-11 h-11 rounded-full flex items-center justify-center bg-slate-100 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 overflow-hidden transition-all duration-200 hover:scale-110 hover:border-[#00FF77] active:scale-95 cursor-pointer"
               >
                 <span className="text-xs font-black text-[#00FF77]">치직</span>
               </button>
@@ -288,21 +294,37 @@ export default function LoginPage() {
                 S
               </button>
             </div>
-            <div className="flex-1 h-px bg-zinc-800" />
+            <div className="flex-1 h-px bg-slate-200 dark:bg-zinc-800" />
           </div>
         </div>
 
         {/* Signup Link */}
-        <p className="text-center mt-6 text-sm text-zinc-500">
+        <p className="text-center mt-6 text-sm text-slate-500 dark:text-zinc-500">
           아직 계정이 없으신가요?{' '}
           <Link
             href="/signup"
-            className="text-violet-400 hover:text-violet-300 font-medium transition-colors"
+            className="text-violet-500 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 font-medium transition-colors"
           >
             회원가입
           </Link>
         </p>
       </div>
     </div>
+  );
+}
+
+function LoginSuspenseFallback() {
+  return (
+    <div className="flex-1 flex items-center justify-center px-4 py-12">
+      <div className="w-10 h-10 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" />
+    </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginSuspenseFallback />}>
+      <LoginPageContent />
+    </Suspense>
   );
 }

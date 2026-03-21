@@ -5,6 +5,7 @@ import com.pickty.server.domain.auth.service.CustomOAuth2UserService
 import com.pickty.server.global.jwt.JwtAuthenticationFilter
 import com.pickty.server.global.oauth2.HttpCookieOAuth2AuthorizationRequestRepository
 import com.pickty.server.global.security.UnauthorizedEntryPoint
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpMethod
@@ -27,18 +28,39 @@ class SecurityConfig(
     private val oAuth2SuccessHandler: OAuth2SuccessHandler,
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
     private val cookieAuthorizationRequestRepository: HttpCookieOAuth2AuthorizationRequestRepository,
+    @Value("\${app.frontend-url:http://localhost:3002}") private val frontendUrl: String,
+    @Value("\${app.oauth2.allowed-frontend-origins:http://localhost:3002}") private val allowedOriginsRaw: String,
 ) {
 
     @Bean
     fun corsConfigurationSource(): CorsConfigurationSource {
-        val config = CorsConfiguration().apply {
-            allowedOrigins = listOf("http://localhost:3002")
+        val origins = (allowedOriginsRaw.split(",").map { it.trim() } + frontendUrl)
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .distinct()
+
+        // 공개 정적 파일: 임의 오리진에서 <img crossorigin="anonymous">·html-to-image 캡처용
+        // (쿠키 없음, allowCredentials=false + pattern * 가 스펙상 허용)
+        val uploadsCors = CorsConfiguration().apply {
+            allowedOriginPatterns = listOf("*")
+            allowedMethods = listOf("GET", "HEAD", "OPTIONS")
+            allowedHeaders = listOf("*")
+            allowCredentials = false
+            maxAge = 3600L
+        }
+
+        val apiCors = CorsConfiguration().apply {
+            allowedOrigins = origins
+            allowedOriginPatterns = listOf("http://localhost:*", "http://127.0.0.1:*")
             allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "OPTIONS")
             allowedHeaders = listOf("*")
             allowCredentials = true
         }
+
+        // 더 구체적인 패턴을 먼저 등록 (/** 가 /uploads 를 가로채지 않도록)
         return UrlBasedCorsConfigurationSource().apply {
-            registerCorsConfiguration("/**", config)
+            registerCorsConfiguration("/uploads/**", uploadsCors)
+            registerCorsConfiguration("/**", apiCors)
         }
     }
 
@@ -57,6 +79,11 @@ class SecurityConfig(
                     .requestMatchers(HttpMethod.POST, "/api/v1/user/**").authenticated()
                     .requestMatchers(HttpMethod.PUT, "/api/v1/user/**").authenticated()
                     .requestMatchers(HttpMethod.DELETE, "/api/v1/user/**").authenticated()
+                    // 티어 템플릿·결과 생성은 로그인 필수 (비로그인 임시 저장 미제공)
+                    .requestMatchers(HttpMethod.POST, "/api/v1/templates").authenticated()
+                    .requestMatchers(HttpMethod.POST, "/api/v1/images").authenticated()
+                    .requestMatchers(HttpMethod.POST, "/api/v1/tiers/results").authenticated()
+                    .requestMatchers(HttpMethod.GET, "/api/v1/tiers/results/mine").authenticated()
                     .anyRequest().permitAll()
             }
             .oauth2Login { oauth2 ->

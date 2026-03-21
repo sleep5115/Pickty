@@ -16,6 +16,7 @@ class HttpCookieOAuth2AuthorizationRequestRepository :
 
     companion object {
         const val OAUTH2_AUTHORIZATION_REQUEST_COOKIE = "oauth2_auth_request"
+        const val OAUTH2_FRONTEND_ORIGIN_COOKIE = "oauth2_frontend_origin"
         private const val COOKIE_EXPIRE_SECONDS = 180
     }
 
@@ -30,6 +31,7 @@ class HttpCookieOAuth2AuthorizationRequestRepository :
     ) {
         if (authorizationRequest == null) {
             CookieUtils.deleteCookie(request, response, OAUTH2_AUTHORIZATION_REQUEST_COOKIE)
+            CookieUtils.deleteCookie(request, response, OAUTH2_FRONTEND_ORIGIN_COOKIE)
             return
         }
         CookieUtils.addCookie(
@@ -38,6 +40,12 @@ class HttpCookieOAuth2AuthorizationRequestRepository :
             CookieUtils.serialize(authorizationRequest),
             COOKIE_EXPIRE_SECONDS,
         )
+        // 로그인 시작 시점의 프론트엔드 오리진을 쿠키에 저장 → 성공 핸들러에서 동적 리다이렉트에 활용
+        val origin = request.getHeader("Origin") ?: request.getHeader("Referer")
+            ?.let { runCatching { java.net.URI(it).let { u -> "${u.scheme}://${u.host}${if (u.port > 0) ":${u.port}" else ""}" } }.getOrNull() }
+        if (origin != null) {
+            CookieUtils.addCookie(response, OAUTH2_FRONTEND_ORIGIN_COOKIE, origin, COOKIE_EXPIRE_SECONDS)
+        }
     }
 
     override fun removeAuthorizationRequest(
@@ -46,5 +54,6 @@ class HttpCookieOAuth2AuthorizationRequestRepository :
     ): OAuth2AuthorizationRequest? =
         loadAuthorizationRequest(request).also {
             CookieUtils.deleteCookie(request, response, OAUTH2_AUTHORIZATION_REQUEST_COOKIE)
+            CookieUtils.deleteCookie(request, response, OAUTH2_FRONTEND_ORIGIN_COOKIE)
         }
 }

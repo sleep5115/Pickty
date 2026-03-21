@@ -4,6 +4,7 @@ import tools.jackson.databind.ObjectMapper
 import com.pickty.server.domain.auth.PrincipalDetails
 import com.pickty.server.domain.auth.service.RefreshTokenService
 import com.pickty.server.global.jwt.JwtTokenProvider
+import com.pickty.server.global.oauth2.CookieUtils
 import com.pickty.server.global.oauth2.HttpCookieOAuth2AuthorizationRequestRepository
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -23,7 +24,12 @@ class OAuth2SuccessHandler(
     private val redisTemplate: StringRedisTemplate,
     private val objectMapper: ObjectMapper,
     @Value("\${app.frontend-url:http://localhost:3002}") private val frontendUrl: String,
+    @Value("\${app.oauth2.allowed-frontend-origins:http://localhost:3002}") private val allowedOriginsRaw: String,
 ) : SimpleUrlAuthenticationSuccessHandler() {
+
+    private val allowedOrigins: Set<String> by lazy {
+        allowedOriginsRaw.split(",").map { it.trim() }.toSet()
+    }
 
     companion object {
         private const val OAUTH_RAW_KEY_PREFIX = "oauth2:raw:"
@@ -47,9 +53,14 @@ class OAuth2SuccessHandler(
 
         clearAuthenticationAttributes(request, response)
 
+        // 로그인 시작 시점에 저장된 프론트엔드 오리진 쿠키를 읽어 동적 리다이렉트
+        // 화이트리스트에 없는 오리진이면 기본 frontendUrl로 폴백
+        val savedOrigin = CookieUtils.getCookie(request, HttpCookieOAuth2AuthorizationRequestRepository.OAUTH2_FRONTEND_ORIGIN_COOKIE)?.value
+        val resolvedOrigin = savedOrigin?.takeIf { it in allowedOrigins } ?: frontendUrl
+
         // TODO: 운영 환경에서는 refreshToken을 HttpOnly 쿠키로 전달하도록 변경
         val targetUrl = UriComponentsBuilder
-            .fromUriString("$frontendUrl/auth/callback")
+            .fromUriString("$resolvedOrigin/auth/callback")
             .queryParam("token", accessToken)
             .build().toUriString()
 

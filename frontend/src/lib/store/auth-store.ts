@@ -5,6 +5,7 @@ interface AuthState {
   accessToken: string | null;
   setAccessToken: (token: string) => void;
   clearAuth: () => void;
+  logout: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -13,6 +14,7 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       setAccessToken: (token) => set({ accessToken: token }),
       clearAuth: () => set({ accessToken: null }),
+      logout: () => set({ accessToken: null }),
     }),
     {
       name: 'pickty-auth',
