@@ -76,15 +76,19 @@ alwaysApply: true
   git config user.name "sleep5115"
   git config user.email "85235927+sleep5115@users.noreply.github.com"
 
-  # 2. application-secrets.yaml + application-local.yaml (gitignore) — USB·pickty-config 등으로 복사
-  #    secrets: OAuth·JWT / local 파일: 로컬 Docker JDBC·Valkey·Lightsail # 메모
-  #    기본 프로필은 dev — ./gradlew bootRun. local 전용은 bootRunLocal. prod는 서버에서 --spring.profiles.active=prod
+  # 2. private pickty-config — secrets·local·docker 비번 (Pickty 레포에 커밋 금지)
+  #    git clone https://github.com/sleep5115/pickty-config.git
+  #    copy pickty-config\application-secrets.yaml backend\src\main\resources\
+  #    copy pickty-config\application-local.yaml backend\src\main\resources\
+  #    copy pickty-config\.env .env
+  #    (워크스페이스에 pickty-config/ 클론해 두어도 Pickty .gitignore 의 pickty-config/ 로 메인 레포에 안 올라감)
+  #    기본 프로필 dev — ./gradlew bootRun. local 은 bootRunLocal. prod 는 --spring.profiles.active=prod
 
   # 3. (선택) PC에서만 로컬 DB가 필요할 때만
   docker compose up -d
   ```
 - **Spring 프로필**: **`dev`**(기본) = 일상 개발, DB **`pickty_dev`**, Valkey **1**, **`./gradlew bootRun`**, 공용 DB면 **`DB_HOST`·`VALKEY_HOST`**. **`local`** = 로컬 compose만 DB **`pickty`**, Valkey **0**, **`./gradlew bootRunLocal`**. **`prod`** = `application-prod.yaml`, **`pickty_prod`**, Valkey **0**. OAuth·JWT는 **`application-secrets.yaml`**. **`./gradlew test`** → `test` + Testcontainers(**Docker 필요**).
-- **`application-secrets.yaml`** / **`application-local.yaml`** 은 **.gitignore** — USB 등으로만 PC 간 이전. 공개 문서·커밋에 실값 금지
+- **`application-secrets.yaml`** / **`application-local.yaml`** / 루트 **`.env`** 는 Pickty 쪽 **.gitignore** — 원본은 **`pickty-config`** private 레포에서 `git pull` 후 복사. 공개 커밋·PROGRESS에 실값 금지
 - 절대로 `git config --global`로 설정하지 말 것 (회사 글로벌 config 오염 방지)
 
 ## 진행 현황 파일 관리 규칙

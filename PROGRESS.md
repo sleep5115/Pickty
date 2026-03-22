@@ -115,6 +115,10 @@
 
 - **개발 DB**: Lightsail 은 **`pickty_dev` / `pickty_prod`**(앱) + DBeaver용 빈 **`pickty`** 선택. 로컬 PC docker-compose 기본 DB도 **`pickty`**. **`./gradlew bootRun`**(`dev`) / **`bootRunLocal`**(`local`). Compose 비번은 **`.env`**, Spring dev 비번은 **`application-secrets.yaml`의 `DB_PASSWORD`**(레포 YAML에는 기본값 없음 — 과거 커밋에 비번 있었으면 히스토리·Lightsail 비번 **교체 검토**). 방화벽 **5432·6379** 는 가능하면 **본인 IP만**.
 
+### 세션 메모 (2026-03-23)
+
+- **pickty-config**: `application-secrets.yaml` · `application-local.yaml` · `.env` 를 private 레포에 커밋해 두고, Pickty 메인은 플레이스홀더만 유지. 메인 레포 루트 **`.gitignore`에 `pickty-config/`** 추가(워크스페이스에 설정 레포 클론 시 서브트리 오커밋 방지). 회사 PC는 `pickty-config` pull 후 README대로 복사.
+
 ### 세션 메모 (2026-03-21)
 
 - **Lightsail Postgres**: 앱용 **`pickty_dev` / `pickty_prod`**. DBeaver에서 클러스터 전체 DB 목록은 초기 접속 DB **`postgres`** 로 연결 후 펼치기. **`postgres`** 는 PostgreSQL이 자동 생성하는 관리용 DB. 비밀번호는 gitignore **`application-secrets.yaml`** 의 **`DB_PASSWORD`** 에 기록(레포 비적재).
@@ -143,7 +147,7 @@
 ### 개발 환경
 - **공용 DB**: Lightsail 등에 PostgreSQL 17 · Valkey 9, JDBC **`pickty_dev`** / **`pickty_prod`** 분리. PC에서는 프로필 **`dev`** 또는 로컬 **`local`**.
 - **로컬 폴백**: `docker-compose.yml` — Lightsail 미사용·오프라인 시에만 `docker compose up -d`
-- DB 접속·공인 IP·비밀번호·OAuth·JWT: gitignore **`application-secrets.yaml`** + **`application-local.yaml`**(로컬 전용 연결·인프라 메모) — USB로 집↔회사 동기화
+- DB 접속·공인 IP·비밀번호·OAuth·JWT: **`pickty-config`** private 레포의 **`application-secrets.yaml`** · **`application-local.yaml`** · 루트 **`.env`** 를 Pickty 쪽 gitignore 경로에 복사 — `git pull pickty-config` 후 재복사로 동기화
 - **DB 이름**: **로컬 PC** docker-compose 기본 **`pickty`** + init으로 **`pickty_dev`·`pickty_prod`**. **Lightsail** 도 동일하게 **`pickty` / `pickty_dev` / `pickty_prod`** + 시스템 **`postgres`**. **`postgres`·template* 는 DROP 금지.**
 - Google OAuth2: `application-secrets.yaml`에 적용(gitignore)
 - 모노레포(Pickty) 전환 완료: 기존 side_project_1, side_project_2 분리 레포 → 단일 레포 통합
@@ -296,20 +300,20 @@ cd Pickty
 git config user.name "sleep5115"
 git config user.email "85235927+sleep5115@users.noreply.github.com"
 
-# 2. application-secrets.yaml + application-local.yaml → USB 또는 pickty-config 등으로 복사
-#    backend\src\main\resources\application-secrets.yaml
-#    backend\src\main\resources\application-local.yaml
-#    (Lightsail Docker Postgres·Valkey 호스트·OAuth·JWT·DB_PASSWORD 등 — Git에 커밋 금지)
-
-# 2b. (선택) 로컬 docker compose — 루트에 .env 생성 (.env.example 복사 후 POSTGRES_PASSWORD 입력, gitignore)
+# 2. pickty-config private 레포에서 설정 복사 (또는 USB)
+#    git clone https://github.com/sleep5115/pickty-config.git
+#    copy pickty-config\application-secrets.yaml backend\src\main\resources\
+#    copy pickty-config\application-local.yaml backend\src\main\resources\
+#    copy pickty-config\.env .env
+#    (Pickty 레포에 secrets·.env 커밋 금지)
 
 # 3. (선택) Lightsail 대신 이 PC에서만 DB를 띄울 때만
 docker compose up -d
 ```
 
 ### application-secrets.yaml / application-local.yaml (집 PC ↔ 회사 PC)
-- **민감정보·OAuth·JWT** → **`application-secrets.yaml`**. **로컬 Docker JDBC·Valkey·Lightsail 메모(#)** → **`application-local.yaml`**. 둘 다 gitignore, **USB 등으로만** 동기화 (**PROGRESS·공개 커밋 금지**).
-- **선택**: 백업용으로 **pickty-config** private 레포에 동일 파일을 두는 방식.
+- **민감정보·OAuth·JWT·DB 플랫 키** → **`application-secrets.yaml`**. **로컬 Docker JDBC·Valkey·Lightsail 메모(#)** → **`application-local.yaml`**. **docker compose 비번** → 루트 **`.env`**. Pickty 메인 레포에는 커밋 금지.
+- **집↔회사 동기화(권장)**: Private **`pickty-config`** 레포(`https://github.com/sleep5115/pickty-config`)에 위 세 파일 + README 유지. 다른 PC에서는 `git clone`/`git pull` 후 `backend/src/main/resources/` 및 루트에 **복사**. Pickty 워크스페이스 안에 `pickty-config/` 를 클론해 두면 메인 레포 **`.gitignore`의 `pickty-config/`** 때문에 실수 커밋되지 않음. USB는 비상용.
 - **프론트**: `frontend/.env.local` 도 gitignore — `NEXT_PUBLIC_API_URL` 등은 백엔드와 같이 **집/회사 동기화**가 필요하면 같은 방식(USB 등)으로 맞출 것.
 
 ---
