@@ -1,7 +1,16 @@
 # ========================
+# 로컬에 클론만 두는 private 설정 레포 (실수로 서브모듈처럼 커밋 방지)
+# ========================
+pickty-config/
+
+# ========================
 # Secrets (절대 커밋 금지)
 # ========================
+**/*.pem
+**/Lightsail*.pem
+**/LightsailDefaultKey*.pem
 **/application-local.yaml
+**/application-secrets.yaml
 **/.env
 **/.env.local
 **/.env.*.local

@@ -1,15 +1,25 @@
+# 선택 사항: PC에서만 DB를 띄울 때 (오프라인·Lightsail 장애 시).
+# 평소 공용 개발 DB는 Lightsail 등 단일 Postgres 안에 pickty(레거시 기본)·pickty_dev / pickty_prod — Valkey는 논리 DB로 분리.
+# 로컬 전용 비밀·OAuth 등은 application-local.yaml (gitignore).
+#
+# 사용: 루트에 `.env` 생성 (`.env.example` 참고) 후 `docker compose up -d`
+# POSTGRES_PASSWORD 는 레포에 적지 말 것 — `.env` 만 (gitignore).
+# 기존 볼륨이 pickty 단일 DB만 있었다면: 새 DB는 init 스크립트가 최초 기동 시에만 실행되므로,
+# 이미 초기화된 pgdata면 수동으로 pickty_dev / pickty_prod 생성하거나 볼륨 재생성.
+
 services:
   postgres:
     image: postgres:17
     container_name: pickty-postgres
     environment:
       POSTGRES_USER: pickty
-      POSTGRES_PASSWORD: ***
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env — see .env.example}
       POSTGRES_DB: pickty
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
     restart: unless-stopped
 
   valkey:

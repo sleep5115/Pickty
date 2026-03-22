@@ -10,7 +10,7 @@
 - **레포**: https://github.com/sleep5115/Pickty (단일 모노레포)
 - `frontend/` — Frontend (Next.js App Router)
 - `backend/` — Backend (Kotlin, Spring Boot)
-- `docker-compose.yml` — PostgreSQL 17 + Valkey 9 로컬 환경
+- `docker-compose.yml` — PostgreSQL 17 + Valkey 9 **선택(로컬 PC 전용)**. **`POSTGRES_PASSWORD`** 는 루트 **`.env`**(gitignore, **`.env.example`** 참고) — 레포에 비번 문자열 커밋 금지. Postgres 기본 DB **`pickty`** + init으로 **`pickty_dev` / `pickty_prod`**. 공용 개발은 Lightsail 등 — 프로필 **`dev`** + `application-secrets.yaml` 의 `DB_HOST` 등
 - `PROGRESS.md` — 이 파일 (루트 단일 파일로 관리)
 
 ### 브랜치 전략
@@ -25,9 +25,59 @@
 
 | 구분 | 계획 |
 |------|------|
-| 백엔드·DB 호스팅 | **Hetzner** 가성비 서버에서 Spring Boot + **PostgreSQL** + **Valkey** 운영 |
+| 백엔드·DB 호스팅 | **AWS Lightsail** (서울 `ap-northeast-2`) — Spring Boot + **PostgreSQL** + **Valkey** (Docker) |
 | 이미지 스토리지 | **Cloudflare R2** (AWS S3 API 호환, Egress 무료) |
 | 프론트엔드 배포 | **Vercel** 또는 별도 컨테이너 |
+
+### 인프라 확정 방향 — 생각 흐름 요약 (2026-03)
+
+- **왜 Lightsail(서울) + R2인가**: 헤츠너 등은 가입/KYC 이슈로 제외. Lightsail은 **서울 리전**·카드 가입이 수월하고, 이미지 egress는 **R2**로 분리. 웹소켓 없이 “초대 URL → 제출 → 집계 표시”면 API 지연 요구가 상대적으로 낮음. 성공 후에는 **RDS·EC2 등으로 쪼개기** 또는 타 클라우드 이전 가능. DB 덤프/복원 시 **OAuth·CORS·쿠키·Redis·객체 URL** 체크. R2는 **S3 호환**이라 엔드포인트/키 주입형이면 이후에도 유지·이전이 쉬움.
+- **대량 유입(바이럴)**: 한 VPS의 물리 한계 + **DB·캐시(Valkey)·쿼리·집계 캐시** 설계가 병목. Lightsail 번들 업·이미지 CDN·필요 시 RDS/EC2 분리로 대응.
+- **개발 단계 운용 (합의)**  
+  - **PostgreSQL / Valkey**: **Lightsail Ubuntu + Docker** 등 **단일 Postgres**에 **`pickty_dev` / `pickty_prod`** 로 분리. 집/회사 PC는 기본 **`dev`**(공용 DB면 `DB_HOST`/`VALKEY_HOST`) 또는 **`local`**(로컬 compose만). OAuth·JWT는 **`application-secrets.yaml`**; **`local`** 전용 연결은 **`application-local.yaml`**. (USB 동기화 — PROGRESS에 실값 금지.)  
+  - **이미지**: **R2** 연동 목표 (임시 `pickty_uploads` 단계에서 이전).  
+  - **오픈 전**: 테스트 데이터·버킷 정리 또는 prod 전용 분리, OAuth·시크릿 프로덕션 값으로 교체.
+
+### 인프라 현황 스냅샷 — Lightsail (공개 문서·AI 컨텍스트용 요약)
+
+| 항목 | 내용 |
+|------|------|
+| 플랫폼 | **AWS Lightsail**, 리전 **서울** (`ap-northeast-2`), AZ **ap-northeast-2a** |
+| OS | **Ubuntu 24.04 LTS** (Noble) |
+| 사양 | **2 vCPU**, **2 GB RAM**, **60 GB SSD** (번들 기준) |
+| 네트워크 | **정적 IP(Static IP)** 할당 완료 — **공인 IP는 레포에 적지 않음** (Lightsail 콘솔·내부 메모 참고) |
+| 방화벽 | **TCP 22** (SSH), **80**, **443** 오픈. 집/회사 PC에서 DB·Valkey 직접 붙이면 **5432·6379** 추가 — **가능하면 고정 IP만** 허용 |
+| Swap | RAM 보완용 **2GB 스왑 파일** 생성·활성화 (`free -h` 기준 가용 메모리 약 4GB급 체감) |
+| 컨테이너 | **Docker** 29.3.x, **Docker Compose** 설치 완료 |
+| 권한 | `ubuntu` 유저 **docker 그룹** — `sudo` 없이 Docker 실행 가능 |
+| DB (개발) | 인스턴스 위 **Docker**로 **PostgreSQL 17** + **Valkey 9** — 앱·업무용 DB는 **`pickty_dev`**(개발)·**`pickty_prod`**(운영). **`pickty`** 는 로컬 compose 기본 DB + Lightsail에는 DBeaver 등 접속 앵커용 **빈 DB**로 둘 수 있음(데이터 없음). |
+
+*(**공인 IP·비밀번호**는 gitignore `application-local.yaml` 주석 / `application-secrets` 등에만. 루트 `docker-compose.yml`은 Lightsail 없을 때만 로컬 폴백.)*
+
+#### DBeaver로 Lightsail PostgreSQL 접속 (공개 문서 — 실주소·비번 금지)
+
+**PostgreSQL 구조 (중요)**: DB **`pickty_dev` / `pickty_prod` / `pickty`** 는 **서로 형제**(같은 클러스터 안의 **별도 데이터베이스**). 어떤 한 DB 안에 다른 DB가 **폴더처럼 들어가 있지 않음**. 그래서 “`pickty`로 접속한 뒤 그 안을 펼쳐서 `pickty_dev`가 보이게”는 **불가능**하고, **한 연결의 초기 Database는 하나만** 고른다.
+
+**전체 DB 목록을 트리에서 보고 싶을 때**: 연결 설정에서 **Show all databases**(또는 동등 옵션)를 켠 뒤, **Database** 를 **`pickty`** 또는 **`postgres`** 중 하나로 잡으면 된다. DBeaver **Databases** 노드를 펼치면 **`pickty`**, **`pickty_dev`**, **`pickty_prod`**, **`postgres`** 등이 **같은 레벨(형제)** 로 보인다(한 DB 안에 다른 DB가 들어가 있는 구조는 아님).
+
+**`postgres` DB가 뭐냐**: `initdb` 할 때 자동 생성되는 **관리용 기본 DB**. 직접 만든 적 없어도 항상 있다. **DROP 하면 안 됨** — 클러스터 유지보수·일부 도구·복구에 쓰이며, 없애면 문제 생길 수 있다. **`template0` / `template1` 도 삭제·변경 금지.**
+
+1. Lightsail 네트워킹에서 **TCP 5432** 허용(가능하면 **본인 집/회사 고정 IP**만).
+2. DBeaver → **새 연결** → **PostgreSQL**.
+3. **연결 필드** (비번·IP 실값은 **Git에 올리지 말 것** — `application-secrets.yaml`·pickty-config 등 gitignore만):
+
+| 필드 | 값 |
+|------|-----|
+| **Host** | Lightsail **정적 공인 IP** (`application-secrets.yaml`의 `DB_HOST`) |
+| **Port** | `5432` |
+| **Database** | **Show all databases 켠 상태**에서 진입점으로 **`pickty`** 또는 **`postgres`** 권장 — 트리에서 `pickty_dev`·`pickty_prod` 등 형제 DB 확인. **작업 DB만** 쓸 때는 **`pickty_dev`**(개발) / **`pickty_prod`**(운영·주의) |
+| **Username** | `pickty` (Docker `POSTGRES_USER` 와 동일; `pickty_user` 아님) |
+| **Password** | `application-secrets.yaml`의 **`DB_PASSWORD`**(로컬 compose `POSTGRES_PASSWORD` 와 맞춤) |
+
+4. **SSL** 은 보통 **비활성** 또는 기본값.
+5. **Test connection** → 저장.
+
+*(PROGRESS 본문에는 비밀번호 문자열을 적지 말 것 — 보안 규칙.)*
 
 ### UX 라우팅 흐름 (개편)
 
@@ -61,8 +111,14 @@
 - **알려진 개발 콘솔**: `next-themes` 인라인 script 관련 React 19 경고는 라이브러리 한계(동작은 Recoverable 수준).
 - **이미지 업로드 413**: (1) Tomcat `maxPostSize` — `application.yaml`의 `server.tomcat.*` + **`TomcatMaxPostSizeCustomizer`**(Boot 4는 `org.springframework.boot.tomcat.servlet.TomcatServletWebServerFactory`). (2) **일부 프록시는 요청당 본문 제한**이 있어 한 번에 여러 파일 POST 시 413이 남 → 프론트는 **`uploadPicktyImages`에서 파일마다 순차 `POST /api/v1/images`**(본문 1개씩). 단일 파일도 너무 크면 여전히 413 가능.
 
+### 세션 메모 (2026-03 후반)
+
+- **개발 DB**: Lightsail 은 **`pickty_dev` / `pickty_prod`**(앱) + DBeaver용 빈 **`pickty`** 선택. 로컬 PC docker-compose 기본 DB도 **`pickty`**. **`./gradlew bootRun`**(`dev`) / **`bootRunLocal`**(`local`). Compose 비번은 **`.env`**, Spring dev 비번은 **`application-secrets.yaml`의 `DB_PASSWORD`**(레포 YAML에는 기본값 없음 — 과거 커밋에 비번 있었으면 히스토리·Lightsail 비번 **교체 검토**). 방화벽 **5432·6379** 는 가능하면 **본인 IP만**.
+
 ### 세션 메모 (2026-03-21)
 
+- **Lightsail Postgres**: 앱용 **`pickty_dev` / `pickty_prod`**. DBeaver에서 클러스터 전체 DB 목록은 초기 접속 DB **`postgres`** 로 연결 후 펼치기. **`postgres`** 는 PostgreSQL이 자동 생성하는 관리용 DB. 비밀번호는 gitignore **`application-secrets.yaml`** 의 **`DB_PASSWORD`** 에 기록(레포 비적재).
+- **Spring 프로필 3종 + 단일 Postgres·다중 DB**: **`pickty`** = PC 로컬 compose 전용. Lightsail 등 공용 인스턴스는 **`pickty_dev` / `pickty_prod`** 만. **`dev`**(기본): `spring.profiles.default: dev`, **`./gradlew bootRun`**, JDBC **`pickty_dev`**, Valkey **1**, **`DB_HOST`·`VALKEY_HOST`**(`application-secrets.yaml`). **`local`**: **`application-local.yaml`**, 로컬 Docker **`pickty`**, Valkey **0**, **`bootRunLocal`**. **`prod`**: **`pickty_prod`**, Valkey **0**. OAuth·JWT는 **`application-secrets.yaml`**. **`test`**: Testcontainers + Docker.
 - **로컬 개발 전제**: ngrok 전용 코드 제거. `frontend/.env.local`의 `NEXT_PUBLIC_API_URL`은 **로컬 백엔드**(예: `http://localhost:8080`)로 맞출 것 — 옛 ngrok URL이 남으면 API·이미지 요청이 터널로 가며 실패함.
 - **옛 업로드 URL 리베이스**: DB JSON에 저장된 `https://(예전호스트)/uploads/…` 는 **`resolvePicktyUploadsUrl`** 등으로 현재 `NEXT_PUBLIC_API_URL` 오리진에 맞춤 (`pickty-image-url.ts`, `tier-api`, `tier-snapshot`, 썸네일·타일 `src`).
 - **CORS**: `SecurityConfig`에서 `/uploads/**` 별도 CORS(`allowedOriginPatterns("*")`, `allowCredentials=false`) + API용 `/**`는 기존 origins·`http://localhost:*` 패턴. `WebMvcConfig`의 `addCorsMappings`는 제거(실질 처리는 Security).
@@ -85,10 +141,11 @@
 ## 완료된 작업
 
 ### 개발 환경
-- Docker Compose로 PostgreSQL 17 + Valkey 9 로컬 구동 (`CursorProjects/docker-compose.yml`)
-- DB 접속 정보는 `application-local.yaml`로 분리 후 gitignore 처리
-- **로컬 DB 접속 정보**: `localhost:5432` / DB: `pickty` (접속 정보는 `application-local.yaml` 참고)
-- Google OAuth2 client-id / client-secret 발급 및 `application-local.yaml`에 적용 완료 (gitignore됨)
+- **공용 DB**: Lightsail 등에 PostgreSQL 17 · Valkey 9, JDBC **`pickty_dev`** / **`pickty_prod`** 분리. PC에서는 프로필 **`dev`** 또는 로컬 **`local`**.
+- **로컬 폴백**: `docker-compose.yml` — Lightsail 미사용·오프라인 시에만 `docker compose up -d`
+- DB 접속·공인 IP·비밀번호·OAuth·JWT: gitignore **`application-secrets.yaml`** + **`application-local.yaml`**(로컬 전용 연결·인프라 메모) — USB로 집↔회사 동기화
+- **DB 이름**: **로컬 PC** docker-compose 기본 **`pickty`** + init으로 **`pickty_dev`·`pickty_prod`**. **Lightsail** 도 동일하게 **`pickty` / `pickty_dev` / `pickty_prod`** + 시스템 **`postgres`**. **`postgres`·template* 는 DROP 금지.**
+- Google OAuth2: `application-secrets.yaml`에 적용(gitignore)
 - 모노레포(Pickty) 전환 완료: 기존 side_project_1, side_project_2 분리 레포 → 단일 레포 통합
 
 ### Frontend (`frontend/`)
@@ -239,69 +296,21 @@ cd Pickty
 git config user.name "sleep5115"
 git config user.email "85235927+sleep5115@users.noreply.github.com"
 
-# 2. 로컬 설정 파일 복사 (실제 값은 pickty-config 레포에 있음)
-git clone https://github.com/sleep5115/pickty-config.git
-copy pickty-config\application-local.yaml backend\src\main\resources\application-local.yaml
-rmdir /s /q pickty-config
-# 집 PC라면 포트 그대로, 회사 PC라면 postgresql 5442 / redis 6380 으로 수정
+# 2. application-secrets.yaml + application-local.yaml → USB 또는 pickty-config 등으로 복사
+#    backend\src\main\resources\application-secrets.yaml
+#    backend\src\main\resources\application-local.yaml
+#    (Lightsail Docker Postgres·Valkey 호스트·OAuth·JWT·DB_PASSWORD 등 — Git에 커밋 금지)
 
-# 3. Docker 기동
+# 2b. (선택) 로컬 docker compose — 루트에 .env 생성 (.env.example 복사 후 POSTGRES_PASSWORD 입력, gitignore)
+
+# 3. (선택) Lightsail 대신 이 PC에서만 DB를 띄울 때만
 docker compose up -d
 ```
 
-### application-local.yaml 관리
-- 실제 값은 **https://github.com/sleep5115/pickty-config** (private 레포) 에서 관리
-- 변경 시: pickty-config 레포의 파일 수정 후 push → 다음 PC에서 pull
-
-### application-local.yaml 구조 참고 (플레이스홀더)
-
-**집 PC** (`backend/src/main/resources/application-local.yaml`):
-```yaml
-spring:
-  datasource:
-    url: jdbc:postgresql://localhost:5432/pickty
-    username: <db-username>
-    password: <db-password>
-  data:
-    redis:
-      host: localhost
-      port: 6379
-      password:
-  security:
-    oauth2:
-      client:
-        registration:
-          google:
-            client-id: <google-client-id>
-            client-secret: <google-client-secret>
-
-jwt:
-  secret: <jwt-secret-32chars-이상>
-```
-
-**회사 PC** (`backend/src/main/resources/application-local.yaml`):
-```yaml
-spring:
-  datasource:
-    url: jdbc:postgresql://localhost:5442/pickty
-    username: <db-username>
-    password: <db-password>
-  data:
-    redis:
-      host: localhost
-      port: 6380
-      password:
-  security:
-    oauth2:
-      client:
-        registration:
-          google:
-            client-id: <google-client-id>
-            client-secret: <google-client-secret>
-
-jwt:
-  secret: <jwt-secret-32chars-이상>
-```
+### application-secrets.yaml / application-local.yaml (집 PC ↔ 회사 PC)
+- **민감정보·OAuth·JWT** → **`application-secrets.yaml`**. **로컬 Docker JDBC·Valkey·Lightsail 메모(#)** → **`application-local.yaml`**. 둘 다 gitignore, **USB 등으로만** 동기화 (**PROGRESS·공개 커밋 금지**).
+- **선택**: 백업용으로 **pickty-config** private 레포에 동일 파일을 두는 방식.
+- **프론트**: `frontend/.env.local` 도 gitignore — `NEXT_PUBLIC_API_URL` 등은 백엔드와 같이 **집/회사 동기화**가 필요하면 같은 방식(USB 등)으로 맞출 것.
 
 ---
 

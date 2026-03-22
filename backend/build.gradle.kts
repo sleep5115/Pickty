@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.springframework.boot.gradle.tasks.run.BootRun
 
 plugins {
 	kotlin("jvm") version "2.2.21"
@@ -43,6 +44,10 @@ dependencies {
 	testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
 	testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+	testImplementation(platform("org.testcontainers:testcontainers-bom:1.20.6"))
+	testImplementation("org.testcontainers:junit-jupiter")
+	testImplementation("org.testcontainers:postgresql")
+	testImplementation("org.testcontainers:testcontainers")
 }
 
 kotlin {
@@ -60,4 +65,16 @@ allOpen {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+}
+
+tasks.named<BootRun>("bootRun") {
+	systemProperty("spring.profiles.active", "dev")
+}
+
+tasks.register<BootRun>("bootRunLocal") {
+	group = "application"
+	description = "Run with local profile (Docker pickty — 스키마/마이그레이션 검증 등)"
+	classpath = sourceSets["main"].runtimeClasspath
+	mainClass = tasks.named<BootRun>("bootRun").get().mainClass
+	systemProperty("spring.profiles.active", "local")
 }

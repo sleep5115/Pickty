@@ -12,7 +12,7 @@ alwaysApply: true
 - **레포**: https://github.com/sleep5115/Pickty (단일 모노레포)
 - `frontend/` — **Frontend** (Next.js, App Router)
 - `backend/` — **Backend** (Kotlin, Spring Boot)
-- `docker-compose.yml` — PostgreSQL 17 + Valkey 9
+- `docker-compose.yml` — PostgreSQL 17 + Valkey 9 (**선택**: PC 로컬). **`POSTGRES_PASSWORD`** 는 루트 **`.env`**(gitignore, **`.env.example`** 참고) — compose YAML에 비번 하드코딩 금지. Postgres 기본 DB **`pickty`** + init **`pickty_dev`/`pickty_prod`**. Spring **`dev`**: **`application-secrets.yaml`** 의 `DB_HOST`·`DB_PASSWORD` 등(레포 YAML에 DB 비번 기본값 없음). DBeaver·**`postgres` DB DROP 금지** 등은 PROGRESS.md 참고
 
 ### 브랜치 전략
 | 브랜치 | 용도 |
@@ -38,7 +38,7 @@ alwaysApply: true
 | DB | PostgreSQL | 17.x |
 | Cache/RT | Valkey | 9.x |
 | Infra | Front 배포 | Vercel |
-| Infra | Back 배포 | Docker (Oracle Cloud/AWS/GCP 예정) |
+| Infra | Back 배포 | **AWS Lightsail** (서울) Docker — 프로필 **`local`(완전 로컬) / `dev`(공용 pickty_dev) / `prod`** |
 
 ## 핵심 기능
 
@@ -76,15 +76,15 @@ alwaysApply: true
   git config user.name "sleep5115"
   git config user.email "85235927+sleep5115@users.noreply.github.com"
 
-  # 2. 로컬 설정 파일 받아서 복사 (집 PC: 5432/6379, 회사 PC: 5442/6380으로 포트 수정)
-  git clone https://github.com/sleep5115/pickty-config.git
-  copy pickty-config\application-local.yaml backend\src\main\resources\application-local.yaml
-  rmdir /s /q pickty-config
+  # 2. application-secrets.yaml + application-local.yaml (gitignore) — USB·pickty-config 등으로 복사
+  #    secrets: OAuth·JWT / local 파일: 로컬 Docker JDBC·Valkey·Lightsail # 메모
+  #    기본 프로필은 dev — ./gradlew bootRun. local 전용은 bootRunLocal. prod는 서버에서 --spring.profiles.active=prod
 
-  # 3. Docker 컨테이너 기동
+  # 3. (선택) PC에서만 로컬 DB가 필요할 때만
   docker compose up -d
   ```
-- `backend/src/main/resources/application-local.yaml`이 없으면 위 2번 단계를 먼저 수행할 것
+- **Spring 프로필**: **`dev`**(기본) = 일상 개발, DB **`pickty_dev`**, Valkey **1**, **`./gradlew bootRun`**, 공용 DB면 **`DB_HOST`·`VALKEY_HOST`**. **`local`** = 로컬 compose만 DB **`pickty`**, Valkey **0**, **`./gradlew bootRunLocal`**. **`prod`** = `application-prod.yaml`, **`pickty_prod`**, Valkey **0**. OAuth·JWT는 **`application-secrets.yaml`**. **`./gradlew test`** → `test` + Testcontainers(**Docker 필요**).
+- **`application-secrets.yaml`** / **`application-local.yaml`** 은 **.gitignore** — USB 등으로만 PC 간 이전. 공개 문서·커밋에 실값 금지
 - 절대로 `git config --global`로 설정하지 말 것 (회사 글로벌 config 오염 방지)
 
 ## 진행 현황 파일 관리 규칙
@@ -107,7 +107,7 @@ Cursor는 루트 폴더(`CursorProjects/`) 하나만 열어서 사용한다.
 ## 보안 규칙 (절대 위반 금지)
 
 - **민감정보는 반드시 gitignore된 파일에만 작성한다**
-  - 허용: `application-local.yaml`, `.env.local`, `.env.*.local` (모두 gitignore 처리됨)
+  - 허용: `application-local.yaml`, `application-secrets.yaml`, `.env.local`, `.env.*.local` (모두 gitignore 처리됨)
   - 금지: `PROGRESS.md`, 커서룰즈, `application.yaml`, 소스코드, 그 외 git에 올라가는 모든 파일
 - 민감정보의 예시: API Key, Client ID/Secret, DB 비밀번호, JWT Secret, Access Token, 개인 이메일 등
 - PROGRESS.md나 커서룰즈에 설정 예시를 적을 때는 반드시 플레이스홀더 사용

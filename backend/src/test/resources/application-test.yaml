@@ -1,0 +1,26 @@
+# CI·로컬 테스트 전용 — Docker(Testcontainers)로 Postgres·Valkey 를 DynamicPropertySource 로 주입.
+# application.yaml 의 ${GOOGLE_CLIENT_ID}·${JWT_SECRET}·${FRONTEND_URL} 등 플레이스홀더용(커밋 yaml 에 콜론 기본값 없음).
+GOOGLE_CLIENT_ID: test-google-client-id
+GOOGLE_CLIENT_SECRET: test-google-client-secret
+JWT_SECRET: test-jwt-secret-256-bit-minimum-length-for-hmac-sha-256-algorithm
+FRONTEND_URL: http://localhost:3002
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: test-google-client-id
+            client-secret: test-google-client-secret
+
+jwt:
+  secret: test-jwt-secret-256-bit-minimum-length-for-hmac-sha-256-algorithm
+
+logging:
+  level:
+    root: WARN

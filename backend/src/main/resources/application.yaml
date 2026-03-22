@@ -1,3 +1,8 @@
+# 공통 기본값. 프로필 (단일 Postgres 인스턴스에 pickty / pickty_dev / pickty_prod):
+# - dev (기본): application-dev.yaml + gitignore application-secrets.yaml(DB_HOST·VALKEY_HOST·OAuth 등)
+# - local: gitignore application-local.yaml 만으로 로컬 Docker(pickty) — 스키마·마이그레이션 검증 등
+# - prod: application-prod.yaml + env
+
 server:
   port: 8080
   # 멀티파트 전체 본문 한도 — 미설정 시 Tomcat 기본(약 2MB)에서 먼저 413 발생할 수 있음
@@ -9,13 +14,13 @@ spring:
   application:
     name: pickty-server
 
+  profiles:
+    default: dev
+
   servlet:
     multipart:
       max-file-size: 25MB
       max-request-size: 80MB
-
-  config:
-    import: optional:classpath:application-local.yaml
 
   security:
     oauth2:
@@ -28,12 +33,6 @@ spring:
               - email
               - profile
 
-  datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/pickty
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
-    driver-class-name: org.postgresql.Driver
-
   jpa:
     open-in-view: false
     hibernate:
@@ -44,14 +43,8 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
-  data:
-    redis:
-      host: ${VALKEY_HOST:localhost}
-      port: ${VALKEY_PORT:6379}
-      password: ${VALKEY_PASSWORD:}
-
 app:
-  frontend-url: ${FRONTEND_URL:http://localhost:3002}
+  frontend-url: ${FRONTEND_URL}
   oauth2:
     # 쉼표로 구분된 허용 프론트엔드 오리진 목록 (모바일 테스트 시 application-local.yaml에서 추가)
     allowed-frontend-origins: "http://localhost:3002"

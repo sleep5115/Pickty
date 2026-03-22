@@ -1,0 +1,19 @@
+# dev — 일상 개발 기본 프로필. JVM은 로컬 PC.
+# JDBC pickty_dev, Valkey 논리 DB 등 — 플레이스홀더 기본값 없음. 값은 application-secrets.yaml 또는 환경변수.
+
+spring:
+  config:
+    import: optional:classpath:application-secrets.yaml
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/pickty_dev
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  data:
+    redis:
+      host: ${VALKEY_HOST}
+      port: ${VALKEY_PORT}
+      password: ${VALKEY_PASSWORD}
+      database: ${VALKEY_DATABASE}
