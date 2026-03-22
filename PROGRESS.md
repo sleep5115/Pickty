@@ -117,7 +117,8 @@
 
 ### 세션 메모 (2026-03-23)
 
-- **pickty-config**: `application-secrets.yaml` · `application-local.yaml` · `.env` 를 private 레포에 커밋해 두고, Pickty 메인은 플레이스홀더만 유지. 메인 레포 루트 **`.gitignore`에 `pickty-config/`** 추가(워크스페이스에 설정 레포 클론 시 서브트리 오커밋 방지). 회사 PC는 `pickty-config` pull 후 README대로 복사.
+- **pickty-config**: `application-secrets.yaml` · `application-local.yaml` · `.env` · **`LightsailDefaultKey-ap-northeast-2.pem`** 를 private 레포에 보관(README에 SSH·보안 주의). Pickty 메인은 `*.pem` gitignore 유지. 회사 PC는 `pickty-config` pull 후 PEM 을 Pickty 루트 등으로 복사만.
+- **pickty-config**(이전): Pickty 메인은 플레이스홀더만 유지. 메인 **`.gitignore`의 `pickty-config/`** 로 워크스페이스 내 설정 레포 클론 시 실수 커밋 방지.
 
 ### 세션 메모 (2026-03-21)
 
@@ -305,7 +306,8 @@ git config user.email "85235927+sleep5115@users.noreply.github.com"
 #    copy pickty-config\application-secrets.yaml backend\src\main\resources\
 #    copy pickty-config\application-local.yaml backend\src\main\resources\
 #    copy pickty-config\.env .env
-#    (Pickty 레포에 secrets·.env 커밋 금지)
+#    copy pickty-config\LightsailDefaultKey-ap-northeast-2.pem .
+#    (Pickty 레포에 secrets·.env·pem 커밋 금지)
 
 # 3. (선택) Lightsail 대신 이 PC에서만 DB를 띄울 때만
 docker compose up -d
@@ -313,7 +315,7 @@ docker compose up -d
 
 ### application-secrets.yaml / application-local.yaml (집 PC ↔ 회사 PC)
 - **민감정보·OAuth·JWT·DB 플랫 키** → **`application-secrets.yaml`**. **로컬 Docker JDBC·Valkey·Lightsail 메모(#)** → **`application-local.yaml`**. **docker compose 비번** → 루트 **`.env`**. Pickty 메인 레포에는 커밋 금지.
-- **집↔회사 동기화(권장)**: Private **`pickty-config`** 레포(`https://github.com/sleep5115/pickty-config`)에 위 세 파일 + README 유지. 다른 PC에서는 `git clone`/`git pull` 후 `backend/src/main/resources/` 및 루트에 **복사**. Pickty 워크스페이스 안에 `pickty-config/` 를 클론해 두면 메인 레포 **`.gitignore`의 `pickty-config/`** 때문에 실수 커밋되지 않음. USB는 비상용.
+- **집↔회사 동기화(권장)**: Private **`pickty-config`** 레포(`https://github.com/sleep5115/pickty-config`)에 **`application-secrets.yaml` · `application-local.yaml` · `.env` · `LightsailDefaultKey-ap-northeast-2.pem`** + README 유지. PEM 은 **Pickty 루트로만 복사**하고 메인 레포에는 **절대 커밋 금지**(`*.pem` gitignore). 다른 PC에서는 `git pull` 후 README대로 복사. 워크스페이스에 `pickty-config/` 클론 시 메인 **`.gitignore`의 `pickty-config/`** 로 실수 커밋 방지. USB는 비상용.
 - **프론트**: `frontend/.env.local` 도 gitignore — `NEXT_PUBLIC_API_URL` 등은 백엔드와 같이 **집/회사 동기화**가 필요하면 같은 방식(USB 등)으로 맞출 것.
 
 ---

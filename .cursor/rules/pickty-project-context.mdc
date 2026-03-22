@@ -81,7 +81,9 @@ alwaysApply: true
   #    copy pickty-config\application-secrets.yaml backend\src\main\resources\
   #    copy pickty-config\application-local.yaml backend\src\main\resources\
   #    copy pickty-config\.env .env
+  #    copy pickty-config\LightsailDefaultKey-ap-northeast-2.pem .
   #    (워크스페이스에 pickty-config/ 클론해 두어도 Pickty .gitignore 의 pickty-config/ 로 메인 레포에 안 올라감)
+  #    PEM 은 pickty-config 에만 커밋 — Pickty 메인에는 *.pem gitignore
   #    기본 프로필 dev — ./gradlew bootRun. local 은 bootRunLocal. prod 는 --spring.profiles.active=prod
 
   # 3. (선택) PC에서만 로컬 DB가 필요할 때만
