@@ -1,9 +1,11 @@
 import type { NextConfig } from "next";
 
+const devLanOrigin = process.env.NEXT_DEV_ALLOWED_ORIGIN?.trim();
+
 const nextConfig: NextConfig = {
-  // 로컬·LAN·운영 도메인에서 Next dev HMR 허용(필요 시 env에 맞게 조정)
+  // 로컬·LAN·운영 도메인에서 Next dev HMR 허용 — LAN IP는 `.env.local` 의 NEXT_DEV_ALLOWED_ORIGIN (레포에 실 IP 금지)
   allowedDevOrigins: [
-    '192.168.219.100',
+    ...(devLanOrigin ? [devLanOrigin] : []),
     'localhost',
     '127.0.0.1',
     'pickty.app',

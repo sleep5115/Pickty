@@ -17,11 +17,12 @@ npm run dev
 
 회사 PC 등에서 시스템 **JAVA_HOME**이 JDK 16 등으로 잡혀 있을 수 있음. Pickty는 **JDK 25 (Corretto)** 가 필요하므로, **Cursor / PowerShell 세션에서만** 아래처럼 덮어쓴 뒤 실행한다.
 
-- JDK 경로( IntelliJ / Toolbox 기준 ): `C:\Users\Administrator\.jdks\corretto-25.0.2`  
-  (폴더명은 **`.jdks`**, `.jdk` 아님.)
+- JDK 경로( IntelliJ / Toolbox 기준 ): `<YOUR_JDK_HOME>` (예: `C:\Users\<YOU>\.jdks\corretto-25.0.2`)  
+  (폴더명은 **`.jdks`**, `.jdk` 아님.)  
+  집·회사 PC마다 `C:\Users\…` 사용자명·클론 경로가 다를 수 있음 → **실제 집/회사 경로 표**는 private **`pickty-config` README** (`PC마다 다른 것`)만 참고.
 
 ```powershell
-$env:JAVA_HOME = "C:\Users\Administrator\.jdks\corretto-25.0.2"
+$env:JAVA_HOME = "<YOUR_JDK_HOME>"
 $env:Path = "$env:JAVA_HOME\bin;" + $env:Path
 $env:SPRING_PROFILES_ACTIVE = "dev"
 cd backend

@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { TierBoard } from '@/components/tier/tier-board';
-import { AdBanner } from '@/components/common/ad-banner';
 import { useTierStore } from '@/lib/store/tier-store';
 import { usePointerDevice } from '@/hooks/use-pointer-device';
 import { getTemplate, templatePayloadToTierItems } from '@/lib/tier-api';
@@ -65,11 +64,6 @@ function TierPageInner() {
   return (
     // flex-1 제거 — 고정 높이 체인을 끊어 TierBoard가 자연스럽게 늘어나도록
     <div ref={dragSelectRef} className="flex flex-col select-none bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100">
-      {/* 광고 배너 */}
-      <div className="shrink-0 py-2">
-        <AdBanner height={90} />
-      </div>
-
       <header className="shrink-0 flex items-center justify-between px-2 py-2 bg-slate-100 dark:bg-zinc-950 border-y border-slate-200 dark:border-zinc-800">
         <span className="text-sm font-semibold text-slate-700 dark:text-zinc-300">티어표</span>
 

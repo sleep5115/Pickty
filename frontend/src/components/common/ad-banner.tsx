@@ -4,6 +4,7 @@ interface AdBannerProps {
   className?: string;
 }
 
+/** 광고 연동 전까지 미사용. 티어 페이지 등에서 필요 시 import 후 배치. */
 export function AdBanner({ height = 90, className = '' }: AdBannerProps) {
   return (
     <div
