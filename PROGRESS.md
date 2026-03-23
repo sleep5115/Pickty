@@ -322,6 +322,11 @@ docker compose up -d
 | `.env` | Pickty 루트 | Docker `POSTGRES_PASSWORD` 등 |
 | `LightsailDefaultKey-ap-northeast-2.pem` | Pickty 루트(SSH용) | Private 여도 유출 주의 (`*.pem` 메인 커밋 금지) |
 
+#### 집에서 할 일 (pickty-config 정본)
+
+- 위 표 **네 가지**가 지금 Pickty에서 쓰는 내용과 **최신으로 같은지** 본다 (`backend/src/main/resources/` 두 yaml, **Pickty 루트** `.env`·`.pem`).
+- **빠진 것·수정한 것**이 있으면 **`pickty-config` 레포 쪽 파일만** 고치고, 그 레포에서 **`git add` → `commit` → `push`** 만 한다. (OAuth·비번·PEM 등 **Pickty 메인 레포에는 커밋하지 않음**.)
+
 - **민감정보·OAuth·JWT·DB 플랫 키** → **`application-secrets.yaml`**. **로컬 Docker JDBC·Valkey·Lightsail 메모(#)** → **`application-local.yaml`**. **docker compose 비번** → 루트 **`.env`**. Pickty 메인 레포에는 커밋 금지.
 - **집↔회사 동기화(권장)**: Private **`pickty-config`** 레포(`https://github.com/sleep5115/pickty-config`)에 **`application-secrets.yaml` · `application-local.yaml` · `.env` · `LightsailDefaultKey-ap-northeast-2.pem`** + README 유지. PEM 은 **Pickty 루트로만 복사**하고 메인 레포에는 **절대 커밋 금지**(`*.pem` gitignore). 다른 PC에서는 `git pull` 후 README대로 복사. 워크스페이스에 `pickty-config/` 클론 시 메인 **`.gitignore`의 `pickty-config/`** 로 실수 커밋 방지. USB는 비상용.
 - **프론트**: `frontend/.env.local` 도 gitignore — `NEXT_PUBLIC_API_URL` 등은 백엔드와 같이 **집/회사 동기화**가 필요하면 같은 방식(USB 등)으로 맞출 것.
