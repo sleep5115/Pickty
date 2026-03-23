@@ -2,7 +2,7 @@
 
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { isPicktyUploadsAssetUrl, resolvePicktyUploadsUrl } from '@/lib/pickty-image-url';
+import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
 import { TierItem } from '@/lib/store/tier-store';
 
 export function hashColor(str: string): string {
@@ -85,12 +85,11 @@ export function ItemCard({
     >
       {item.imageUrl ? (
         <img
-          src={resolvePicktyUploadsUrl(item.imageUrl)}
+          src={picktyImageDisplaySrc(item.imageUrl)}
           alt={item.name}
-          {...(isPicktyUploadsAssetUrl(item.imageUrl)
-            ? { crossOrigin: 'anonymous' as const, referrerPolicy: 'no-referrer' as const }
-            : {})}
           className="w-full h-full object-cover pointer-events-none"
+          loading="lazy"
+          decoding="async"
         />
       ) : (
         <span className="text-center leading-tight px-0.5 drop-shadow pointer-events-none">

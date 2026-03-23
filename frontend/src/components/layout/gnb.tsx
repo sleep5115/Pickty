@@ -7,8 +7,9 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAuthStore } from '@/lib/store/auth-store';
 
 const NAV_LINKS = [
-  { href: '/templates', label: '티어 메이커' },
-  { href: '/worldcup', label: '이상형 월드컵' },
+  { href: '/templates', label: '티어표' },
+  // 후순위 미구현: 이상형 월드컵
+  // { href: '/worldcup', label: '이상형 월드컵' },
 ] as const;
 
 export function GNB() {

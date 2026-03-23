@@ -6,15 +6,27 @@ import org.springframework.stereotype.Service
 import org.springframework.web.multipart.MultipartFile
 import org.springframework.web.server.ResponseStatusException
 import software.amazon.awssdk.core.sync.RequestBody
+import software.amazon.awssdk.core.sync.ResponseTransformer
 import software.amazon.awssdk.services.s3.S3Client
+import software.amazon.awssdk.services.s3.model.GetObjectRequest
 import software.amazon.awssdk.services.s3.model.PutObjectRequest
+import software.amazon.awssdk.services.s3.model.S3Exception
 import java.util.UUID
+
+data class R2FetchedObject(
+    val bytes: ByteArray,
+    val contentType: String,
+)
 
 @Service
 class R2ImageStorageService(
     private val s3Client: S3Client,
     private val props: CloudflareR2Properties,
 ) {
+
+    /** [storeOne] 과 동일 규칙: UUID 소문자 + 허용 확장자 */
+    private val storedObjectKeyRegex =
+        Regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(png|jpe?g|webp|gif|bin)$")
 
     fun storeAllOrdered(files: List<MultipartFile>): List<String> {
         if (files.isEmpty()) {
@@ -26,6 +38,36 @@ class R2ImageStorageService(
     fun publicUrlForStoredName(storedName: String): String {
         val base = props.publicUrl.trimEnd('/')
         return "$base/$storedName"
+    }
+
+    /**
+     * 업로드 시 저장한 객체 키만 허용(UUID 파일명 + 확장자). 공개 URL이 403이어도 API가 R2에서 직접 읽어 제공.
+     */
+    fun fetchStoredObjectIfPresent(key: String): R2FetchedObject? {
+        if (!isAllowedObjectKey(key)) {
+            return null
+        }
+        return try {
+            val req = GetObjectRequest.builder()
+                .bucket(props.bucketName)
+                .key(key)
+                .build()
+            val resp = s3Client.getObject(req, ResponseTransformer.toBytes())
+            val ct = resp.response().contentType()?.takeIf { it.isNotBlank() }
+                ?: "application/octet-stream"
+            R2FetchedObject(resp.asByteArray(), ct)
+        } catch (_: software.amazon.awssdk.services.s3.model.NoSuchKeyException) {
+            null
+        } catch (e: S3Exception) {
+            if (e.statusCode() == 404) null else throw e
+        }
+    }
+
+    private fun isAllowedObjectKey(key: String): Boolean {
+        if (key.length > 180 || key.contains('/') || key.contains('\\') || key.contains("..")) {
+            return false
+        }
+        return storedObjectKeyRegex.matches(key)
     }
 
     private fun storeOne(file: MultipartFile): String {

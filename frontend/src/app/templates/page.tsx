@@ -3,10 +3,9 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
-import { resolvePicktyUploadsUrl } from '@/lib/pickty-image-url';
+import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
 import { listTemplates, type TemplateSummaryResponse } from '@/lib/tier-api';
 
-/** DB에 없으면 보드 로드 실패 — 연습용 */
 const DEMO_TEMPLATES = [
   {
     id: 'a1000000-0000-4000-8000-000000000001',
@@ -52,12 +51,11 @@ function TemplateCard({
         <div className="aspect-[16/10] bg-linear-to-br from-slate-200 to-slate-100 dark:from-zinc-800 dark:to-zinc-900 relative border-b border-slate-100 dark:border-zinc-800">
           {thumbnailUrl ? (
             <Image
-              src={resolvePicktyUploadsUrl(thumbnailUrl)}
+              src={picktyImageDisplaySrc(thumbnailUrl)}
               alt=""
               fill
               className="object-cover"
               sizes="(max-width: 640px) 100vw, 33vw"
-              unoptimized
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
@@ -119,7 +117,7 @@ export default function TemplatesPage() {
             티어 템플릿
           </h1>
           <p className="mt-1 text-sm text-slate-600 dark:text-zinc-400">
-            재료(밀키트)를 고른 뒤 티어 메이커 보드로 이동합니다.
+            템플릿을 고르면 바로 순위를 매길 수 있어요.
           </p>
         </div>
         <Link
@@ -162,7 +160,7 @@ export default function TemplatesPage() {
 
         {!loading && !error && rows.length === 0 && (
           <p className="text-sm text-slate-600 dark:text-zinc-400 py-6">
-            아직 등록된 템플릿이 없습니다. 상단의 <strong>새 템플릿 만들기</strong>로 첫 밀키트를 만들어 보세요.
+            아직 등록된 템플릿이 없습니다. 상단의 <strong>새 템플릿 만들기</strong>로 첫 티어표를 만들어 보세요.
           </p>
         )}
 
@@ -174,7 +172,7 @@ export default function TemplatesPage() {
                 id={t.id}
                 title={t.title}
                 description={t.description}
-                itemLine={`아이템 ${t.itemCount}개 · v${t.version}`}
+                itemLine={`아이템 ${t.itemCount}개`}
                 thumbnailUrl={t.thumbnailUrl}
               />
             ))}
@@ -183,8 +181,8 @@ export default function TemplatesPage() {
       </section>
 
       <section aria-labelledby="templates-demo-heading" className="pt-4 border-t border-slate-200 dark:border-zinc-800">
-        <h2 id="templates-demo-heading" className="text-sm font-semibold text-slate-500 dark:text-zinc-500 mb-3">
-          예시 템플릿 (데모 ID — DB에 없으면 보드에서 오류)
+        <h2 id="templates-demo-heading" className="text-sm font-semibold text-slate-600 dark:text-zinc-400 mb-3">
+          추천 주제로 시작해 보기
         </h2>
         <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {DEMO_TEMPLATES.map((t) => (
@@ -193,9 +191,8 @@ export default function TemplatesPage() {
               id={t.id}
               title={t.title}
               description={t.description}
-              itemLine={`예상 아이템 ${t.itemCount}개`}
+              itemLine={`약 ${t.itemCount}개 아이템`}
               thumbnailUrl={null}
-              badge="데모"
             />
           ))}
         </ul>

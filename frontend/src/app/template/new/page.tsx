@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuthStore } from '@/lib/store/auth-store';
+import { apiFetch } from '@/lib/api-fetch';
 import { uploadPicktyImages } from '@/lib/image-upload-api';
 import { createTemplate } from '@/lib/tier-api';
 import {
@@ -39,6 +40,7 @@ export default function NewTemplatePage() {
     title: string;
     itemCount: number;
   } | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const form = useForm<TemplateNewFormValues>({
     resolver: zodResolver(templateNewFormSchema),
@@ -73,6 +75,19 @@ export default function NewTemplatePage() {
       }
     };
   }, [fileMap]);
+
+  useEffect(() => {
+    if (!accessToken) {
+      setIsAdmin(false);
+      return;
+    }
+    void apiFetch('/api/v1/user/me', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((u: { role?: string } | null) => setIsAdmin(u?.role === 'ADMIN'))
+      .catch(() => setIsAdmin(false));
+  }, [accessToken]);
 
   const ingestFiles = useCallback(
     (list: FileList | File[]) => {
@@ -117,7 +132,7 @@ export default function NewTemplatePage() {
     for (const row of values.items) {
       const file = fileMap[row.clientId]?.file;
       if (!file) {
-        setSubmitError('일부 이미지 파일이 없습니다. 해당 항목을 제거 후 다시 시도해 주세요.');
+        setSubmitError('일부 이미지 파일이 없습니다. 해당 아이템을 제거 후 다시 시도해 주세요.');
         return;
       }
       orderedFiles.push(file);
@@ -194,13 +209,15 @@ export default function NewTemplatePage() {
           <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">저장 완료</p>
           <h1 className="mt-2 text-xl font-bold text-slate-900 dark:text-zinc-100">{savedInfo.title}</h1>
           <p className="mt-2 text-sm text-slate-600 dark:text-zinc-400">
-            템플릿이 서버(DB)에 등록되었습니다. 아이템 {savedInfo.itemCount}개가 포함되었습니다.
+            아이템 {savedInfo.itemCount}개가 들어간 템플릿을 저장했어요. 아래에서 바로 순위를 매겨 보세요.
           </p>
-          <p className="mt-3 text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
-            이미지는 <strong>Cloudflare R2</strong> 버킷에 올라가며, DB에는 공개 URL(
-            <code className="text-[0.7rem] bg-white/60 dark:bg-black/30 px-1 rounded">https://img.pickty.app/파일명</code>
-            )이 저장됩니다. R2 버킷 CORS가 맞게 열려 있어야 다른 오리진에서도 미리보기·캡처가 됩니다.
-          </p>
+          {isAdmin && (
+            <p className="mt-3 text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
+              [관리자] 이미지는 <strong>Cloudflare R2</strong>에 올라가며 메타에는 공개 URL(
+              <code className="text-[0.7rem] bg-white/60 dark:bg-black/30 px-1 rounded">https://img.pickty.app/…</code>
+              )이 기록됩니다. CORS 설정이 맞아야 다른 오리진에서 미리보기·캡처가 됩니다.
+            </p>
+          )}
           <div className="mt-6 flex flex-col sm:flex-row gap-3">
             <button
               type="button"
@@ -209,7 +226,7 @@ export default function NewTemplatePage() {
               }
               className="inline-flex items-center justify-center rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold px-5 py-2.5 transition-colors"
             >
-              티어 메이커로 이동
+              티어표 만들기
             </button>
             <Link
               href="/templates"
@@ -230,17 +247,19 @@ export default function NewTemplatePage() {
           새 템플릿 만들기
         </h1>
         <p className="mt-1 text-sm text-slate-600 dark:text-zinc-400">
-          이미지를 올려 티어표 재료(밀키트)를 만듭니다. 이름은 파일명에서 자동으로 채워지며 수정할 수 있습니다.
+          이미지를 올려 티어표에 넣을 아이템을 만듭니다. 이름은 파일명을 기준으로 채워지며 바꿀 수 있어요.
         </p>
       </div>
 
-      <div
-        role="note"
-        className="mb-6 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50/90 dark:bg-zinc-900/60 px-3 py-2 text-xs text-slate-700 dark:text-zinc-300"
-      >
-        저장 시 이미지는 백엔드를 거쳐 <strong>Cloudflare R2</strong>에 업로드됩니다. 미리보기는 브라우저(blob)를 쓰며, DB에는{' '}
-        <code className="text-[0.65rem] opacity-90">https://img.pickty.app/파일명</code> 형태의 공개 URL이 기록됩니다.
-      </div>
+      {isAdmin && (
+        <div
+          role="note"
+          className="mb-6 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50/90 dark:bg-zinc-900/60 px-3 py-2 text-xs text-slate-700 dark:text-zinc-300"
+        >
+          [관리자] 저장 시 이미지는 서버를 거쳐 <strong>Cloudflare R2</strong>에 올라갑니다. 미리보기는 브라우저에서만 쓰이며, 공개 URL은{' '}
+          <code className="text-[0.65rem] opacity-90">https://img.pickty.app/…</code> 형식으로 저장됩니다.
+        </div>
+      )}
 
       <form onSubmit={onSubmit} className="space-y-8">
         <div className="space-y-2">
@@ -413,7 +432,7 @@ export default function NewTemplatePage() {
             disabled={form.formState.isSubmitting}
             className="inline-flex items-center justify-center rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-60 disabled:pointer-events-none dark:bg-violet-600 dark:hover:bg-violet-500 text-white text-sm font-semibold px-5 py-2.5 transition-colors"
           >
-            {form.formState.isSubmitting ? '업로드·저장 중…' : '이미지 업로드 후 템플릿 저장'}
+            {form.formState.isSubmitting ? '저장 중…' : '템플릿 저장'}
           </button>
           <Link
             href="/templates"

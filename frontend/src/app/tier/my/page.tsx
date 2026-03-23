@@ -68,7 +68,7 @@ export default function MyTierResultsPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">내 티어표</h1>
         <p className="mt-1 text-sm text-slate-600 dark:text-zinc-400">
-          티어 메이커에서 저장한 결과만 모아 보여 줍니다.
+          저장한 티어표만 이 페이지에 모여 있어요.
         </p>
       </div>
 

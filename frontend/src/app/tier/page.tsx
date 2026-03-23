@@ -70,9 +70,8 @@ function TierPageInner() {
         <AdBanner height={90} />
       </div>
 
-      {/* 티어 메이커 툴바 */}
       <header className="shrink-0 flex items-center justify-between px-2 py-2 bg-slate-100 dark:bg-zinc-950 border-y border-slate-200 dark:border-zinc-800">
-        <span className="text-sm font-semibold text-slate-700 dark:text-zinc-300">티어 메이커</span>
+        <span className="text-sm font-semibold text-slate-700 dark:text-zinc-300">티어표</span>
 
         <div className="flex items-center gap-2">
           {templateBanner && (

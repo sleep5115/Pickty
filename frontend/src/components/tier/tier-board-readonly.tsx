@@ -10,7 +10,7 @@ interface TierBoardReadonlyProps {
 }
 
 /**
- * 티어 메이커와 동일한 행·풀 레이아웃 (드래그/설정 버튼 없음).
+ * 편집용 티어 보드와 동일한 행·풀 레이아웃 (드래그/설정 버튼 없음).
  * ref는 `TierBoard`와 같이 **티어 행만** 감쌉니다 — PNG 캡처 시 미분류 풀 제외.
  */
 export const TierBoardReadonly = forwardRef<HTMLDivElement, TierBoardReadonlyProps>(

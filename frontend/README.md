@@ -1,5 +1,7 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+로컬에서 백엔드(JDK 25 세션·`dev` 프로필)까지 함께 띄울 때는 레포 루트의 **[`docs/LOCAL-DEV.md`](../docs/LOCAL-DEV.md)** 를 참고하세요.
+
 ## Getting Started
 
 First, run the development server:
@@ -14,7 +16,7 @@ pnpm dev
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3002](http://localhost:3002) with your browser (this project uses port **3002**).
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { hashColor } from '@/components/tier/item-card';
-import { isPicktyUploadsAssetUrl, resolvePicktyUploadsUrl } from '@/lib/pickty-image-url';
+import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
 import type { TierItem } from '@/lib/store/tier-store';
 
 /** DnD 없이 ItemCard와 동일한 타일 UI (읽기 전용·캡처용) */
@@ -24,12 +24,11 @@ export function StaticItemCard({ item }: { item: TierItem }) {
     >
       {item.imageUrl ? (
         <img
-          src={resolvePicktyUploadsUrl(item.imageUrl)}
+          src={picktyImageDisplaySrc(item.imageUrl)}
           alt={item.name}
-          {...(isPicktyUploadsAssetUrl(item.imageUrl)
-            ? { crossOrigin: 'anonymous' as const, referrerPolicy: 'no-referrer' as const }
-            : {})}
           className="w-full h-full object-cover pointer-events-none"
+          loading="lazy"
+          decoding="async"
         />
       ) : (
         <span className="text-center leading-tight px-0.5 drop-shadow pointer-events-none">

@@ -15,8 +15,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Pickty — 티어표 만들기 & 이상형 월드컵",
-  description: "티어표 만들기 & 이상형 월드컵",
+  // 후순위 미구현 시 description/title에서 월드컵 문구 제외
+  title: "Pickty — 티어표 만들기",
+  description: "나만의 티어표를 만들고 공유하세요.",
 };
 
 export default function RootLayout({
@@ -35,7 +36,7 @@ export default function RootLayout({
           {/*
            * bg-* 를 div에 지정: ThemeProvider가 html[class="dark"]를 제어하므로
            * dark: 접두사 클래스가 이 div에도 적용됨.
-           * min-h-screen: 최소 뷰포트 높이 보장, 티어 메이커처럼 콘텐츠가 길면 페이지 전체 스크롤.
+           * min-h-screen: 최소 뷰포트 높이 보장, 티어표처럼 콘텐츠가 길면 페이지 전체 스크롤.
            */}
           <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-zinc-950 text-slate-900 dark:text-zinc-100 transition-colors duration-200">
             <GNB />

@@ -1,0 +1,40 @@
+# pickty.app (Lightsail) — main 브랜치 push + 아래 paths 변경 시에만 운영 배포
+# dev 브랜치는 로컬/개발용, 운영은 prod 프로필 + pickty_prod
+# frontend/** 만 바뀐 push 는 이 워크플로우를 돌리지 않음
+
+name: Deploy backend to Lightsail
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - 'deploy/lightsail/**'
+      - '.github/workflows/deploy-backend.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH — write TLS certs, pull main, docker compose
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.LIGHTSAIL_HOST }}
+          username: ${{ secrets.LIGHTSAIL_USERNAME }}
+          key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          envs: SSL_CERT,SSL_KEY
+          command_timeout: 30m
+          script: |
+            mkdir -p ~/Pickty/deploy/lightsail/certs
+            echo "$SSL_CERT" > ~/Pickty/deploy/lightsail/certs/cert.pem
+            echo "$SSL_KEY" > ~/Pickty/deploy/lightsail/certs/key.pem
+            chmod 644 ~/Pickty/deploy/lightsail/certs/cert.pem
+            chmod 600 ~/Pickty/deploy/lightsail/certs/key.pem
+            cd ~/Pickty
+            git pull origin main
+            docker compose -f deploy/lightsail/docker-compose.api.yml down --remove-orphans
+            docker compose -f deploy/lightsail/docker-compose.api.yml up -d --build
+        env:
+          SSL_CERT: ${{ secrets.SSL_CERT }}
+          SSL_KEY: ${{ secrets.SSL_KEY }}
