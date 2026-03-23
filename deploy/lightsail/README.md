@@ -16,7 +16,8 @@ docker network ls | grep pickty-infra
 
 ```bash
 cp /path/to/pickty-config/application-secrets.yaml ./application-secrets.yaml
-chmod 600 application-secrets.yaml
+# 컨테이너 내 비루트 사용자가 읽을 수 있어야 함(너무 좁으면 Permission denied)
+chmod 644 application-secrets.yaml
 ```
 
 `docker-compose.api.yml` 이 `DB_HOST` / `VALKEY_*` 를 컨테이너용으로 덮어씁니다. OAuth·JWT·R2·`FRONTEND_URL` 등은 yaml 에서 읽습니다.
