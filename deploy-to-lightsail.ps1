@@ -1,36 +1,15 @@
-# Lightsail: 인증서 업로드 + 서버에서 git pull + Docker Compose 재기동
-#
-# 실행 (PowerShell, 프로젝트 루트에서):
-#   Set-ExecutionPolicy -Scope CurrentUser RemoteSigned   # 최초 1회만
-#   .\deploy-to-lightsail.ps1
-#
-# 환경 변수(선택):
-#   $env:LIGHTSAIL_HOST   기본 13.209.94.184
-#   $env:LIGHTSAIL_USER   기본 ubuntu
-#   $env:LIGHTSAIL_KEY    SSH 개인키 전체 경로
-#   $env:PICKTY_CONFIG_DIR pickty-config 폴더 전체 경로
+# Pickty -> Lightsail: upload TLS certs, git pull, docker compose rebuild
+# Run from Pickty repo root:  .\deploy-to-lightsail.ps1
+# Optional env: LIGHTSAIL_HOST, LIGHTSAIL_USER, LIGHTSAIL_KEY, PICKTY_CONFIG_DIR
 
 $ErrorActionPreference = 'Stop'
 
 function Write-Banner {
-    Write-Host @"
-
-╔══════════════════════════════════════════════════════════════════╗
-║  Pickty → Lightsail 배포 스크립트 (certs scp + ssh docker)        ║
-╚══════════════════════════════════════════════════════════════════╝
-
-  사전 조건
-  ---------
-  • pickty-config\certs\cert.pem, key.pem 존재
-  • SSH 키: lightsail.pem 또는 LightsailDefaultKey-ap-northeast-2.pem (또는 LIGHTSAIL_KEY)
-  • 서버에 ~/Pickty 가 git clone 되어 있고 origin 에 푸시된 최신 코드가 있음
-
-  실행
-  ----
-    cd Pickty
-    .\deploy-to-lightsail.ps1
-
-"@
+    Write-Host ''
+    Write-Host 'Pickty -> Lightsail deploy (scp certs + ssh docker)'
+    Write-Host 'Requires: ../pickty-config/certs/cert.pem, key.pem'
+    Write-Host 'SSH key: lightsail.pem or LightsailDefaultKey-ap-northeast-2.pem (or LIGHTSAIL_KEY)'
+    Write-Host ''
 }
 
 $ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -63,62 +42,44 @@ $KeyPem = Join-Path $PicktyConfig 'certs\key.pem'
 Write-Banner
 
 if (-not (Test-Path -LiteralPath $KeyPath)) {
-    Write-Host "[오류] SSH 키를 찾을 수 없습니다: $KeyPath" -ForegroundColor Red
-    Write-Host "       lightsail.pem 으로 복사하거나 LIGHTSAIL_KEY 를 설정하세요."
+    Write-Host "[ERROR] SSH key not found: $KeyPath" -ForegroundColor Red
+    Write-Host 'Set LIGHTSAIL_KEY or add lightsail.pem under pickty-config.'
     exit 1
 }
 
 if (-not (Test-Path -LiteralPath $CertPem) -or -not (Test-Path -LiteralPath $KeyPem)) {
-    Write-Host "[오류] 인증서를 찾을 수 없습니다." -ForegroundColor Red
-    Write-Host "       필요: $CertPem"
-    Write-Host "             $KeyPem"
+    Write-Host '[ERROR] cert.pem or key.pem missing under pickty-config\certs\' -ForegroundColor Red
     exit 1
 }
 
-# Windows OpenSSH: 키 권한이 너무 넓으면 거부될 수 있음
 try {
+    # OpenSSH on Windows: key must not be overly world-readable
     icacls $KeyPath /inheritance:r | Out-Null
-    icacls $KeyPath /grant:r "$env:USERNAME:(R)" | Out-Null
+    icacls $KeyPath /grant:r "$($env:USERNAME):(R)" | Out-Null
 } catch {
-    Write-Host "(참고) icacls 조정 실패 시 무시 가능: $_" -ForegroundColor DarkYellow
+    Write-Host "(note) icacls: $_" -ForegroundColor DarkYellow
 }
 
 $SshOpts = @('-i', $KeyPath, '-o', 'StrictHostKeyChecking=accept-new')
 $RemoteTarget = "${RemoteUser}@${RemoteHost}"
 
-Write-Host "==> 대상: $RemoteTarget"
-Write-Host "==> 원격 디렉터리 생성"
+Write-Host "==> Target: $RemoteTarget"
+Write-Host '==> mkdir remote certs dir'
 & ssh @SshOpts $RemoteTarget 'mkdir -p ~/Pickty/deploy/lightsail/certs'
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-Write-Host "==> 인증서 업로드 (scp)"
+Write-Host '==> scp cert.pem key.pem'
 & scp @SshOpts $CertPem $KeyPem "${RemoteTarget}:~/Pickty/deploy/lightsail/certs/"
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-Write-Host "==> 원격: git pull + docker compose 재기동"
-$RemoteScript = @'
-set -euo pipefail
-cd ~/Pickty
-git pull
-docker compose -f deploy/lightsail/docker-compose.api.yml down
-docker compose -f deploy/lightsail/docker-compose.api.yml up -d --build
-echo "==> 컨테이너 상태"
-docker compose -f deploy/lightsail/docker-compose.api.yml ps
-'@
-
-$RemoteScript | & ssh @SshOpts $RemoteTarget bash -s
+Write-Host '==> remote: git pull + docker compose'
+# Avoid piping multiline script from Windows PowerShell (CRLF breaks remote bash)
+$RemoteCmd = 'cd ~/Pickty && git pull && docker compose -f deploy/lightsail/docker-compose.api.yml down --remove-orphans && docker compose -f deploy/lightsail/docker-compose.api.yml up -d --build && docker compose -f deploy/lightsail/docker-compose.api.yml ps'
+& ssh @SshOpts $RemoteTarget $RemoteCmd
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-Write-Host @"
-
-✅ 배포 스크립트 완료.
-
-  확인 예시:
-    curl.exe -skS -o NUL -w "%{http_code}`n" https://$RemoteHost/api/v1/templates
-
-  수동으로 꼭 할 일 (이 스크립트가 대신 못 함)
-  --------------------------------------------
-  • 코드 변경 후 GitHub 에 push (서버 git pull 이 받아감)
-  • Lightsail 방화벽: TCP 8080 규칙 제거, TCP 443 열림 확인
-
-"@
+Write-Host ''
+Write-Host 'Done. Quick check (from this PC):'
+Write-Host ('  curl.exe -skS -o NUL -w {0} https://{1}/api/v1/templates' -f '%{http_code}\n', $RemoteHost)
+Write-Host 'Firewall: TCP 443 open, TCP 8080 closed.'
+Write-Host ''

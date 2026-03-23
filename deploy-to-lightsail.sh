@@ -89,7 +89,7 @@ echo "==> 원격: git pull + docker compose 재기동"
 set -euo pipefail
 cd ~/Pickty
 git pull
-docker compose -f deploy/lightsail/docker-compose.api.yml down
+docker compose -f deploy/lightsail/docker-compose.api.yml down --remove-orphans
 docker compose -f deploy/lightsail/docker-compose.api.yml up -d --build
 echo "==> 컨테이너 상태"
 docker compose -f deploy/lightsail/docker-compose.api.yml ps
