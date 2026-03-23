@@ -318,7 +318,7 @@ docker compose up -d
 | 파일 | Pickty 경로 | 비고 |
 |------|-------------|------|
 | `application-secrets.yaml` | `backend/src/main/resources/` | OAuth·JWT·`DB_HOST`·`DB_PASSWORD`·`VALKEY_*`·`FRONTEND_URL` 등 (`application.yaml` / `application-dev` 플레이스홀더 실값) |
-| `application-local.yaml` | `backend/src/main/resources/` | `local` 프로필·로컬 Docker JDBC/Redis·Lightsail `#` 메모 |
+| `application-local.yaml` | `backend/src/main/resources/` | 로컬 JDBC·Redis 포트 (`local` 프로필) |
 | `.env` | 레포 루트 | `docker compose` `POSTGRES_PASSWORD` |
 | `LightsailDefaultKey-ap-northeast-2.pem` | 레포 루트(권장) | Lightsail SSH (`*.pem` 메인 커밋 금지) |
 
