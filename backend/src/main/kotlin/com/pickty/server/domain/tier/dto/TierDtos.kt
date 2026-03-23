@@ -10,6 +10,8 @@ data class CreateTemplateRequest(
     /** JSONB에 그대로 저장. 권장: `{ "items": [ { "id", "name", "imageUrl?" } ] }` */
     @field:NotNull val items: Map<String, Any?>,
     val parentTemplateId: UUID? = null,
+    /** 카드 썸네일용 URL 최대 4개 — JSON 에서 null 이 오면 빈 목록으로 처리 */
+    val thumbnailUrls: List<String>? = null,
 )
 
 data class TemplateResponse(
@@ -27,6 +29,7 @@ data class TemplateDetailResponse(
     val version: Int,
     val parentTemplateId: UUID?,
     val items: Map<String, Any?>,
+    val thumbnailUrls: List<String>,
 )
 
 /** 목록 카드용 — JSONB에서 설명·썸네일·개수만 추출 */
@@ -36,8 +39,8 @@ data class TemplateSummaryResponse(
     val version: Int,
     val itemCount: Int,
     val description: String?,
-    /** http(s) URL만 — blob: 등은 null */
-    val thumbnailUrl: String?,
+    /** 카드 그리드 썸네일 — 비어 있으면 프론트가 items에서 첫 이미지로 보완 가능 */
+    val thumbnailUrls: List<String>,
 )
 
 data class CreateTierResultRequest(
@@ -46,6 +49,7 @@ data class CreateTierResultRequest(
     val isPublic: Boolean = false,
     @field:Size(max = 500) val listTitle: String? = null,
     @field:Size(max = 10000) val listDescription: String? = null,
+    @field:Size(max = 2048) val thumbnailUrl: String? = null,
 )
 
 data class TierResultResponse(
@@ -59,6 +63,7 @@ data class TierResultResponse(
     val isPublic: Boolean,
     val isTemporary: Boolean,
     val userId: Long?,
+    val thumbnailUrl: String?,
 )
 
 /** 내 티어표 목록 — 스냅샷 JSON 제외 */
@@ -71,4 +76,5 @@ data class TierResultSummaryResponse(
     val listDescription: String?,
     val isPublic: Boolean,
     val createdAt: String,
+    val thumbnailUrl: String?,
 )

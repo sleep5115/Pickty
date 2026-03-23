@@ -26,6 +26,8 @@ export const templateNewFormSchema = z.object({
   items: z
     .array(templateItemRowSchema)
     .min(1, { message: '이미지를 1개 이상 추가해 주세요.' }),
+  /** 썸네일로 쓸 아이템 clientId — RHF register/setValue 전용; zod default([]) 는 미등록 시 항상 빈 배열로 덮어써 서버에 thumbnailUrls 가 안 감 */
+  thumbnailClientIds: z.array(z.string()).max(4).optional(),
 });
 
 export type TemplateNewFormValues = z.input<typeof templateNewFormSchema>;

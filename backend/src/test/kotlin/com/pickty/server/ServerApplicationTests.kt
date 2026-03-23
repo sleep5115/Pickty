@@ -1,10 +1,16 @@
 package com.pickty.server
 
+import com.pickty.server.domain.tier.TierTemplate
+import com.pickty.server.domain.tier.TierTemplateRepository
+import jakarta.persistence.EntityManager
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
+import org.springframework.transaction.annotation.Transactional
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.containers.wait.strategy.Wait
@@ -16,6 +22,12 @@ import org.testcontainers.utility.DockerImageName
 @Testcontainers
 @ActiveProfiles("test")
 class ServerApplicationTests {
+
+	@Autowired
+	private lateinit var tierTemplateRepository: TierTemplateRepository
+
+	@Autowired
+	private lateinit var entityManager: EntityManager
 
 	companion object {
 		@JvmStatic
@@ -42,6 +54,31 @@ class ServerApplicationTests {
 
 	@Test
 	fun contextLoads() {
+	}
+
+	@Test
+	@Transactional
+	fun tierTemplateThumbnailUrlsJsonbRoundTrip() {
+		val entity = TierTemplate(
+			title = "jsonb-thumb-test",
+			itemsPayload = mapOf(
+				"items" to listOf(
+					mapOf("id" to "a", "name" to "A", "imageUrl" to "https://img.pickty.app/item.png"),
+				),
+			),
+		)
+		val urls = listOf(
+			"https://img.pickty.app/one.png",
+			"https://img.pickty.app/two.png",
+			"https://img.pickty.app/three.png",
+			"https://img.pickty.app/four.png",
+		)
+		entity.thumbnailUrls = urls
+		val saved = tierTemplateRepository.saveAndFlush(entity)
+		val id = saved.id ?: error("template id expected")
+		entityManager.clear()
+		val loaded = tierTemplateRepository.findById(id).orElseThrow()
+		assertThat(loaded.thumbnailUrls).containsExactlyElementsOf(urls)
 	}
 
 }

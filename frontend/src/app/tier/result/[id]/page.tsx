@@ -127,6 +127,12 @@ export default function TierResultPage() {
             {downloadBusy ? '이미지 생성 중…' : 'PNG 다운로드'}
           </button>
           <Link
+            href="/tier/my"
+            className="text-sm px-3 py-2 rounded-lg border border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+          >
+            목록
+          </Link>
+          <Link
             href="/templates"
             className="text-sm px-3 py-2 rounded-lg border border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
           >

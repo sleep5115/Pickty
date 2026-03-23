@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useFieldArray, useForm } from 'react-hook-form';
+import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { apiFetch } from '@/lib/api-fetch';
@@ -41,6 +41,11 @@ export default function NewTemplatePage() {
     itemCount: number;
   } | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [customThumbFile, setCustomThumbFile] = useState<File | null>(null);
+  const [customThumbPreview, setCustomThumbPreview] = useState<string | null>(null);
+  const customThumbInputRef = useRef<HTMLInputElement>(null);
+  const userEditedThumbsRef = useRef(false);
+  const prevItemIdsKeyRef = useRef('');
 
   const form = useForm<TemplateNewFormValues>({
     resolver: zodResolver(templateNewFormSchema),
@@ -48,9 +53,54 @@ export default function NewTemplatePage() {
       title: '',
       description: '',
       items: [],
+      thumbnailClientIds: [],
     },
     mode: 'onSubmit',
   });
+
+  const { register } = form;
+  useEffect(() => {
+    register('thumbnailClientIds');
+  }, [register]);
+
+  const watchedItems = useWatch({ control: form.control, name: 'items' }) ?? [];
+  const itemIdsKey = watchedItems.map((r) => r.clientId).join('\0');
+
+  useEffect(() => {
+    if (customThumbFile) {
+      const u = URL.createObjectURL(customThumbFile);
+      setCustomThumbPreview(u);
+      return () => URL.revokeObjectURL(u);
+    }
+    setCustomThumbPreview(null);
+    return undefined;
+  }, [customThumbFile]);
+
+  useEffect(() => {
+    const rows = form.getValues('items');
+    const ids = rows.map((r) => r.clientId).filter(Boolean);
+    if (ids.length === 0) {
+      form.setValue('thumbnailClientIds', []);
+      if (prevItemIdsKeyRef.current !== '') {
+        userEditedThumbsRef.current = false;
+      }
+      prevItemIdsKeyRef.current = '';
+      return;
+    }
+    const keyChanged = itemIdsKey !== prevItemIdsKeyRef.current;
+    prevItemIdsKeyRef.current = itemIdsKey;
+
+    if (!userEditedThumbsRef.current) {
+      form.setValue('thumbnailClientIds', ids.slice(0, 4), { shouldDirty: false });
+      return;
+    }
+
+    const cur = form.getValues('thumbnailClientIds') ?? [];
+    const cleaned = cur.filter((id: string) => ids.includes(id)).slice(0, 4);
+    if (keyChanged || cleaned.join(',') !== cur.join(',')) {
+      form.setValue('thumbnailClientIds', cleaned, { shouldDirty: false });
+    }
+  }, [itemIdsKey, form]);
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -160,6 +210,32 @@ export default function NewTemplatePage() {
       itemsEnvelope.description = values.description;
     }
 
+    const urlByClientId: Record<string, string> = {};
+    for (let i = 0; i < values.items.length; i++) {
+      urlByClientId[values.items[i]!.clientId] = imageUrls[i]!;
+    }
+    /** 체크한 썸네일 id 는 setValue 로만 갱신돼 있어 zod/제출 payload 에 빠질 수 있음 → getValues 사용 */
+    const thumbClientIds = form.getValues('thumbnailClientIds') ?? [];
+    const orderedThumbIds = values.items
+      .map((r) => r.clientId)
+      .filter((id) => thumbClientIds.includes(id));
+    let thumbnailUrls: string[] = orderedThumbIds.map((id) => urlByClientId[id]!).filter(Boolean);
+    if (customThumbFile) {
+      let customUrls: string[];
+      try {
+        customUrls = await uploadPicktyImages([customThumbFile], accessToken);
+      } catch (e) {
+        setSubmitError(e instanceof Error ? e.message : '커스텀 썸네일 업로드에 실패했습니다.');
+        return;
+      }
+      const first = customUrls[0];
+      if (first) {
+        thumbnailUrls = [first, ...thumbnailUrls].slice(0, 4);
+      }
+    } else {
+      thumbnailUrls = thumbnailUrls.slice(0, 4);
+    }
+
     try {
       const created = await createTemplate(
         {
@@ -167,6 +243,7 @@ export default function NewTemplatePage() {
           parentTemplateId: null,
           version: 1,
           items: itemsEnvelope,
+          thumbnailUrls,
         },
         accessToken,
       );
@@ -209,7 +286,7 @@ export default function NewTemplatePage() {
           <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">저장 완료</p>
           <h1 className="mt-2 text-xl font-bold text-slate-900 dark:text-zinc-100">{savedInfo.title}</h1>
           <p className="mt-2 text-sm text-slate-600 dark:text-zinc-400">
-            아이템 {savedInfo.itemCount}개가 들어간 템플릿을 저장했어요. 아래에서 바로 순위를 매겨 보세요.
+            아이템 {savedInfo.itemCount}개가 들어간 템플릿을 저장했어요. 아래에서 바로 티어표를 만들어 보세요.
           </p>
           {isAdmin && (
             <p className="mt-3 text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
@@ -240,8 +317,33 @@ export default function NewTemplatePage() {
     );
   }
 
+  const submitting = form.formState.isSubmitting;
+
   return (
-    <div className="w-full py-8 px-1 sm:px-2">
+    <>
+      {submitting && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/45 backdrop-blur-[2px] px-4"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <div className="flex max-w-sm flex-col items-center gap-4 rounded-2xl border border-slate-200 bg-white px-8 py-7 shadow-2xl dark:border-zinc-700 dark:bg-zinc-900">
+            <div
+              className="h-11 w-11 shrink-0 rounded-full border-2 border-violet-500 border-t-transparent animate-spin"
+              aria-hidden
+            />
+            <div className="text-center">
+              <p className="text-sm font-semibold text-slate-900 dark:text-zinc-100">저장 중입니다</p>
+              <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-zinc-400">
+                이미지를 서버에 올리고 템플릿을 저장하고 있어요. 장 수가 많으면 조금 걸릴 수 있어요.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="w-full py-8 px-1 sm:px-2">
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">
           새 템플릿 만들기
@@ -261,7 +363,7 @@ export default function NewTemplatePage() {
         </div>
       )}
 
-      <form onSubmit={onSubmit} className="space-y-8">
+      <form onSubmit={onSubmit} className="space-y-8" aria-busy={submitting}>
         <div className="space-y-2">
           <label
             htmlFor="template-title"
@@ -301,6 +403,57 @@ export default function NewTemplatePage() {
               {form.formState.errors.description.message as string}
             </p>
           )}
+        </div>
+
+        <div className="space-y-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-900/40 p-4">
+          <div className="flex flex-col gap-2">
+            <span className="text-sm font-medium text-slate-800 dark:text-zinc-200">
+              썸네일 등록하기 <span className="text-slate-400 dark:text-zinc-600 font-normal">(선택)</span>
+            </span>
+            <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+              썸네일을 따로 등록하지 않으면, 아래 아이템 이미지에서 4장을 골라 목록 카드용 썸네일을 만들어요.
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                ref={customThumbInputRef}
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  setCustomThumbFile(f ?? null);
+                  e.target.value = '';
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => customThumbInputRef.current?.click()}
+                className="text-xs font-medium rounded-lg border border-slate-300 dark:border-zinc-600 px-3 py-2 text-slate-700 dark:text-zinc-300 hover:bg-white dark:hover:bg-zinc-800 transition-colors"
+              >
+                이미지 선택
+              </button>
+              {customThumbFile && (
+                <button
+                  type="button"
+                  onClick={() => setCustomThumbFile(null)}
+                  className="text-xs text-red-600 dark:text-red-400 hover:underline"
+                >
+                  썸네일 제거
+                </button>
+              )}
+            </div>
+            {customThumbPreview && (
+              <div className="mt-2 relative w-24 h-24 rounded-lg overflow-hidden border border-slate-200 dark:border-zinc-700">
+                <Image
+                  src={customThumbPreview}
+                  alt=""
+                  fill
+                  className="object-cover"
+                  unoptimized
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="space-y-3">
@@ -362,59 +515,94 @@ export default function NewTemplatePage() {
         </div>
 
         {fields.length > 0 && (
-          <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {fields.map((field, index) => {
-              const clientId = form.watch(`items.${index}.clientId`);
-              const preview = clientId ? fileMap[clientId]?.previewUrl : undefined;
-              return (
-                <li
-                  key={field.id}
-                  className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm flex flex-col"
-                >
-                  <div className="aspect-square bg-slate-100 dark:bg-zinc-950 relative">
-                    {preview ? (
-                      <Image
-                        src={preview}
-                        alt=""
-                        fill
-                        sizes="(max-width: 640px) 50vw, 25vw"
-                        className="object-cover"
-                        unoptimized
+          <div className="space-y-2">
+            {!customThumbFile && (
+              <p className="text-sm text-slate-600 dark:text-zinc-400">
+                목록 카드 썸네일로 쓸 아이템을 <span className="font-medium text-slate-800 dark:text-zinc-200">최대 4개</span>
+                까지 체크하세요. 새로 이미지를 넣으면 앞에서부터 자동으로 체크돼요.
+              </p>
+            )}
+            <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {fields.map((field, index) => {
+                const clientId = form.watch(`items.${index}.clientId`);
+                const preview = clientId ? fileMap[clientId]?.previewUrl : undefined;
+                const picked = (form.watch('thumbnailClientIds') ?? []).includes(clientId ?? '');
+                const thumbCount = (form.watch('thumbnailClientIds') ?? []).length;
+                return (
+                  <li
+                    key={field.id}
+                    className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm flex flex-col"
+                  >
+                    <div className="aspect-square bg-slate-100 dark:bg-zinc-950 relative">
+                      {preview ? (
+                        <Image
+                          src={preview}
+                          alt=""
+                          fill
+                          sizes="(max-width: 640px) 50vw, 25vw"
+                          className="object-cover"
+                          unoptimized
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-xs text-slate-400 dark:text-zinc-600">
+                          미리보기 없음
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-2 flex flex-col gap-2 flex-1">
+                      <input type="hidden" {...form.register(`items.${index}.clientId`)} />
+                      {!customThumbFile && (
+                        <label className="flex items-center gap-2 text-xs text-slate-700 dark:text-zinc-300 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={picked}
+                            disabled={!clientId}
+                            onChange={() => {
+                              if (!clientId) return;
+                              userEditedThumbsRef.current = true;
+                              const cur = form.getValues('thumbnailClientIds') ?? [];
+                              if (picked) {
+                                form.setValue(
+                                  'thumbnailClientIds',
+                                  cur.filter((id) => id !== clientId),
+                                  { shouldDirty: true },
+                                );
+                              } else if (cur.length < 4) {
+                                form.setValue('thumbnailClientIds', [...cur, clientId], { shouldDirty: true });
+                              }
+                            }}
+                            className="rounded border-slate-400 text-violet-600 focus:ring-violet-500/40"
+                          />
+                          썸네일
+                          {!picked && thumbCount >= 4 ? (
+                            <span className="text-slate-400 dark:text-zinc-600">(4개 한도)</span>
+                          ) : null}
+                        </label>
+                      )}
+                      <input
+                        type="text"
+                        aria-label={`아이템 ${index + 1} 이름`}
+                        className="w-full rounded-md border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 py-1.5 text-xs text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+                        {...form.register(`items.${index}.name`)}
                       />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-xs text-slate-400 dark:text-zinc-600">
-                        미리보기 없음
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-2 flex flex-col gap-2 flex-1">
-                    <input
-                      type="hidden"
-                      {...form.register(`items.${index}.clientId`)}
-                    />
-                    <input
-                      type="text"
-                      aria-label={`아이템 ${index + 1} 이름`}
-                      className="w-full rounded-md border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 py-1.5 text-xs text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
-                      {...form.register(`items.${index}.name`)}
-                    />
-                    {form.formState.errors.items?.[index]?.name && (
-                      <p className="text-xs text-red-600 dark:text-red-400">
-                        {form.formState.errors.items[index]?.name?.message}
-                      </p>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => removeRow(index)}
-                      className="mt-auto text-xs font-medium text-red-600 dark:text-red-400 hover:underline py-1"
-                    >
-                      삭제
-                    </button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+                      {form.formState.errors.items?.[index]?.name && (
+                        <p className="text-xs text-red-600 dark:text-red-400">
+                          {form.formState.errors.items[index]?.name?.message}
+                        </p>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeRow(index)}
+                        className="mt-auto text-xs font-medium text-red-600 dark:text-red-400 hover:underline py-1"
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         )}
 
         {submitError && (
@@ -429,10 +617,20 @@ export default function NewTemplatePage() {
         <div className="flex flex-wrap gap-3 pt-2">
           <button
             type="submit"
-            disabled={form.formState.isSubmitting}
-            className="inline-flex items-center justify-center rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-60 disabled:pointer-events-none dark:bg-violet-600 dark:hover:bg-violet-500 text-white text-sm font-semibold px-5 py-2.5 transition-colors"
+            disabled={submitting}
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-60 disabled:pointer-events-none dark:bg-violet-600 dark:hover:bg-violet-500 text-white text-sm font-semibold px-5 py-2.5 transition-colors min-w-[9.5rem]"
           >
-            {form.formState.isSubmitting ? '저장 중…' : '템플릿 저장'}
+            {submitting ? (
+              <>
+                <span
+                  className="h-4 w-4 shrink-0 rounded-full border-2 border-white/70 border-t-transparent animate-spin"
+                  aria-hidden
+                />
+                저장 중…
+              </>
+            ) : (
+              '템플릿 저장'
+            )}
           </button>
           <Link
             href="/templates"
@@ -442,6 +640,7 @@ export default function NewTemplatePage() {
           </Link>
         </div>
       </form>
-    </div>
+      </div>
+    </>
   );
 }

@@ -39,6 +39,8 @@ dependencies {
 	// implementation — IDE 실행·테스트 클래스패스에도 포함 (runtimeOnly만이면 누락될 수 있음).
 	// Spring Boot 4 웹 직렬화는 Jackson 3(tools.jackson) — 패키지가 달라 공존.
 	implementation("com.fasterxml.jackson.core:jackson-databind:2.18.2")
+	// Hibernate jsonb FormatMapper(Jackson 2) — List<String> 등 Kotlin 컬렉션 역직렬화 안정화
+	implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.18.2")
 	runtimeOnly("org.postgresql:postgresql")
 	testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
 	testImplementation("org.springframework.boot:spring-boot-starter-security-test")

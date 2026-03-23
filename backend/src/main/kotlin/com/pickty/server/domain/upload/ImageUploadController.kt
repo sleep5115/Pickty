@@ -25,11 +25,21 @@ class ImageUploadController(
 ) {
 
     /**
+     * `?key=` — 경로에 `.png` 등이 들어갈 때 프록시·서블릿 매핑 이슈를 피하기 위한 **권장** 엔드포인트.
+     */
+    @GetMapping("/file", params = ["key"])
+    fun getStoredFileByQuery(@RequestParam("key") key: String): ResponseEntity<ByteArray> =
+        serveStoredFile(key)
+
+    /**
      * R2 공개 URL(img.pickty.app)이 403이어도, 서버가 버킷에서 직접 읽어 브라우저에 제공.
      * 게스트 허용(티어 템플릿 이미지). 키는 업로드 시 UUID 파일명 형식만 허용.
      */
     @GetMapping("/file/{key:.+}")
-    fun getStoredFile(@PathVariable key: String): ResponseEntity<ByteArray> {
+    fun getStoredFile(@PathVariable key: String): ResponseEntity<ByteArray> =
+        serveStoredFile(key)
+
+    private fun serveStoredFile(key: String): ResponseEntity<ByteArray> {
         val obj = r2ImageStorageService.fetchStoredObjectIfPresent(key)
             ?: return ResponseEntity.notFound().build()
         return ResponseEntity.ok()

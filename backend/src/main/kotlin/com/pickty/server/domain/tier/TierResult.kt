@@ -29,6 +29,7 @@ class TierResult(
     isTemporaryInit: Boolean = true,
     listTitleInit: String? = null,
     listDescriptionInit: String? = null,
+    thumbnailUrlInit: String? = null,
 ) : BaseTimeEntity() {
 
     @Id
@@ -66,6 +67,11 @@ class TierResult(
 
     @Column(name = "list_description", columnDefinition = "text")
     var listDescription: String? = listDescriptionInit
+        protected set
+
+    /** 티어표 캡처 PNG 등 결과 미리보기 URL */
+    @Column(name = "thumbnail_url", columnDefinition = "text")
+    var thumbnailUrl: String? = thumbnailUrlInit
         protected set
 
     fun attachUser(userId: Long) {

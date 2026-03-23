@@ -2,9 +2,30 @@ import type { Tier, TierItem } from '@/lib/store/tier-store';
 import { isPicktyHostedImageHostname, PUBLIC_API_BASE_URL } from '@/lib/public-site-config';
 
 const API_URL = PUBLIC_API_BASE_URL;
-const API_BASE_TRIMMED = API_URL.replace(/\/$/, '');
-/** R2 공개 URL이 403이어도 API가 자격 증명으로 GetObject — 표시용만. DB/스냅샷에는 `https://img.pickty.app/…` 절대 URL 유지. */
-const API_IMAGE_FILE_BASE = `${API_BASE_TRIMMED}/api/v1/images/file`;
+
+/** 백엔드 R2ImageStorageService.storedObjectKeyRegex 와 동기화 */
+export const PICKTY_STORED_IMAGE_KEY_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(png|jpe?g|webp|gif|bin)$/i;
+
+/**
+ * URL에서 R2에 저장된 객체 키(UUID.확장자)만 추출. 매칭되면 소문자 키, 아니면 null.
+ */
+export function tryExtractPicktyStoredImageKeyFromResolvedUrl(abs: URL): string | null {
+  const path = abs.pathname;
+  let key: string | null = null;
+  if (path === '/api/v1/images/file') {
+    key = new URLSearchParams(abs.search).get('key');
+  } else if (path.startsWith('/api/v1/images/file/')) {
+    const segs = path.slice('/api/v1/images/file/'.length).split('/').filter(Boolean);
+    key = segs.length > 0 ? decodeURIComponent(segs[segs.length - 1]!) : null;
+  } else if (isPicktyHostedImageHostname(abs.hostname)) {
+    const segments = path.split('/').filter(Boolean);
+    key = segments.length > 0 ? decodeURIComponent(segments[segments.length - 1]!) : null;
+  }
+  if (!key || key.includes('..')) return null;
+  const k = key.trim().toLowerCase();
+  return PICKTY_STORED_IMAGE_KEY_RE.test(k) ? k : null;
+}
 
 function apiOrigin(): string {
   const base = API_URL.replace(/\/$/, '');
@@ -39,8 +60,9 @@ export function resolvePicktyUploadsUrl(imageUrl: string): string {
 }
 
 /**
- * 화면 표시용 URL. `img.pickty.app` 객체는 `GET /api/v1/images/file/{key}` 로 제공(백엔드가 R2에서 읽음).
- * 로컬 dev는 `NEXT_PUBLIC_API_URL` 이 `http://127.0.0.1:8080` 일 때 그 오리진으로 요청됨.
+ * 화면 표시용 (`<img src>`).
+ * - `img.pickty.app` 등을 브라우저가 **직접** 열면 `Referer: http://localhost:3002` 때문에 Cloudflare **403** · **ORB** 가 날 수 있음.
+ * - R2 객체 키(`uuid.ext`)는 **동일 출처** `/api/pickty-image?key=` 로만 노출(Next 서버가 img 또는 백엔드 `file?key=` 로 받아 전달).
  */
 export function picktyImageDisplaySrc(imageUrl: string): string {
   const resolved = resolvePicktyUploadsUrl(imageUrl);
@@ -49,19 +71,18 @@ export function picktyImageDisplaySrc(imageUrl: string): string {
     abs = new URL(resolved);
   } catch {
     try {
-      const path = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
+      const path = resolved.startsWith('/') ? resolved : `/${resolved}`;
       abs = new URL(path, `${apiOrigin()}/`);
     } catch {
       return resolved;
     }
   }
-  if (abs.hostname.toLowerCase() === 'img.pickty.app') {
-    const key = decodeURIComponent(abs.pathname.replace(/^\//, ''));
-    if (!key || key.includes('/') || key.includes('..')) {
-      return resolved;
-    }
-    return `${API_IMAGE_FILE_BASE}/${encodeURIComponent(key)}`;
+
+  const key = tryExtractPicktyStoredImageKeyFromResolvedUrl(abs);
+  if (key) {
+    return `/api/pickty-image?key=${encodeURIComponent(key)}`;
   }
+
   return resolved;
 }
 

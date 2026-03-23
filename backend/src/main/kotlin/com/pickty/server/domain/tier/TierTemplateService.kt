@@ -23,14 +23,18 @@ class TierTemplateService(
             val items = e.items
             val itemCount = countItemsInPayload(items)
             val description = (items["description"] as? String)?.trim()?.takeIf { it.isNotEmpty() }
-            val thumbnailUrl = firstHttpImageUrl(items)
+            val persisted = normalizeThumbnailUrls(e.thumbnailUrls)
+            val thumbnailUrls = when {
+                persisted.isNotEmpty() -> persisted
+                else -> httpImageUrlsFromItems(items, max = 4)
+            }
             TemplateSummaryResponse(
                 id = id,
                 title = e.title,
                 version = e.version,
                 itemCount = itemCount,
                 description = description,
-                thumbnailUrl = thumbnailUrl,
+                thumbnailUrls = thumbnailUrls,
             )
         }
     }
@@ -44,6 +48,9 @@ class TierTemplateService(
             version = e.version,
             parentTemplateId = e.parent?.id,
             items = e.items,
+            thumbnailUrls = normalizeThumbnailUrls(e.thumbnailUrls).ifEmpty {
+                httpImageUrlsFromItems(e.items, max = 4)
+            },
         )
     }
 
@@ -54,6 +61,7 @@ class TierTemplateService(
                 .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "parent template not found") }
         }
 
+        val thumbs = normalizeThumbnailUrls(request.thumbnailUrls)
         val entity = TierTemplate(
             title = request.title.trim(),
             itemsPayload = request.items,
@@ -61,6 +69,9 @@ class TierTemplateService(
             parentTemplate = parent,
             creatorId = creatorId,
         )
+        if (thumbs.isNotEmpty()) {
+            entity.thumbnailUrls = thumbs
+        }
         val saved = tierTemplateRepository.save(entity)
         val id = saved.id ?: throw IllegalStateException("template id missing after save")
         return TemplateResponse(
@@ -77,19 +88,43 @@ class TierTemplateService(
         return if (raw is List<*>) raw.size else 0
     }
 
+    private fun normalizeThumbnailUrls(raw: List<String>?): List<String> {
+        if (raw.isNullOrEmpty()) return emptyList()
+        return raw.asSequence()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .filter { it.startsWith("https://", ignoreCase = true) || it.startsWith("http://", ignoreCase = true) }
+            .distinct()
+            .take(4)
+            .toList()
+    }
+
     @Suppress("UNCHECKED_CAST")
-    private fun firstHttpImageUrl(items: Map<String, Any?>): String? {
-        val raw = items["items"] ?: return null
-        if (raw !is List<*>) return null
+    private fun httpImageUrlsFromItems(items: Map<String, Any?>, max: Int): List<String> {
+        val raw = items["items"] ?: return emptyList()
+        if (raw !is List<*>) return emptyList()
+        val out = ArrayList<String>(max)
         for (entry in raw) {
+            if (out.size >= max) break
             if (entry !is Map<*, *>) continue
             val map = entry as Map<String, Any?>
-            val url = map["imageUrl"] as? String ?: continue
-            val t = url.trim()
-            if (t.startsWith("https://", ignoreCase = true) || t.startsWith("http://", ignoreCase = true)) {
-                return t
-            }
+            val url = httpUrlFromItemMap(map) ?: continue
+            out.add(url)
         }
-        return null
+        return out
+    }
+
+    /** JSONB 역직렬화 시 값이 String 이 아닐 수 있어 방어 */
+    private fun httpUrlFromItemMap(map: Map<String, Any?>): String? {
+        val raw = map["imageUrl"] ?: map["image_url"] ?: return null
+        val t = when (raw) {
+            is String -> raw.trim()
+            else -> raw.toString().trim()
+        }
+        if (t.isEmpty()) return null
+        if (!t.startsWith("https://", ignoreCase = true) && !t.startsWith("http://", ignoreCase = true)) {
+            return null
+        }
+        return t
     }
 }

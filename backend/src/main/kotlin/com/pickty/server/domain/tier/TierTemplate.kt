@@ -1,6 +1,8 @@
 package com.pickty.server.domain.tier
 
 import com.pickty.server.global.common.BaseTimeEntity
+import jakarta.persistence.Access
+import jakarta.persistence.AccessType
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.FetchType
@@ -55,6 +57,12 @@ class TierTemplate(
     @Column(name = "creator_id")
     var creatorId: Long? = creatorId
         protected set
+
+    /** 카드 썸네일용 공개 이미지 URL 최대 4개 — jsonb (구 행은 null 가능) */
+    @Access(AccessType.FIELD)
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "thumbnail_urls", columnDefinition = "jsonb")
+    var thumbnailUrls: List<String>? = null
 
     fun updateItems(newItems: Map<String, Any?>) {
         this.items = newItems

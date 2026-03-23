@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { captureTierElementToPng, formatImageCaptureError } from '@/lib/tier-capture-png';
+import { uploadPicktyImages } from '@/lib/image-upload-api';
 import { useTierStore } from '@/lib/store/tier-store';
 import { createTemplate, createTierResult } from '@/lib/tier-api';
 import { buildTierSnapshot, collectDistinctItems } from '@/lib/tier-snapshot';
@@ -101,6 +102,10 @@ export function ExportModal({ captureRef, onClose }: ExportModalProps) {
       setSaveError('티어표 제목을 입력해 주세요.');
       return;
     }
+    if (!previewUrl) {
+      setSaveError('미리보기를 생성한 뒤 저장해 주세요.');
+      return;
+    }
     setSaveError(null);
     setSaveBusy(true);
     try {
@@ -112,6 +117,11 @@ export function ExportModal({ captureRef, onClose }: ExportModalProps) {
         setTemplateId(tid);
       }
 
+      const blob = await fetch(previewUrl).then((r) => r.blob());
+      const file = new File([blob], 'tier-result.png', { type: 'image/png' });
+      const uploaded = await uploadPicktyImages([file], accessToken);
+      const thumbnailUrl = uploaded[0] ?? null;
+
       const snapshot = buildTierSnapshot(tiers, pool);
       const result = await createTierResult(
         {
@@ -120,6 +130,7 @@ export function ExportModal({ captureRef, onClose }: ExportModalProps) {
           listTitle: title,
           listDescription: listDescription.trim() || null,
           isPublic: false,
+          thumbnailUrl,
         },
         accessToken,
       );

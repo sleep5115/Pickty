@@ -1,6 +1,7 @@
 package com.pickty.server.domain.upload
 
 import com.pickty.server.global.config.CloudflareR2Properties
+import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.web.multipart.MultipartFile
@@ -24,6 +25,8 @@ class R2ImageStorageService(
     private val props: CloudflareR2Properties,
 ) {
 
+    private val log = LoggerFactory.getLogger(R2ImageStorageService::class.java)
+
     /** [storeOne] 과 동일 규칙: UUID 소문자 + 허용 확장자 */
     private val storedObjectKeyRegex =
         Regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(png|jpe?g|webp|gif|bin)$")
@@ -44,22 +47,31 @@ class R2ImageStorageService(
      * 업로드 시 저장한 객체 키만 허용(UUID 파일명 + 확장자). 공개 URL이 403이어도 API가 R2에서 직접 읽어 제공.
      */
     fun fetchStoredObjectIfPresent(key: String): R2FetchedObject? {
-        if (!isAllowedObjectKey(key)) {
+        // 공개 URL 마지막 세그먼트에 대문자 UUID가 섞여도 저장 키는 항상 소문자
+        val normalized = key.trim().lowercase()
+        if (!isAllowedObjectKey(normalized)) {
+            log.warn("R2 fetch skipped: key failed validation shape={}", normalized)
             return null
         }
         return try {
             val req = GetObjectRequest.builder()
                 .bucket(props.bucketName)
-                .key(key)
+                .key(normalized)
                 .build()
             val resp = s3Client.getObject(req, ResponseTransformer.toBytes())
             val ct = resp.response().contentType()?.takeIf { it.isNotBlank() }
                 ?: "application/octet-stream"
             R2FetchedObject(resp.asByteArray(), ct)
         } catch (_: software.amazon.awssdk.services.s3.model.NoSuchKeyException) {
+            log.warn("R2 fetch miss: NoSuchKey bucket={} key={}", props.bucketName, normalized)
             null
         } catch (e: S3Exception) {
-            if (e.statusCode() == 404) null else throw e
+            if (e.statusCode() == 404) {
+                log.warn("R2 fetch miss: S3 404 bucket={} key={} msg={}", props.bucketName, normalized, e.message)
+                null
+            } else {
+                throw e
+            }
         }
     }
 

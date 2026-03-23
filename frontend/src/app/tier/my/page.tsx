@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { useAuthStore } from '@/lib/store/auth-store';
+import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
 import { listMyTierResults, type TierResultSummaryResponse } from '@/lib/tier-api';
 
 function formatSavedAt(isoLocal: string): string {
@@ -64,7 +65,7 @@ export default function MyTierResultsPage() {
   }
 
   return (
-    <div className="w-full py-8 px-1 sm:px-2 max-w-3xl mx-auto flex flex-col gap-6">
+    <div className="w-full py-8 px-1 sm:px-2 max-w-5xl mx-auto flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">내 티어표</h1>
         <p className="mt-1 text-sm text-slate-600 dark:text-zinc-400">
@@ -120,25 +121,49 @@ export default function MyTierResultsPage() {
       )}
 
       {!loading && !error && rows.length > 0 && (
-        <ul className="flex flex-col gap-2">
+        <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {rows.map((r) => (
             <li key={r.id}>
               <Link
                 href={`/tier/result/${encodeURIComponent(r.id)}`}
-                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 py-3 shadow-sm hover:border-violet-400 dark:hover:border-violet-600 transition-colors"
+                className="group flex flex-col rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm hover:border-violet-400 dark:hover:border-violet-600 hover:shadow-md transition-all h-full"
               >
-                <div className="min-w-0">
-                  <span className="font-medium text-slate-900 dark:text-zinc-100 truncate block">
+                <div
+                  className="relative w-full shrink-0 overflow-hidden border-b border-slate-100 bg-slate-100 dark:border-zinc-800 dark:bg-zinc-950"
+                  style={{ aspectRatio: '16 / 10', minHeight: '140px' }}
+                >
+                  {r.thumbnailUrl ? (
+                    <div className="absolute inset-0 flex min-h-0 flex-col">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={picktyImageDisplaySrc(r.thumbnailUrl)}
+                        alt=""
+                        className="block h-full w-full min-h-0 object-cover object-top"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex h-full min-h-[140px] flex-col items-center justify-center gap-2 text-slate-400 dark:text-zinc-600">
+                      <span className="text-3xl opacity-50" aria-hidden>
+                        ◇
+                      </span>
+                      <span className="text-xs">미리보기 없음</span>
+                    </div>
+                  )}
+                </div>
+                <div className="p-4 flex flex-col gap-1 flex-1 min-w-0">
+                  <span className="font-semibold text-slate-900 dark:text-zinc-100 group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors line-clamp-2">
                     {r.listTitle?.trim() || '제목 없음'}
                   </span>
-                  <span className="text-xs text-slate-500 dark:text-zinc-500 truncate block">
+                  <span className="text-xs text-slate-500 dark:text-zinc-500 line-clamp-1">
                     템플릿: {r.templateTitle} · v{r.templateVersion}
                     {r.isPublic ? ' · 공개' : ''}
                   </span>
+                  <span className="text-xs text-slate-400 dark:text-zinc-600 mt-auto pt-2 tabular-nums">
+                    {formatSavedAt(r.createdAt)}
+                  </span>
                 </div>
-                <span className="text-xs text-slate-400 dark:text-zinc-600 shrink-0 tabular-nums">
-                  {formatSavedAt(r.createdAt)}
-                </span>
               </Link>
             </li>
           ))}

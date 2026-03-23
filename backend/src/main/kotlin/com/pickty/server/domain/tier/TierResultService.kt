@@ -23,6 +23,7 @@ class TierResultService(
             .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "template not found") }
 
         val loggedIn = userId != null
+        val thumb = request.thumbnailUrl?.trim()?.takeIf { it.isNotEmpty() }
         val entity = TierResult(
             templateEntity = template,
             snapshotPayload = request.snapshotData,
@@ -31,6 +32,7 @@ class TierResultService(
             isTemporaryInit = !loggedIn,
             listTitleInit = request.listTitle?.trim()?.takeIf { it.isNotEmpty() },
             listDescriptionInit = request.listDescription?.trim()?.takeIf { it.isNotEmpty() },
+            thumbnailUrlInit = thumb,
         )
         val saved = tierResultRepository.save(entity)
         val id = saved.id ?: throw IllegalStateException("result id missing after save")
@@ -54,6 +56,8 @@ class TierResultService(
                 listDescription = e.listDescription,
                 isPublic = e.isPublic,
                 createdAt = e.createdAt.format(fmt),
+                thumbnailUrl = e.thumbnailUrl?.trim()?.takeIf { it.isNotEmpty() }
+                    ?: firstHttpImageFromSnapshot(e.snapshotData),
             )
         }
     }
@@ -83,6 +87,48 @@ class TierResultService(
             isPublic = entity.isPublic,
             isTemporary = entity.isTemporary,
             userId = entity.userId,
+            thumbnailUrl = entity.thumbnailUrl?.trim()?.takeIf { it.isNotEmpty() }
+                ?: firstHttpImageFromSnapshot(entity.snapshotData),
         )
+    }
+
+    /** PNG 미리보기 URL 없을 때 목록·상세 카드용 — 스냅샷 풀/티어 아이템 첫 http(s) 이미지 */
+    @Suppress("UNCHECKED_CAST")
+    private fun firstHttpImageFromSnapshot(snapshot: Map<String, Any?>): String? {
+        val pool = snapshot["pool"]
+        if (pool is List<*>) {
+            for (entry in pool) {
+                httpUrlFromSnapshotItem(entry)?.let { return it }
+            }
+        }
+        val tiers = snapshot["tiers"]
+        if (tiers is List<*>) {
+            for (tier in tiers) {
+                if (tier !is Map<*, *>) continue
+                val t = tier as Map<String, Any?>
+                val items = t["items"] ?: continue
+                if (items !is List<*>) continue
+                for (item in items) {
+                    httpUrlFromSnapshotItem(item)?.let { return it }
+                }
+            }
+        }
+        return null
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun httpUrlFromSnapshotItem(entry: Any?): String? {
+        if (entry !is Map<*, *>) return null
+        val map = entry as Map<String, Any?>
+        val raw = map["imageUrl"] ?: map["image_url"] ?: return null
+        val t = when (raw) {
+            is String -> raw.trim()
+            else -> raw.toString().trim()
+        }
+        if (t.isEmpty()) return null
+        if (!t.startsWith("https://", ignoreCase = true) && !t.startsWith("http://", ignoreCase = true)) {
+            return null
+        }
+        return t
     }
 }
