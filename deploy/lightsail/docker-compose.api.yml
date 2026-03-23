@@ -1,0 +1,35 @@
+# Lightsail: Postgres/Valkey 가 있는 Docker 네트워크에 API 컨테이너를 붙입니다.
+#
+# 사전 준비:
+# 1) ~/pickty-infra 에서 postgres/valkey compose 기동(기존과 동일)
+# 2) 이 디렉터리에 application-secrets.yaml 복사 (gitignore — 레포에 커밋 금지)
+# 3) Lightsail 네트워킹에서 TCP 8080 허용(또는 443 리버스 프록시만 쓸 경우 로컬 프록시 구성)
+#
+# 실행(레포 루트에서): docker compose -f deploy/lightsail/docker-compose.api.yml up -d --build
+
+services:
+  api:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    image: pickty-api:local
+    container_name: pickty-api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      # 컨테이너 간 통신 — DB 비번·OAuth 등은 마운트된 application-secrets.yaml 에만 둠
+      DB_HOST: pickty-postgres
+      VALKEY_HOST: pickty-valkey
+      VALKEY_DATABASE: "0"
+      # pickty-config 의 yaml 을 마운트할 때 나머지 OAuth·JWT·R2 등 로드
+      SPRING_CONFIG_IMPORT: optional:file:/config/application-secrets.yaml
+    volumes:
+      - ./application-secrets.yaml:/config/application-secrets.yaml:ro
+    networks:
+      - pickty-infra_default
+
+networks:
+  pickty-infra_default:
+    external: true
