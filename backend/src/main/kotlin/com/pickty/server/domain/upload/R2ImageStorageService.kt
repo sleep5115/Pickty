@@ -1,34 +1,31 @@
 package com.pickty.server.domain.upload
 
+import com.pickty.server.global.config.CloudflareR2Properties
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.web.multipart.MultipartFile
 import org.springframework.web.server.ResponseStatusException
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.Paths
-import java.nio.file.StandardCopyOption
+import software.amazon.awssdk.core.sync.RequestBody
+import software.amazon.awssdk.services.s3.S3Client
+import software.amazon.awssdk.services.s3.model.PutObjectRequest
 import java.util.UUID
 
-/**
- * 개발용: 호스트 PC 바탕화면 `pickty_uploads`에 이미지 저장.
- * 운영·R2 전환 시 이 서비스 구현체만 교체하면 됨.
- */
 @Service
-class LocalDesktopImageStorageService {
-
-    private val uploadRoot: Path =
-        Paths.get(System.getProperty("user.home"), "Desktop", "pickty_uploads").toAbsolutePath().normalize()
-
-    init {
-        Files.createDirectories(uploadRoot)
-    }
+class R2ImageStorageService(
+    private val s3Client: S3Client,
+    private val props: CloudflareR2Properties,
+) {
 
     fun storeAllOrdered(files: List<MultipartFile>): List<String> {
         if (files.isEmpty()) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "no files")
         }
         return files.map { storeOne(it) }
+    }
+
+    fun publicUrlForStoredName(storedName: String): String {
+        val base = props.publicUrl.trimEnd('/')
+        return "$base/$storedName"
     }
 
     private fun storeOne(file: MultipartFile): String {
@@ -43,17 +40,18 @@ class LocalDesktopImageStorageService {
             ?: extensionFromContentType(ct)
             ?: ".bin"
         val storedName = "${UUID.randomUUID()}$ext"
-        val target = uploadRoot.resolve(storedName).normalize()
-        if (!target.startsWith(uploadRoot)) {
-            throw ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "invalid path")
+        val put = PutObjectRequest.builder()
+            .bucket(props.bucketName)
+            .key(storedName)
+            .contentType(ct.ifBlank { "application/octet-stream" })
+            .build()
+        val bytes = file.inputStream.use { it.readAllBytes() }
+        if (bytes.isEmpty()) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "empty file")
         }
-        file.inputStream.use { input ->
-            Files.copy(input, target, StandardCopyOption.REPLACE_EXISTING)
-        }
+        s3Client.putObject(put, RequestBody.fromBytes(bytes))
         return storedName
     }
-
-    fun rootPath(): Path = uploadRoot
 
     private fun extensionFromOriginal(name: String?): String? {
         if (name.isNullOrBlank()) return null

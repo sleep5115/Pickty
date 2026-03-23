@@ -1,5 +1,6 @@
 # prod — Spring·Postgres·Valkey 동일 호스트(또는 compose). 플레이스홀더 기본값 없음.
-# 서버 환경변수로 DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD, VALKEY_* , JWT_SECRET, GOOGLE_* , FRONTEND_URL 등 주입.
+# 서버 환경변수로 DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD, VALKEY_* , JWT_SECRET, GOOGLE_* , FRONTEND_URL,
+# CLOUD_CLOUDFLARE_R2_* (bucket-name, access-key, secret-key, endpoint, public-url) 등 주입.
 
 server:
   forward-headers-strategy: native

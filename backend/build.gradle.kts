@@ -33,6 +33,8 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-webmvc")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	implementation("tools.jackson.module:jackson-module-kotlin")
+	implementation(platform("software.amazon.awssdk:bom:2.30.38"))
+	implementation("software.amazon.awssdk:s3")
 	// Hibernate 7 @JdbcTypeCode(JSON/jsonb): JacksonJsonFormatMapper는 Jackson 2(com.fasterxml…) 전용.
 	// implementation — IDE 실행·테스트 클래스패스에도 포함 (runtimeOnly만이면 누락될 수 있음).
 	// Spring Boot 4 웹 직렬화는 Jackson 3(tools.jackson) — 패키지가 달라 공존.

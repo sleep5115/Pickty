@@ -28,8 +28,8 @@ class SecurityConfig(
     private val oAuth2SuccessHandler: OAuth2SuccessHandler,
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
     private val cookieAuthorizationRequestRepository: HttpCookieOAuth2AuthorizationRequestRepository,
-    @Value("\${app.frontend-url:http://localhost:3002}") private val frontendUrl: String,
-    @Value("\${app.oauth2.allowed-frontend-origins:http://localhost:3002}") private val allowedOriginsRaw: String,
+    @Value("\${app.frontend-url:https://pickty.app}") private val frontendUrl: String,
+    @Value("\${app.oauth2.allowed-frontend-origins:https://pickty.app,https://www.pickty.app,http://localhost:3002,http://127.0.0.1:3002}") private val allowedOriginsRaw: String,
 ) {
 
     @Bean
@@ -39,27 +39,20 @@ class SecurityConfig(
             .filter { it.isNotEmpty() }
             .distinct()
 
-        // 공개 정적 파일: 임의 오리진에서 <img crossorigin="anonymous">·html-to-image 캡처용
-        // (쿠키 없음, allowCredentials=false + pattern * 가 스펙상 허용)
-        val uploadsCors = CorsConfiguration().apply {
-            allowedOriginPatterns = listOf("*")
-            allowedMethods = listOf("GET", "HEAD", "OPTIONS")
-            allowedHeaders = listOf("*")
-            allowCredentials = false
-            maxAge = 3600L
-        }
-
         val apiCors = CorsConfiguration().apply {
             allowedOrigins = origins
-            allowedOriginPatterns = listOf("http://localhost:*", "http://127.0.0.1:*")
+            allowedOriginPatterns = listOf(
+                "http://localhost:*",
+                "http://127.0.0.1:*",
+                "https://pickty.app",
+                "https://www.pickty.app",
+            )
             allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "OPTIONS")
             allowedHeaders = listOf("*")
             allowCredentials = true
         }
 
-        // 더 구체적인 패턴을 먼저 등록 (/** 가 /uploads 를 가로채지 않도록)
         return UrlBasedCorsConfigurationSource().apply {
-            registerCorsConfiguration("/uploads/**", uploadsCors)
             registerCorsConfiguration("/**", apiCors)
         }
     }

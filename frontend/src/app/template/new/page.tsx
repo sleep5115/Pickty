@@ -197,9 +197,9 @@ export default function NewTemplatePage() {
             템플릿이 서버(DB)에 등록되었습니다. 아이템 {savedInfo.itemCount}개가 포함되었습니다.
           </p>
           <p className="mt-3 text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
-            이미지는 백엔드가 호스트 PC 바탕화면의 <code className="text-[0.7rem] bg-white/60 dark:bg-black/30 px-1 rounded">pickty_uploads</code>에
-            저장했고, DB에는 <code className="text-[0.7rem] bg-white/60 dark:bg-black/30 px-1 rounded">/uploads/…</code> URL이 들어갑니다. 다른 PC에서는
-            해당 경로가 없으므로 썸네일이 보이지 않을 수 있습니다. R2 연동 시 공개 스토리지로 전환됩니다.
+            이미지는 <strong>Cloudflare R2</strong> 버킷에 올라가며, DB에는 공개 URL(
+            <code className="text-[0.7rem] bg-white/60 dark:bg-black/30 px-1 rounded">https://img.pickty.app/파일명</code>
+            )이 저장됩니다. R2 버킷 CORS가 맞게 열려 있어야 다른 오리진에서도 미리보기·캡처가 됩니다.
           </p>
           <div className="mt-6 flex flex-col sm:flex-row gap-3">
             <button
@@ -238,9 +238,8 @@ export default function NewTemplatePage() {
         role="note"
         className="mb-6 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50/90 dark:bg-zinc-900/60 px-3 py-2 text-xs text-slate-700 dark:text-zinc-300"
       >
-        저장 시 이미지는 먼저 백엔드로 업로드되어, 서버가 실행 중인 PC의 바탕화면{' '}
-        <strong>pickty_uploads</strong> 폴더에 저장됩니다. 미리보기는 여전히 브라우저(blob)를 쓰며, DB에는{' '}
-        <code className="text-[0.65rem] opacity-90">http://…/uploads/파일명</code> 형태의 주소가 기록됩니다. (추후 Cloudflare R2로 교체 예정)
+        저장 시 이미지는 백엔드를 거쳐 <strong>Cloudflare R2</strong>에 업로드됩니다. 미리보기는 브라우저(blob)를 쓰며, DB에는{' '}
+        <code className="text-[0.65rem] opacity-90">https://img.pickty.app/파일명</code> 형태의 공개 URL이 기록됩니다.
       </div>
 
       <form onSubmit={onSubmit} className="space-y-8">

@@ -1,8 +1,7 @@
 import type { Tier, TierItem } from '@/lib/store/tier-store';
+import { isPicktyHostedImageHostname, PUBLIC_API_BASE_URL } from '@/lib/public-site-config';
 
-/** 빈 문자열 env는 `??`로 걸러지지 않음 — api-fetch와 동일 규칙 */
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL?.trim() || 'http://localhost:8080';
+const API_URL = PUBLIC_API_BASE_URL;
 
 function apiOrigin(): string {
   const base = API_URL.replace(/\/$/, '');
@@ -11,7 +10,7 @@ function apiOrigin(): string {
 
 /**
  * DB에 예전 호스트(ngrok, LAN IP 등)로 박힌 Pickty 업로드 URL을 현재 API 오리진으로 맞춤.
- * `/uploads/`만 처리 — 외부 이미지(imgur 등)는 그대로 둠.
+ * 레거시 `/uploads/`(로컬 백엔드 정적 서빙)만 처리 — R2(`img.pickty.app`·`*.r2.dev`)·외부(imgur 등)는 그대로 둠.
  */
 export function resolvePicktyUploadsUrl(imageUrl: string): string {
   const base = API_URL.replace(/\/$/, '');
@@ -37,7 +36,8 @@ export function resolvePicktyUploadsUrl(imageUrl: string): string {
 }
 
 /**
- * 경로가 `/uploads/`인 Pickty 호스팅 이미지면 true (호스트는 무관 — resolve 전 판별용).
+ * Pickty가 제공하는 이미지 자산(레거시 `/uploads/` 또는 R2 공개 URL)이면 true.
+ * html-to-image 등에서 `crossOrigin="anonymous"` 필요 여부 판별용.
  */
 export function isPicktyUploadsAssetUrl(imageUrl: string): boolean {
   const base = API_URL.replace(/\/$/, '');
@@ -52,7 +52,10 @@ export function isPicktyUploadsAssetUrl(imageUrl: string): boolean {
       return false;
     }
   }
-  return abs.pathname.startsWith('/uploads/');
+  if (abs.pathname.startsWith('/uploads/')) {
+    return true;
+  }
+  return isPicktyHostedImageHostname(abs.hostname);
 }
 
 export function rewriteTierItemUploadUrl(item: TierItem): TierItem {

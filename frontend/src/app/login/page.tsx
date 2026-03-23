@@ -7,7 +7,15 @@ import { useAuthStore } from '@/lib/store/auth-store';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema, type LoginFormValues } from '@/lib/schemas/auth';
+import { PUBLIC_API_BASE_URL } from '@/lib/public-site-config';
 
+/**
+ * 소셜 로그인: 브라우저가 `${PUBLIC_API_BASE_URL}/oauth2/authorization/{provider}` 로 이동(팝업 또는 전체 탭).
+ * 성공 시 백엔드 OAuth2SuccessHandler 가 `{허용된 프론트 오리진}/auth/callback?token=...` 로 리다이렉트(쿠키 Origin 화이트리스트 우선, 없으면 FRONTEND_URL 기본값 https://pickty.app).
+ *
+ * Google Cloud Console → 승인된 리디렉션 URI (백엔드 호스트, 복사용):
+ *   https://api.pickty.app/login/oauth2/code/google
+ */
 function GoogleIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true">
@@ -79,7 +87,7 @@ function EyeIcon({ open }: { open: boolean }) {
   );
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL?.trim() || 'http://localhost:8080';
+const API_URL = PUBLIC_API_BASE_URL;
 
 function safeReturnPath(raw: string | null): string {
   if (raw && raw.startsWith('/') && !raw.startsWith('//')) return raw;

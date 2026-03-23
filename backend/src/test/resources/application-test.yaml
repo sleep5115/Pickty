@@ -21,6 +21,16 @@ spring:
 jwt:
   secret: test-jwt-secret-256-bit-minimum-length-for-hmac-sha-256-algorithm
 
+# 컨텍스트 로드용 더미 — 실제 R2 호출 없음
+cloud:
+  cloudflare:
+    r2:
+      bucket-name: test-bucket
+      access-key: test-access-key
+      secret-key: test-secret-key
+      endpoint: https://127.0.0.1:9
+      public-url: https://img.pickty.app
+
 logging:
   level:
     root: WARN

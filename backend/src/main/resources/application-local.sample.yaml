@@ -1,0 +1,21 @@
+# =============================================================================
+# 샘플 — gitignore `application-local.yaml` 정본은 pickty-config 에서 복사.
+# 로컬 JVM에서 Lightsail 공용 Postgres/Valkey(pickty_dev) 사용 시 이 형태를 따름.
+# =============================================================================
+
+spring:
+  config:
+    import: optional:classpath:application-secrets.yaml
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/pickty_dev
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  data:
+    redis:
+      host: ${VALKEY_HOST}
+      port: ${VALKEY_PORT}
+      password: ${VALKEY_PASSWORD}
+      database: ${VALKEY_DATABASE}

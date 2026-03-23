@@ -1,6 +1,6 @@
 # 공통 기본값. 프로필 (단일 Postgres 인스턴스에 pickty / pickty_dev / pickty_prod):
 # - dev (기본): application-dev.yaml + gitignore application-secrets.yaml(DB_HOST·VALKEY_HOST·OAuth 등)
-# - local: gitignore application-local.yaml 만으로 로컬 Docker(pickty) — 스키마·마이그레이션 검증 등
+# - local: gitignore application-local.yaml — 보통 Lightsail pickty_dev + secrets (선택 Docker 폴백은 compose)
 # - prod: application-prod.yaml + env
 
 server:
@@ -43,11 +43,14 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
+# 이미지 저장소(Cloudflare R2, S3 호환): bucket-name·access-key·secret-key·endpoint·public-url
+# 값은 gitignore application-secrets.yaml 또는 배포 환경 변수(CLOUD_CLOUDFLARE_R2_*) 로 주입.
+
 app:
   frontend-url: ${FRONTEND_URL}
   oauth2:
-    # 쉼표로 구분된 허용 프론트엔드 오리진 목록 (모바일 테스트 시 application-local.yaml에서 추가)
-    allowed-frontend-origins: "http://localhost:3002"
+    # 쉼표 구분. 운영: https://pickty.app — 로컬 Next(3002) 병행 시 secrets에서 함께 지정
+    allowed-frontend-origins: "https://pickty.app,https://www.pickty.app,http://localhost:3002,http://127.0.0.1:3002"
 
 jwt:
   secret: ${JWT_SECRET}

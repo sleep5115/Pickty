@@ -16,6 +16,22 @@ import org.springframework.stereotype.Component
 import org.springframework.web.util.UriComponentsBuilder
 import java.time.Duration
 
+/**
+ * 로그인 성공 후 브라우저를 [resolvedOrigin]/auth/callback 으로 보냄.
+ * resolvedOrigin 은 OAuth 시작 시 쿠키에 저장된 Origin(화이트리스트) 또는 [FRONTEND_URL].
+ *
+ * --- Google Cloud Console (웹 클라이언트)에 복사용 ---
+ * 「승인된 리디렉션 URI」(Authorized redirect URIs), 정확히 한 줄씩:
+ *   https://api.pickty.app/login/oauth2/code/google
+ *
+ * 「승인된 JavaScript 생성자」(Authorized JavaScript origins) — 팝업/브라우저 출처 허용:
+ *   https://pickty.app
+ *   https://www.pickty.app
+ *   http://localhost:3002
+ *   http://127.0.0.1:3002
+ *
+ * (Naver/Kakao 등 추가 시 Spring Security 등록명에 맞춰 /login/oauth2/code/{registrationId} 동일 패턴)
+ */
 @Component
 class OAuth2SuccessHandler(
     private val jwtTokenProvider: JwtTokenProvider,
@@ -23,8 +39,8 @@ class OAuth2SuccessHandler(
     private val cookieAuthorizationRequestRepository: HttpCookieOAuth2AuthorizationRequestRepository,
     private val redisTemplate: StringRedisTemplate,
     private val objectMapper: ObjectMapper,
-    @Value("\${app.frontend-url:http://localhost:3002}") private val frontendUrl: String,
-    @Value("\${app.oauth2.allowed-frontend-origins:http://localhost:3002}") private val allowedOriginsRaw: String,
+    @Value("\${app.frontend-url:https://pickty.app}") private val frontendUrl: String,
+    @Value("\${app.oauth2.allowed-frontend-origins:https://pickty.app,https://www.pickty.app,http://localhost:3002,http://127.0.0.1:3002}") private val allowedOriginsRaw: String,
 ) : SimpleUrlAuthenticationSuccessHandler() {
 
     private val allowedOrigins: Set<String> by lazy {
