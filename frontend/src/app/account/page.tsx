@@ -10,6 +10,7 @@ import { useAuthPersistHydrated } from '@/lib/hooks/use-auth-persist-hydrated';
 import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
 import { uploadPicktyImages } from '@/lib/image-upload-api';
 import { onboardingSchema, type OnboardingFormValues } from '@/lib/schemas/auth';
+import { PUBLIC_API_BASE_URL } from '@/lib/public-site-config';
 
 interface UserInfo {
   id: number;
@@ -82,6 +83,18 @@ const PROVIDER_STYLE: Record<string, { label: string; className: string }> = {
   CHZZK: { label: '치지직', className: 'bg-[#00FF77] text-black' },
   SOOP: { label: 'SOOP', className: 'bg-[#FF6B35] text-white' },
 };
+
+/** 백엔드 `POST /me/oauth-link/challenge` 와 동일한 registrationId */
+const OPTIONAL_SOCIAL_LINKS: {
+  registrationId: string;
+  providerKey: string;
+  label: string;
+  available: boolean;
+}[] = [
+  { registrationId: 'google', providerKey: 'GOOGLE', label: 'Google', available: true },
+  { registrationId: 'kakao', providerKey: 'KAKAO', label: '카카오', available: true },
+  { registrationId: 'naver', providerKey: 'NAVER', label: '네이버', available: false },
+];
 
 const BIRTH_YEAR_OPTIONS = (() => {
   const y = new Date().getFullYear();
@@ -477,7 +490,10 @@ function ProfileEditModal({ open, onClose, accessToken, user, onSaved, onUnautho
 export default function AccountPage() {
   const router = useRouter();
   const hydrated = useAuthPersistHydrated();
-  const { accessToken, clearAuth } = useAuthStore();
+  const { accessToken, clearAuth, setAccessToken } = useAuthStore();
+  const [profileReloadKey, setProfileReloadKey] = useState(0);
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [linkBusy, setLinkBusy] = useState<string | null>(null);
   const [user, setUser] = useState<UserInfo | null>(null);
   const [oauthRaw, setOauthRaw] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
@@ -488,6 +504,22 @@ export default function AccountPage() {
   const [linkedAccounts, setLinkedAccounts] = useState<SensitiveLinkedAccount[] | null>(null);
   const [sensitiveLoading, setSensitiveLoading] = useState(false);
   const [sensitiveError, setSensitiveError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleOAuthMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type === 'OAUTH_SUCCESS') {
+        const token = event.data.token as string;
+        setAccessToken(token);
+        setProfileReloadKey((k) => k + 1);
+        setLinkError(null);
+      } else if (event.data?.type === 'OAUTH_ERROR') {
+        setLinkError('소셜 연동에 실패했습니다. 다시 시도해 주세요.');
+      }
+    };
+    window.addEventListener('message', handleOAuthMessage);
+    return () => window.removeEventListener('message', handleOAuthMessage);
+  }, [setAccessToken]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -530,7 +562,56 @@ export default function AccountPage() {
         setLoading(false);
       }
     })();
-  }, [hydrated, accessToken, router, clearAuth]);
+  }, [hydrated, accessToken, router, clearAuth, profileReloadKey]);
+
+  const startSocialLink = useCallback(
+    async (registrationId: string) => {
+      if (!accessToken) return;
+      setLinkError(null);
+      setLinkBusy(registrationId);
+      try {
+        const res = await apiFetch('/api/v1/user/me/oauth-link/challenge', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ registrationId }),
+        });
+        if (res.status === 401) {
+          clearAuth();
+          router.replace('/login');
+          return;
+        }
+        if (!res.ok) {
+          const t = await res.text();
+          setLinkError(t || `연동 준비에 실패했습니다. (${res.status})`);
+          return;
+        }
+        const { path } = (await res.json()) as { path: string };
+        const url = `${PUBLIC_API_BASE_URL}${path}`;
+        const width = 500;
+        const height = 620;
+        const left = Math.round(window.screenX + (window.outerWidth - width) / 2);
+        const top = Math.round(window.screenY + (window.outerHeight - height) / 2);
+        const popup = window.open(
+          url,
+          'pickty-oauth-link',
+          `width=${width},height=${height},left=${left},top=${top},popup=1,scrollbars=yes`,
+        );
+        if (!popup) {
+          window.location.href = url;
+        } else {
+          popup.focus();
+        }
+      } catch {
+        setLinkError('연동 준비 중 오류가 발생했습니다.');
+      } finally {
+        setLinkBusy(null);
+      }
+    },
+    [accessToken, clearAuth, router],
+  );
 
   useEffect(() => {
     if (!hydrated || !accountInfoOpen || !accessToken || !user) return;
@@ -560,6 +641,12 @@ export default function AccountPage() {
       cancelled = true;
     };
   }, [hydrated, accountInfoOpen, accessToken, user]);
+
+  const linkedSet = useMemo(() => {
+    const list = user?.providers;
+    if (!list?.length) return new Set<string>();
+    return new Set(list.map((p) => p.toUpperCase()));
+  }, [user]);
 
   const handleLogout = () => {
     clearAuth();
@@ -606,7 +693,7 @@ export default function AccountPage() {
       <h1 className="text-2xl font-bold text-slate-900 dark:text-zinc-100">내 계정</h1>
 
       <div className="bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-6">
-        <div className="flex items-center gap-5">
+        <div className="flex items-start gap-5">
           {user.profileImageUrl ? (
             <img
               src={picktyImageDisplaySrc(user.profileImageUrl)}
@@ -618,10 +705,30 @@ export default function AccountPage() {
               {user.nickname.charAt(0).toUpperCase()}
             </div>
           )}
-          <div className="flex-1 min-w-0 grid grid-cols-2 gap-x-6 gap-y-1">
+          <div className="flex-1 min-w-0 grid grid-cols-2 gap-x-6 gap-y-1 items-start">
             <div className="min-w-0">
               <p className="text-xs text-slate-500 dark:text-zinc-500 mb-0.5">닉네임</p>
               <p className="text-base font-semibold truncate text-slate-900 dark:text-zinc-100">{user.nickname}</p>
+              <p className="text-xs font-medium text-slate-500 dark:text-zinc-500 mt-2.5 mb-1.5">연결됨</p>
+              <ul className="flex flex-wrap gap-2 min-h-[1.75rem] items-center">
+                {user.providers.length === 0 ? (
+                  <li className="text-sm text-slate-500 dark:text-zinc-400">아직 없음</li>
+                ) : (
+                  user.providers.map((p) => {
+                    const style = PROVIDER_STYLE[p.toUpperCase()];
+                    return (
+                      <li
+                        key={p}
+                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
+                          style?.className ?? 'bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-200'
+                        }`}
+                      >
+                        {style?.label ?? p}
+                      </li>
+                    );
+                  })
+                )}
+              </ul>
             </div>
             <div className="min-w-0">
               <p className="text-xs text-slate-500 dark:text-zinc-500 mb-0.5">가입일</p>
@@ -692,6 +799,37 @@ export default function AccountPage() {
 
           <div>
             <p className="text-xs font-medium text-slate-500 dark:text-zinc-500 mb-2">연결된 로그인</p>
+            <p className="text-xs text-slate-500 dark:text-zinc-500 mb-3 leading-relaxed">
+              다른 제공자를 연결하면 데이터는 가입일이 더 이른 계정 기준으로 합쳐집니다.
+            </p>
+            {linkError && (
+              <div className="mb-3 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-600 dark:text-red-400">
+                {linkError}
+              </div>
+            )}
+            <p className="text-xs font-medium text-slate-500 dark:text-zinc-500 mb-2">연동하기</p>
+            <div className="flex flex-wrap gap-2 mb-5">
+              {OPTIONAL_SOCIAL_LINKS.map((opt) => {
+                const connected = linkedSet.has(opt.providerKey);
+                if (connected) return null;
+                return (
+                  <button
+                    key={opt.registrationId}
+                    type="button"
+                    disabled={!opt.available || linkBusy !== null}
+                    onClick={() => opt.available && startSocialLink(opt.registrationId)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 disabled:opacity-45 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {opt.available
+                      ? linkBusy === opt.registrationId
+                        ? `${opt.label} 연결 중…`
+                        : `${opt.label} 연동하기`
+                      : `${opt.label} (준비 중)`}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="border-t border-slate-200 dark:border-zinc-800 pt-4 space-y-3">
             {!sensitiveLoading && linkedAccounts && linkedAccounts.length === 0 && (
               <p className="text-sm text-slate-500 dark:text-zinc-400">
                 {user.providers.length > 0
@@ -738,6 +876,7 @@ export default function AccountPage() {
                 })}
               </ul>
             )}
+            </div>
           </div>
         </div>
       </details>

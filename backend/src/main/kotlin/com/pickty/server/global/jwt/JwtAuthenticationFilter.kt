@@ -1,5 +1,6 @@
 package com.pickty.server.global.jwt
 
+import com.pickty.server.domain.user.AccountStatus
 import com.pickty.server.domain.user.UserRepository
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
@@ -33,6 +34,9 @@ class JwtAuthenticationFilter(
                 runCatching {
                     val userId = jwtTokenProvider.getUserId(token)
                     userRepository.findById(userId).ifPresent { user ->
+                        if (user.accountStatus == AccountStatus.MERGED || user.accountStatus == AccountStatus.DELETED) {
+                            return@ifPresent
+                        }
                         val auth = UsernamePasswordAuthenticationToken(
                             userId, null,
                             listOf(SimpleGrantedAuthority("ROLE_${user.role.name}")),

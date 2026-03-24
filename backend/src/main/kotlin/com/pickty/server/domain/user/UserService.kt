@@ -47,10 +47,9 @@ class UserService(
             val attrs = acc.providerAttributes ?: emptyMap()
             SensitiveLinkedAccountDto(
                 provider = acc.provider.name,
-                email = oauthAttrString(attrs, "email") ?: user.email?.takeIf { singleAccount },
-                name = oauthAttrString(attrs, "name") ?: user.userName?.takeIf { singleAccount },
-                profileImageUrl = oauthAttrString(attrs, "picture")
-                    ?: user.profileImageUrl?.takeIf { singleAccount },
+                email = linkedAccountEmail(attrs, user.email, singleAccount),
+                name = linkedAccountDisplayName(attrs, user.userName, singleAccount),
+                profileImageUrl = linkedAccountProfileImageUrl(attrs, user.profileImageUrl, singleAccount),
             )
         }
         return UserSensitiveProfileResponse(linkedAccounts = linked)
@@ -61,6 +60,36 @@ class UserService(
         val v = attrs[key] ?: return null
         val s = v as? String ?: return null
         return s.trim().takeIf { it.isNotEmpty() }
+    }
+
+    private fun linkedAccountEmail(attrs: Map<String, Any?>, userEmail: String?, singleAccount: Boolean): String? {
+        oauthAttrString(attrs, "email")?.let { return it }
+        val kakao = attrs["kakao_account"] as? Map<*, *> ?: return userEmail?.takeIf { singleAccount }
+        val raw = kakao["email"] ?: return userEmail?.takeIf { singleAccount }
+        val s = raw as? String ?: return userEmail?.takeIf { singleAccount }
+        return s.trim().takeIf { it.isNotEmpty() } ?: userEmail?.takeIf { singleAccount }
+    }
+
+    private fun linkedAccountDisplayName(attrs: Map<String, Any?>, userName: String?, singleAccount: Boolean): String? {
+        oauthAttrString(attrs, "name")?.let { return it }
+        val kakao = attrs["kakao_account"] as? Map<*, *> ?: return userName?.takeIf { singleAccount }
+        val profile = kakao["profile"] as? Map<*, *> ?: return userName?.takeIf { singleAccount }
+        val raw = profile["nickname"] ?: return userName?.takeIf { singleAccount }
+        val s = raw as? String ?: return userName?.takeIf { singleAccount }
+        return s.trim().takeIf { it.isNotEmpty() } ?: userName?.takeIf { singleAccount }
+    }
+
+    private fun linkedAccountProfileImageUrl(
+        attrs: Map<String, Any?>,
+        profileImageUrl: String?,
+        singleAccount: Boolean,
+    ): String? {
+        oauthAttrString(attrs, "picture")?.let { return it }
+        val kakao = attrs["kakao_account"] as? Map<*, *> ?: return profileImageUrl?.takeIf { singleAccount }
+        val profile = kakao["profile"] as? Map<*, *> ?: return profileImageUrl?.takeIf { singleAccount }
+        val raw = profile["profile_image_url"] ?: return profileImageUrl?.takeIf { singleAccount }
+        val s = raw as? String ?: return profileImageUrl?.takeIf { singleAccount }
+        return s.trim().takeIf { it.isNotEmpty() } ?: profileImageUrl?.takeIf { singleAccount }
     }
 
     @Transactional

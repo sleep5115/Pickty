@@ -132,7 +132,7 @@ function parseListThumbnailUsesCustom(raw: Record<string, unknown>): boolean {
   return v === true;
 }
 
-function parseResultThumbnailUrl(raw: Record<string, unknown>): string | null {
+export function parseResultThumbnailUrl(raw: Record<string, unknown>): string | null {
   let v: unknown = raw.thumbnailUrl ?? raw.thumbnail_url;
   if (typeof v === 'string') {
     const t = v.trim();

@@ -2,8 +2,9 @@
 
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
+import { ZoomIn } from 'lucide-react';
 import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
-import { TierItem } from '@/lib/store/tier-store';
+import { TierItem, useTierStore } from '@/lib/store/tier-store';
 
 export function hashColor(str: string): string {
   const COLORS = [
@@ -36,11 +37,17 @@ export function ItemCard({
   disableDrag = false,
   onClick,
 }: ItemCardProps) {
+  const setPreviewItem = useTierStore((s) => s.setPreviewItem);
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
       id: item.id,
       disabled: alreadyInTarget || disableDrag,
     });
+
+  const listenerMap = (listeners ?? {}) as Record<string, unknown> & {
+    onPointerDown?: React.PointerEventHandler<HTMLButtonElement>;
+  };
+  const { onPointerDown: dndOnPointerDown, ...listenersRest } = listenerMap;
 
   const style = transform
     ? { transform: CSS.Translate.toString(transform) }
@@ -48,64 +55,120 @@ export function ItemCard({
 
   const initials = item.name.slice(0, 2);
   const bgColor = hashColor(item.id);
+  const showPreviewBtn = Boolean(item.imageUrl) && !alreadyInTarget && !disableDrag;
 
   return (
-    <button
-      suppressHydrationWarning
+    <div
       ref={setNodeRef}
-      {...listeners}
-      {...attributes}
-      data-item-id={item.id}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick?.(e);
-      }}
-      disabled={alreadyInTarget}
-      title={item.name}
-      style={{
-        ...style,
-        backgroundColor: !item.imageUrl ? bgColor : undefined,
-      }}
+      style={style}
       className={[
-        'relative w-16 h-16 flex items-center justify-center',
-        'text-xs font-bold text-white rounded select-none touch-none',
-        'border-2 overflow-hidden',
-        'transition-[border,box-shadow,opacity,transform] duration-150',
-        isDragging
-          ? 'opacity-20 cursor-grabbing'
-          : alreadyInTarget
-            ? 'opacity-40 border-slate-400 dark:border-zinc-600 cursor-not-allowed'
-            : 'hover:brightness-110 cursor-grab active:scale-95',
-        isSelected
-          ? 'border-violet-400 ring-2 ring-violet-400 ring-offset-1 ring-offset-white dark:ring-offset-zinc-900 scale-105'
-          : 'border-transparent',
+        'relative w-16 h-16 group',
+        isDragging ? 'z-10' : '',
       ]
         .filter(Boolean)
         .join(' ')}
     >
-      {item.imageUrl ? (
-        <img
-          src={picktyImageDisplaySrc(item.imageUrl)}
-          alt={item.name}
-          className="w-full h-full object-cover pointer-events-none"
-          loading="lazy"
-          decoding="async"
-        />
-      ) : (
-        <span className="text-center leading-tight px-0.5 drop-shadow pointer-events-none">
-          {initials}
-        </span>
-      )}
+      <button
+        suppressHydrationWarning
+        type="button"
+        {...listenersRest}
+        {...attributes}
+        data-item-id={item.id}
+        onPointerDown={(e) => {
+          if (
+            e.altKey &&
+            item.imageUrl &&
+            !alreadyInTarget &&
+            !disableDrag
+          ) {
+            e.stopPropagation();
+            return;
+          }
+          dndOnPointerDown?.(e);
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (
+            e.altKey &&
+            item.imageUrl &&
+            !alreadyInTarget &&
+            !disableDrag
+          ) {
+            e.preventDefault();
+            setPreviewItem(item);
+            return;
+          }
+          onClick?.(e);
+        }}
+        disabled={alreadyInTarget}
+        title={item.name}
+        style={{
+          backgroundColor: !item.imageUrl ? bgColor : undefined,
+        }}
+        className={[
+          'absolute inset-0 w-full h-full flex items-center justify-center',
+          'text-xs font-bold text-white rounded select-none touch-none',
+          'border-2 overflow-hidden',
+          'transition-[border,box-shadow,opacity,transform] duration-150',
+          isDragging
+            ? 'opacity-20 cursor-grabbing'
+            : alreadyInTarget
+              ? 'opacity-40 border-slate-400 dark:border-zinc-600 cursor-not-allowed'
+              : 'hover:brightness-110 cursor-grab active:scale-95',
+          isSelected
+            ? 'border-violet-400 ring-2 ring-violet-400 ring-offset-1 ring-offset-white dark:ring-offset-zinc-900 scale-105'
+            : 'border-transparent',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
+        {item.imageUrl ? (
+          <img
+            src={picktyImageDisplaySrc(item.imageUrl)}
+            alt={item.name}
+            className="w-full h-full object-cover pointer-events-none"
+            loading="lazy"
+            decoding="async"
+          />
+        ) : (
+          <span className="text-center leading-tight px-0.5 drop-shadow pointer-events-none">
+            {initials}
+          </span>
+        )}
 
-      {/* 타겟팅 모드 오버레이 */}
-      {targetingActive && !alreadyInTarget && (
-        <span className="absolute inset-0 bg-violet-400/10 pointer-events-none rounded" />
-      )}
+        {targetingActive && !alreadyInTarget && (
+          <span className="absolute inset-0 bg-violet-400/10 pointer-events-none rounded" />
+        )}
 
-      {/* 선택 오버레이 */}
-      {isSelected && (
-        <span className="absolute inset-0 bg-violet-400/20 pointer-events-none rounded" />
+        {isSelected && (
+          <span className="absolute inset-0 bg-violet-400/20 pointer-events-none rounded" />
+        )}
+      </button>
+
+      {showPreviewBtn && (
+        <button
+          type="button"
+          aria-label={`${item.name} 이미지 크게 보기`}
+          className={[
+            'absolute top-0.5 right-0.5 z-20 rounded p-0.5 touch-manipulation',
+            'border border-slate-200/90 dark:border-zinc-600/90',
+            'bg-white/90 dark:bg-zinc-900/90 text-slate-700 dark:text-zinc-200 shadow-sm',
+            'hover:bg-white dark:hover:bg-zinc-800 transition-opacity duration-150',
+            'md:opacity-0 md:group-hover:opacity-100 max-md:opacity-45',
+          ].join(' ')}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            setPreviewItem(item);
+          }}
+        >
+          <ZoomIn className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
+        </button>
       )}
-    </button>
+    </div>
   );
 }

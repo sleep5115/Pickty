@@ -1,5 +1,6 @@
 package com.pickty.server.global.config
 
+import com.pickty.server.domain.auth.handler.OAuth2FailureHandler
 import com.pickty.server.domain.auth.handler.OAuth2SuccessHandler
 import com.pickty.server.domain.auth.service.CustomOAuth2UserService
 import com.pickty.server.global.jwt.JwtAuthenticationFilter
@@ -26,6 +27,7 @@ class SecurityConfig(
     private val unauthorizedEntryPoint: UnauthorizedEntryPoint,
     private val customOAuth2UserService: CustomOAuth2UserService,
     private val oAuth2SuccessHandler: OAuth2SuccessHandler,
+    private val oAuth2FailureHandler: OAuth2FailureHandler,
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
     private val cookieAuthorizationRequestRepository: HttpCookieOAuth2AuthorizationRequestRepository,
     @Value("\${app.frontend-url:https://pickty.app}") private val frontendUrl: String,
@@ -67,6 +69,7 @@ class SecurityConfig(
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
             .authorizeHttpRequests { auth ->
                 auth
+                    .requestMatchers(HttpMethod.GET, "/oauth2/link/start").permitAll()
                     // 인증이 필요한 경로만 명시적으로 잠금 (Guest First)
                     .requestMatchers(HttpMethod.GET, "/api/v1/user/**").authenticated()
                     .requestMatchers(HttpMethod.POST, "/api/v1/user/**").authenticated()
@@ -87,6 +90,7 @@ class SecurityConfig(
                     }
                     .userInfoEndpoint { it.userService(customOAuth2UserService) }
                     .successHandler(oAuth2SuccessHandler)
+                    .failureHandler(oAuth2FailureHandler)
             }
 
         return http.build()

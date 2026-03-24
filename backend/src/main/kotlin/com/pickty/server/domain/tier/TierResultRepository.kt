@@ -1,6 +1,7 @@
 package com.pickty.server.domain.tier
 
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import java.util.UUID
@@ -27,4 +28,11 @@ interface TierResultRepository : JpaRepository<TierResult, UUID> {
         """,
     )
     fun findByUserIdWithTemplateOrderByCreatedAtDesc(@Param("userId") userId: Long): List<TierResult>
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE TierResult r SET r.userId = :newId WHERE r.userId = :oldId")
+    fun migrateUserId(
+        @Param("oldId") oldId: Long,
+        @Param("newId") newId: Long,
+    ): Int
 }

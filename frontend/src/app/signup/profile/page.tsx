@@ -10,6 +10,7 @@ import { useAuthPersistHydrated } from '@/lib/hooks/use-auth-persist-hydrated';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { apiFetch } from '@/lib/api-fetch';
 import { uploadPicktyImages } from '@/lib/image-upload-api';
+import { generateRandomPlayfulNickname } from '@/lib/nickname-playful';
 
 const BIRTH_YEAR_OPTIONS = (() => {
   const y = new Date().getFullYear();
@@ -220,14 +221,30 @@ export default function OnboardingProfilePage() {
               <label htmlFor="nickname" className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-1.5">
                 닉네임 <span className="text-red-500">*</span>
               </label>
-              <input
-                id="nickname"
-                type="text"
-                autoComplete="username"
-                placeholder="2~20자 활동명"
-                className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/40 transition-colors"
-                {...register('nickname')}
-              />
+              <div className="flex gap-2">
+                <input
+                  id="nickname"
+                  type="text"
+                  autoComplete="username"
+                  placeholder="2~20자 활동명"
+                  className="min-w-0 flex-1 px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/40 transition-colors"
+                  {...register('nickname')}
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setValue('nickname', generateRandomPlayfulNickname(), {
+                      shouldValidate: true,
+                      shouldDirty: true,
+                    })
+                  }
+                  className="shrink-0 px-3 py-2.5 rounded-xl text-sm font-medium border border-slate-300 dark:border-zinc-600 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-200 dark:hover:bg-zinc-700 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/40 transition-colors"
+                  title="랜덤 닉네임"
+                  aria-label="랜덤 닉네임 생성"
+                >
+                  🔄
+                </button>
+              </div>
               {errors.nickname && (
                 <p className="mt-1.5 text-xs text-red-500 dark:text-red-400">{errors.nickname.message}</p>
               )}

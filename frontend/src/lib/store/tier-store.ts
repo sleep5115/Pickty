@@ -7,11 +7,26 @@ export interface TierItem {
   imageUrl?: string;
 }
 
+/** 기획·문서에서 쓰는 이름과 동일 — 티어 아이템 타입 */
+export type PicktyItem = TierItem;
+
 export interface Tier {
   id: string;
   label: string;
   color: string;
   items: TierItem[];
+}
+
+/** 풀 순서 → 티어 행 위에서 아래, 각 행 왼→오. 이미지 URL 있는 아이템만 (확대 갤러리 순서). */
+export function buildTierImageGallery(state: {
+  pool: TierItem[];
+  tiers: Tier[];
+}): TierItem[] {
+  const hasImage = (it: TierItem) => Boolean(it.imageUrl?.trim());
+  return [
+    ...state.pool.filter(hasImage),
+    ...state.tiers.flatMap((t) => t.items.filter(hasImage)),
+  ];
 }
 
 const INITIAL_TIERS: Tier[] = [
@@ -70,6 +85,8 @@ interface TierState {
   pool: TierItem[];
   selectedItemIds: string[];
   targetTierId: string | null;
+  /** 이미지 확대 모달에 표시할 아이템 */
+  previewItem: PicktyItem | null;
 
   toggleTargetTier: (tierId: string) => void;
   clearTarget: () => void;
@@ -104,6 +121,10 @@ interface TierState {
 
   /** 서버 템플릿으로 풀만 교체 — 티어 행은 기본 S~E 빈 상태 */
   loadTemplateWorkspace: (payload: { templateId: string; pool: TierItem[] }) => void;
+
+  setPreviewItem: (item: PicktyItem | null) => void;
+  /** 이미지 확대 중 이전(-1)/다음(+1) — 갤러리는 매번 풀+티어에서 재계산 */
+  stepImagePreview: (delta: number) => void;
 }
 
 export const useTierStore = create<TierState>()((set) => ({
@@ -112,8 +133,22 @@ export const useTierStore = create<TierState>()((set) => ({
   pool: INITIAL_POOL,
   selectedItemIds: [],
   targetTierId: null,
+  previewItem: null,
 
   setTemplateId: (id) => set({ templateId: id }),
+
+  setPreviewItem: (item) => set({ previewItem: item }),
+
+  stepImagePreview: (delta) =>
+    set((state) => {
+      const gallery = buildTierImageGallery(state);
+      if (gallery.length === 0) return { previewItem: null };
+      const id = state.previewItem?.id;
+      let idx = id ? gallery.findIndex((i) => i.id === id) : 0;
+      if (idx < 0) idx = 0;
+      const next = Math.max(0, Math.min(gallery.length - 1, idx + delta));
+      return { previewItem: gallery[next]! };
+    }),
 
   loadTemplateWorkspace: ({ templateId, pool }) =>
     set({
@@ -122,6 +157,7 @@ export const useTierStore = create<TierState>()((set) => ({
       pool,
       selectedItemIds: [],
       targetTierId: null,
+      previewItem: null,
     }),
 
   toggleTargetTier: (tierId) =>
@@ -254,5 +290,6 @@ export const useTierStore = create<TierState>()((set) => ({
       pool: [...INITIAL_POOL],
       selectedItemIds: [],
       targetTierId: null,
+      previewItem: null,
     }),
 }));

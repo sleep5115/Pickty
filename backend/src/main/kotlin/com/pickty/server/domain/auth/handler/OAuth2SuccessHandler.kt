@@ -6,6 +6,7 @@ import com.pickty.server.domain.auth.service.RefreshTokenService
 import com.pickty.server.global.jwt.JwtTokenProvider
 import com.pickty.server.global.oauth2.CookieUtils
 import com.pickty.server.global.oauth2.HttpCookieOAuth2AuthorizationRequestRepository
+import com.pickty.server.global.oauth2.OAuthLinkConstants
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.beans.factory.annotation.Value
@@ -34,7 +35,11 @@ import java.time.Duration
  *   http://localhost:3002
  *   http://127.0.0.1:3002
  *
- * (Naver/Kakao 등 추가 시 Spring Security 등록명에 맞춰 /login/oauth2/code/{registrationId} 동일 패턴)
+ * Kakao Developers → Redirect URI:
+ *   https://api.pickty.app/login/oauth2/code/kakao
+ *   http://localhost:8080/login/oauth2/code/kakao
+ *
+ * (Naver 등 추가 시 Spring Security 등록명에 맞춰 /login/oauth2/code/{registrationId} 동일 패턴)
  */
 @Component
 class OAuth2SuccessHandler(
@@ -72,6 +77,7 @@ class OAuth2SuccessHandler(
         redisTemplate.opsForValue().set("$OAUTH_RAW_KEY_PREFIX${principal.userId}", attrsJson, OAUTH_RAW_TTL)
 
         clearAuthenticationAttributes(request, response)
+        CookieUtils.deleteCookie(request, response, OAuthLinkConstants.OAUTH_LINK_COOKIE)
 
         // 로그인 시작 시점에 저장된 프론트엔드 오리진 쿠키를 읽어 동적 리다이렉트
         // 화이트리스트에 없는 오리진이면 기본 frontendUrl로 폴백

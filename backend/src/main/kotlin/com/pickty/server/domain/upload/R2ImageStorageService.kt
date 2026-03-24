@@ -86,40 +86,95 @@ class R2ImageStorageService(
         if (file.isEmpty) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "empty file")
         }
-        val ct = file.contentType ?: ""
-        if (!ct.startsWith("image/")) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "only image/* is allowed")
+        val rawCt = file.contentType?.trim().orEmpty()
+        if (rawCt.isBlank()) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "content type required")
         }
-        val ext = extensionFromOriginal(file.originalFilename)
-            ?: extensionFromContentType(ct)
-            ?: ".bin"
-        val storedName = "${UUID.randomUUID()}$ext"
-        val put = PutObjectRequest.builder()
-            .bucket(props.bucketName)
-            .key(storedName)
-            .contentType(ct.ifBlank { "application/octet-stream" })
-            .build()
+        val canonical = normalizeToAllowedImageContentType(rawCt)
+            ?: throw ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "unsupported image content type; allowed: image/jpeg, image/png, image/webp, image/gif",
+            )
         val bytes = file.inputStream.use { it.readAllBytes() }
         if (bytes.isEmpty()) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "empty file")
         }
+        if (!magicBytesMatchImageContentType(bytes, canonical)) {
+            throw ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "file content does not match declared image type",
+            )
+        }
+        val ext = fileExtensionForCanonicalType(canonical)
+        val storedName = "${UUID.randomUUID()}$ext"
+        val put = PutObjectRequest.builder()
+            .bucket(props.bucketName)
+            .key(storedName)
+            .contentType(canonical)
+            .build()
         s3Client.putObject(put, RequestBody.fromBytes(bytes))
         return storedName
     }
 
-    private fun extensionFromOriginal(name: String?): String? {
-        if (name.isNullOrBlank()) return null
-        val dot = name.lastIndexOf('.')
-        if (dot < 0 || dot == name.length - 1) return null
-        val ext = name.substring(dot).lowercase()
-        return if (ext.length in 2..12 && ext.all { it.isLetterOrDigit() || it == '.' }) ext else null
+    /**
+     * `image/svg+xml` 등 `image/` 접두사만으로 전부 허용하면 XSS 등으로 이어질 수 있어 **화이트리스트**만 허용.
+     * 선언된 MIME 과 실제 **매직 넘버**가 맞는지 검사해 확장자·MIME 위조(.exe 등)를 막는다.
+     */
+    private fun normalizeToAllowedImageContentType(raw: String): String? {
+        val base = raw.substringBefore(';').trim().lowercase()
+        return when (base) {
+            "image/jpeg", "image/jpg", "image/pjpeg" -> "image/jpeg"
+            "image/png", "image/x-png" -> "image/png"
+            "image/webp" -> "image/webp"
+            "image/gif" -> "image/gif"
+            else -> null
+        }
     }
 
-    private fun extensionFromContentType(ct: String): String? = when {
-        ct.contains("png", ignoreCase = true) -> ".png"
-        ct.contains("jpeg", ignoreCase = true) || ct.contains("jpg", ignoreCase = true) -> ".jpg"
-        ct.contains("webp", ignoreCase = true) -> ".webp"
-        ct.contains("gif", ignoreCase = true) -> ".gif"
-        else -> null
-    }
+    private fun magicBytesMatchImageContentType(bytes: ByteArray, canonical: String): Boolean =
+        when (canonical) {
+            "image/jpeg" ->
+                bytes.size >= 3 &&
+                    bytes[0] == 0xFF.toByte() &&
+                    bytes[1] == 0xD8.toByte() &&
+                    bytes[2] == 0xFF.toByte()
+            "image/png" ->
+                bytes.size >= 8 &&
+                    bytes[0] == 0x89.toByte() &&
+                    bytes[1] == 0x50.toByte() &&
+                    bytes[2] == 0x4E.toByte() &&
+                    bytes[3] == 0x47.toByte() &&
+                    bytes[4] == 0x0D.toByte() &&
+                    bytes[5] == 0x0A.toByte() &&
+                    bytes[6] == 0x1A.toByte() &&
+                    bytes[7] == 0x0A.toByte()
+            "image/gif" ->
+                bytes.size >= 6 &&
+                    bytes[0] == 'G'.code.toByte() &&
+                    bytes[1] == 'I'.code.toByte() &&
+                    bytes[2] == 'F'.code.toByte() &&
+                    bytes[3] == '8'.code.toByte() &&
+                    (bytes[4] == '7'.code.toByte() || bytes[4] == '9'.code.toByte()) &&
+                    bytes[5] == 'a'.code.toByte()
+            "image/webp" ->
+                bytes.size >= 12 &&
+                    bytes[0] == 'R'.code.toByte() &&
+                    bytes[1] == 'I'.code.toByte() &&
+                    bytes[2] == 'F'.code.toByte() &&
+                    bytes[3] == 'F'.code.toByte() &&
+                    bytes[8] == 'W'.code.toByte() &&
+                    bytes[9] == 'E'.code.toByte() &&
+                    bytes[10] == 'B'.code.toByte() &&
+                    bytes[11] == 'P'.code.toByte()
+            else -> false
+        }
+
+    private fun fileExtensionForCanonicalType(canonical: String): String =
+        when (canonical) {
+            "image/jpeg" -> ".jpg"
+            "image/png" -> ".png"
+            "image/webp" -> ".webp"
+            "image/gif" -> ".gif"
+            else -> ".bin"
+        }
 }

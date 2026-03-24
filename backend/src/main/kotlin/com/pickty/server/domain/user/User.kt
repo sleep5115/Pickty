@@ -162,4 +162,11 @@ class User(
         this.gender = gender
         this.birthYear = birthYear
     }
+
+    /** 계정 병합으로 흡수된 계정 — 로그인·JWT 대상에서 제외 */
+    fun markAccountMerged() {
+        require(accountStatus != AccountStatus.MERGED) { "이미 병합 처리된 계정입니다." }
+        require(accountStatus != AccountStatus.DELETED) { "삭제된 계정은 병합할 수 없습니다." }
+        this.accountStatus = AccountStatus.MERGED
+    }
 }

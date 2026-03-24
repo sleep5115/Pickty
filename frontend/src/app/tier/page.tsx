@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { TierBoard } from '@/components/tier/tier-board';
+import { ImagePreviewModal } from '@/components/tier/image-preview-modal';
 import { useTierStore } from '@/lib/store/tier-store';
 import { usePointerDevice } from '@/hooks/use-pointer-device';
 import { getTemplate, templatePayloadToTierItems } from '@/lib/tier-api';
@@ -12,7 +13,7 @@ function TierPageInner() {
   const templateIdParam = searchParams.get('templateId');
   const loadTemplateWorkspace = useTierStore((s) => s.loadTemplateWorkspace);
 
-  const { clearTarget, resetBoard } = useTierStore();
+  const { clearTarget, resetBoard, setPreviewItem } = useTierStore();
   const { isPointerFine } = usePointerDevice();
   /** SSR·첫 하이드레이션 프레임과 서버 HTML을 일치시키기 위해, 마운트 전에는 PC 모드로 고정 */
   const [deviceReady, setDeviceReady] = useState(false);
@@ -26,11 +27,13 @@ function TierPageInner() {
   useEffect(() => {
     setDeviceReady(true);
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') clearTarget();
+      if (e.key !== 'Escape') return;
+      setPreviewItem(null);
+      clearTarget();
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [clearTarget]);
+  }, [clearTarget, setPreviewItem]);
 
   useEffect(() => {
     if (!templateIdParam) {
@@ -97,6 +100,8 @@ function TierPageInner() {
       <TierBoard dragSelectRef={dragSelectRef} pointerModeReady={deviceReady} />
 
       {/* 사용 안내 */}
+      <ImagePreviewModal />
+
       <footer className="shrink-0 px-4 py-1.5 bg-slate-100/80 dark:bg-zinc-950/80 border-t border-slate-200 dark:border-zinc-800 text-center">
         <p className="text-xs text-slate-500 dark:text-zinc-600">
           {isFine ? (
@@ -107,10 +112,17 @@ function TierPageInner() {
               &nbsp;|&nbsp;
               <span className="text-slate-600 dark:text-zinc-500">Ctrl+클릭:</span> 개별 추가 선택
               &nbsp;|&nbsp;
+              <span className="text-slate-600 dark:text-zinc-500">Alt+클릭:</span> 이미지 확대 / 확대 중엔 닫기
+              &nbsp;|&nbsp;
+              <span className="text-slate-600 dark:text-zinc-500">확대:</span> ←→ 이전·다음
+              &nbsp;|&nbsp;
               선택 후 드래그로 일괄 이동
             </>
           ) : (
-            <>티어 라벨을 터치하여 활성화 → 아이템을 터치하면 이동 &nbsp;|&nbsp; 빈 공간 터치로 해제</>
+            <>
+              티어 라벨을 터치하여 활성화 → 아이템을 터치하면 이동 &nbsp;|&nbsp; 빈 공간 터치로 해제
+              &nbsp;|&nbsp; 이미지 확대는 카드의 돋보기 · 확대 중 좌우 스와이프로 이전·다음
+            </>
           )}
         </p>
       </footer>
