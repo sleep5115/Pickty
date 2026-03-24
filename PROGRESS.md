@@ -110,7 +110,7 @@
 - **템플릿 작성(밀키트)**: `/template/new` — 제출 시 **`POST /api/v1/images`**(FormData·다건) → 반환 URL을 `imageUrl`에 매핑 후 **`POST /api/v1/templates`**. 미리보기는 로컬 blob 유지. 저장 완료 패널·내 정보 안내 동일.
 - **티어 메이커**: `?templateId=` 쿼리 시 `GET /api/v1/templates/{id}`로 풀 복원(`loadTemplateWorkspace`). PC/모바일 UX·하이드레이션·LAN 등 기존 플로우 유지.
 - **내 티어표**: GNB **내 정보 ▾** → `/tier/my` · API `GET /api/v1/tiers/results/mine`(JWT) · 카드 그리드에 **`thumbnailUrl`** 캡처 미리보기(`picktyImageDisplaySrc`).
-- **템플릿 카드 썸네일**: DB **`tier_templates.thumbnail_urls`** JSONB(최대 4)·비어 있으면 목록 API가 **items**에서 http(s) `imageUrl` 최대 4개로 보완. **`/template/new`**: 아이템별 썸네일 체크(기본 앞에서 4개)·선택 **커스텀 이미지 1장**(맨 앞 슬롯 우선). **`/templates`**: 1장=풀블리드, 2장=가로 2열, 3~4장=2×2 그리드.
+- **템플릿 카드 썸네일**: DB **`tier_templates.thumbnail_urls`** JSONB(최대 4) + **`list_thumbnail_uses_custom`** BOOLEAN(기본 false). **`true`**: 목록·상세 응답은 **첫 URL만** 커스텀 커버. **`false`**: `thumbnail_urls`를 아이템 그리드(최대 4)로 사용·**비어 있으면** items에서 http(s) `imageUrl` 최대 4개 보완. **`POST /api/v1/templates`** 바디에 **`listThumbnailUsesCustom`**(프론트: 커스텀 파일 선택 시 true). **`/templates` UI**: 1장=풀블리드, 2장=가로 2열, 3~4장=2×2. **구 행**(플래그 false·옛 버그로 커스텀+아이템 혼합): 선두 URL이 어떤 아이템 `imageUrl`과도 같지 않으면 **1장만** 반환하는 휴리스틱 유지.
 - **티어 결과 썸네일**: DB **`tier_results.thumbnail_url`**. 로그인 후보내기 모달 **저장** 시 html-to-image PNG → **`uploadPicktyImages`** → `POST /api/v1/tiers/results`에 `thumbnailUrl` 포함.
 - **알려진 개발 콘솔**: `next-themes` 인라인 script 관련 React 19 경고는 라이브러리 한계(동작은 Recoverable 수준).
 - **이미지 업로드 413**: (1) Tomcat `maxPostSize` — `application.yaml`의 `server.tomcat.*` + **`TomcatMaxPostSizeCustomizer`**(Boot 4는 `org.springframework.boot.tomcat.servlet.TomcatServletWebServerFactory`). (2) **일부 프록시는 요청당 본문 제한**이 있어 한 번에 여러 파일 POST 시 413이 남 → 프론트는 **`uploadPicktyImages`에서 파일마다 순차 `POST /api/v1/images`**(본문 1개씩). 단일 파일도 너무 크면 여전히 413 가능.
@@ -119,6 +119,12 @@
 ### 세션 메모 (2026-03 후반)
 
 - **개발 DB**: Lightsail 은 **`pickty_dev` / `pickty_prod`**(앱) + DBeaver용 빈 **`pickty`**. **`dev` / `local` 프로필** 모두 **`DB_HOST`·`VALKEY_HOST`** 등 secrets 로 원격 붙음(`pickty_dev`). 선택 폴백만 Docker **5442·6380**(`docker-compose.yml`). **`./gradlew bootRun`**(`dev`) / **`bootRunLocal`**(`local`). Spring 비번·OAuth·R2는 **`application-secrets.yaml`**. Lightsail 방화벽 **5432·6379** 는 가능하면 **본인 IP만**.
+
+### 세션 메모 (2026-03-24)
+
+- **로컬 dev vs 운영 DB 혼선(해결 체크)**: 회사 PC에서 IntelliJ **Active profiles: `dev`** + 프론트 `npm run dev`로 검증 시 로컬 API는 **`pickty_dev`**에 저장되고, **`pickty.app`**(배포 API)는 **`pickty_prod`**에 저장되는 것이 정상임을 확인. 전날 집에서 **`prod` 프로필**로 로컬을 띄우는 등 프로필·엔드포인트가 섞이면 DB가 달라 보일 수 있음 — 재현 없이 정상 동작 확인되어 **이슈 해결로 정리**.
+- **`/templates` 커스텀 썸네일**: 커스텀 등록 시 **단일 URL만** 저장 + DB **`list_thumbnail_uses_custom`** 로 의도 명시. API는 플래그·`thumbnail_urls`로 카드용 URL 목록을 **`TierTemplateService.resolveCardThumbnailUrls`**에서 확정(구 행은 휴리스틱 보조).
+- **`list_thumbnail_uses_custom` 마이그레이션**: 기존 행이 있는 테이블에 `NOT NULL`만 추가하면 실패함 → **`ALTER TABLE tier_templates ADD COLUMN list_thumbnail_uses_custom boolean NOT NULL DEFAULT false;`**(개발·운영 DB 각각 동일). 이후 필요 시 **`DROP DEFAULT`**. DBeaver 그리드에서 boolean은 **체크박스**로 보이며 빈 칸(`[ ]`)은 **`false`**.
 
 ### 세션 메모 (2026-03-23)
 

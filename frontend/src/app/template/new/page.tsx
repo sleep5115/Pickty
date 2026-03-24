@@ -230,7 +230,8 @@ export default function NewTemplatePage() {
       }
       const first = customUrls[0];
       if (first) {
-        thumbnailUrls = [first, ...thumbnailUrls].slice(0, 4);
+        /** 목록 카드는 커스텀 썸네일만 사용 (아이템 그리드와 합치지 않음) */
+        thumbnailUrls = [first];
       }
     } else {
       thumbnailUrls = thumbnailUrls.slice(0, 4);
@@ -244,6 +245,7 @@ export default function NewTemplatePage() {
           version: 1,
           items: itemsEnvelope,
           thumbnailUrls,
+          listThumbnailUsesCustom: !!customThumbFile,
         },
         accessToken,
       );
@@ -411,7 +413,7 @@ export default function NewTemplatePage() {
               썸네일 등록하기 <span className="text-slate-400 dark:text-zinc-600 font-normal">(선택)</span>
             </span>
             <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
-              썸네일을 따로 등록하지 않으면, 아래 아이템 이미지에서 4장을 골라 목록 카드용 썸네일을 만들어요.
+              따로 등록한 썸네일이 있으면 목록 카드에는 그 이미지 한 장만 씁니다. 없으면 아래 아이템에서 최대 4개를 골라 2×2 형태로 만듭니다.
             </p>
             <div className="flex flex-wrap items-center gap-3">
               <input

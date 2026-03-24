@@ -19,6 +19,8 @@ export interface TemplateDetailResponse {
   parentTemplateId: string | null;
   items: Record<string, unknown>;
   thumbnailUrls?: string[];
+  /** DB `list_thumbnail_uses_custom` — 커스텀 커버 한 장 vs 아이템 그리드 */
+  listThumbnailUsesCustom?: boolean;
 }
 
 export interface TemplateSummaryResponse {
@@ -28,6 +30,7 @@ export interface TemplateSummaryResponse {
   itemCount: number;
   description: string | null;
   thumbnailUrls: string[];
+  listThumbnailUsesCustom?: boolean;
 }
 
 /** 템플릿 JSONB에서 티어 풀 아이템만 추출 (description 등 메타는 무시) */
@@ -61,6 +64,8 @@ export type CreateTemplatePayload = {
   version?: number;
   /** 카드 썸네일 URL 최대 4개 */
   thumbnailUrls?: string[];
+  /** `true`면 커스텀 커버 1장 모드(서버 컬럼 `list_thumbnail_uses_custom`) */
+  listThumbnailUsesCustom?: boolean;
 };
 
 export interface TierResultResponse {
@@ -122,6 +127,11 @@ function parseTemplateThumbnailUrls(raw: Record<string, unknown>): string[] {
   return [];
 }
 
+function parseListThumbnailUsesCustom(raw: Record<string, unknown>): boolean {
+  const v = raw.listThumbnailUsesCustom ?? raw.list_thumbnail_uses_custom;
+  return v === true;
+}
+
 function parseResultThumbnailUrl(raw: Record<string, unknown>): string | null {
   let v: unknown = raw.thumbnailUrl ?? raw.thumbnail_url;
   if (typeof v === 'string') {
@@ -154,6 +164,7 @@ export async function listTemplates(): Promise<TemplateSummaryResponse[]> {
     return {
       ...t,
       thumbnailUrls: parseTemplateThumbnailUrls(row),
+      listThumbnailUsesCustom: parseListThumbnailUsesCustom(row),
     };
   });
 }

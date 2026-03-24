@@ -24,10 +24,7 @@ class TierTemplateService(
             val itemCount = countItemsInPayload(items)
             val description = (items["description"] as? String)?.trim()?.takeIf { it.isNotEmpty() }
             val persisted = normalizeThumbnailUrls(e.thumbnailUrls)
-            val thumbnailUrls = when {
-                persisted.isNotEmpty() -> persisted
-                else -> httpImageUrlsFromItems(items, max = 4)
-            }
+            val thumbnailUrls = resolveCardThumbnailUrls(e.listThumbnailUsesCustom, persisted, items)
             TemplateSummaryResponse(
                 id = id,
                 title = e.title,
@@ -35,6 +32,7 @@ class TierTemplateService(
                 itemCount = itemCount,
                 description = description,
                 thumbnailUrls = thumbnailUrls,
+                listThumbnailUsesCustom = e.listThumbnailUsesCustom,
             )
         }
     }
@@ -48,9 +46,12 @@ class TierTemplateService(
             version = e.version,
             parentTemplateId = e.parent?.id,
             items = e.items,
-            thumbnailUrls = normalizeThumbnailUrls(e.thumbnailUrls).ifEmpty {
-                httpImageUrlsFromItems(e.items, max = 4)
-            },
+            thumbnailUrls = resolveCardThumbnailUrls(
+                e.listThumbnailUsesCustom,
+                normalizeThumbnailUrls(e.thumbnailUrls),
+                e.items,
+            ),
+            listThumbnailUsesCustom = e.listThumbnailUsesCustom,
         )
     }
 
@@ -69,6 +70,7 @@ class TierTemplateService(
             parentTemplate = parent,
             creatorId = creatorId,
         )
+        entity.listThumbnailUsesCustom = request.listThumbnailUsesCustom
         if (thumbs.isNotEmpty()) {
             entity.thumbnailUrls = thumbs
         }
@@ -97,6 +99,29 @@ class TierTemplateService(
             .distinct()
             .take(4)
             .toList()
+    }
+
+    /**
+     * - [usesCustomListThumbnail] true: 카드는 커스텀 커버 한 장만(`persisted` 첫 URL). 비어 있으면 items에서 보완.
+     * - false: `persisted`가 비면 items 최대 4개. 여러 개면 아이템 그리드로 간주하되,
+     *   레거시(옛 클라이언트 버그)로 커스텀+아이템이 섞인 경우 선두 URL이 어떤 아이템 `imageUrl`과도 같지 않으면 첫 URL만.
+     */
+    private fun resolveCardThumbnailUrls(
+        usesCustomListThumbnail: Boolean,
+        persisted: List<String>,
+        items: Map<String, Any?>,
+    ): List<String> {
+        if (usesCustomListThumbnail) {
+            return when {
+                persisted.isNotEmpty() -> listOf(persisted.first())
+                else -> httpImageUrlsFromItems(items, max = 4)
+            }
+        }
+        if (persisted.isEmpty()) return httpImageUrlsFromItems(items, max = 4)
+        if (persisted.size == 1) return persisted
+        val itemUrls = httpImageUrlsFromItems(items, max = 256).toSet()
+        val lead = persisted.first()
+        return if (lead !in itemUrls) listOf(lead) else persisted
     }
 
     @Suppress("UNCHECKED_CAST")

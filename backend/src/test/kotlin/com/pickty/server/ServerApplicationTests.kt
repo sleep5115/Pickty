@@ -74,11 +74,13 @@ class ServerApplicationTests {
 			"https://img.pickty.app/four.png",
 		)
 		entity.thumbnailUrls = urls
+		entity.listThumbnailUsesCustom = true
 		val saved = tierTemplateRepository.saveAndFlush(entity)
 		val id = saved.id ?: error("template id expected")
 		entityManager.clear()
 		val loaded = tierTemplateRepository.findById(id).orElseThrow()
 		assertThat(loaded.thumbnailUrls).containsExactlyElementsOf(urls)
+		assertThat(loaded.listThumbnailUsesCustom).isTrue()
 	}
 
 }

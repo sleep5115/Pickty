@@ -64,6 +64,13 @@ class TierTemplate(
     @Column(name = "thumbnail_urls", columnDefinition = "jsonb")
     var thumbnailUrls: List<String>? = null
 
+    /**
+     * `true`: 목록 카드는 `thumbnail_urls`의 **첫 URL만** 커스텀 커버로 사용.
+     * `false`: `thumbnail_urls`는 아이템에서 고른 그리드용(최대 4)·비어 있으면 API가 items에서 보완.
+     */
+    @Column(name = "list_thumbnail_uses_custom", nullable = false)
+    var listThumbnailUsesCustom: Boolean = false
+
     fun updateItems(newItems: Map<String, Any?>) {
         this.items = newItems
     }
