@@ -17,7 +17,8 @@ class JwtTokenProvider(
     private val jwtProperties: JwtProperties,
 ) {
 
-    fun generateAccessToken(userId: Long, email: String?): String {
+    /** 이메일 등 PII 는 클레임에 넣지 않는다(토큰 유출 시 노출 방지). */
+    fun generateAccessToken(userId: Long): String {
         val now = Instant.now()
         val header = JwsHeader.with(MacAlgorithm.HS256).build()
         val claims = JwtClaimsSet.builder()
@@ -25,7 +26,6 @@ class JwtTokenProvider(
             .issuer("pickty")
             .issuedAt(now)
             .expiresAt(now.plusSeconds(jwtProperties.accessTokenExpirationSeconds))
-            .apply { if (email != null) claim("email", email) }
             .build()
         return jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).tokenValue
     }

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { useAuthStore } from '@/lib/store/auth-store';
+import { useAuthPersistHydrated } from '@/lib/hooks/use-auth-persist-hydrated';
 import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
 import { listMyTierResults, type TierResultSummaryResponse } from '@/lib/tier-api';
 
@@ -22,6 +23,7 @@ function formatSavedAt(isoLocal: string): string {
 
 export default function MyTierResultsPage() {
   const router = useRouter();
+  const hydrated = useAuthPersistHydrated();
   const accessToken = useAuthStore((s) => s.accessToken);
   const clearAuth = useAuthStore((s) => s.clearAuth);
   const [rows, setRows] = useState<TierResultSummaryResponse[]>([]);
@@ -49,14 +51,16 @@ export default function MyTierResultsPage() {
   }, [accessToken, clearAuth, router]);
 
   useEffect(() => {
+    if (!hydrated) return;
     if (!accessToken) {
+      setLoading(false);
       router.replace('/login?returnTo=/tier/my');
       return;
     }
     void load();
-  }, [accessToken, load, router]);
+  }, [hydrated, accessToken, load, router]);
 
-  if (!accessToken) {
+  if (!hydrated || !accessToken) {
     return (
       <div className="flex-1 flex items-center justify-center py-20">
         <div className="w-10 h-10 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" />

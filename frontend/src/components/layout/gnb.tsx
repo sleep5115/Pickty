@@ -123,7 +123,7 @@ export function GNB() {
                   className="absolute right-0 mt-1 min-w-[11rem] rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 py-1 shadow-lg shadow-black/10 dark:shadow-black/40 z-50"
                 >
                   <Link
-                    href="/dashboard"
+                    href="/account"
                     role="menuitem"
                     onClick={() => setAccountOpen(false)}
                     className={accountLinkClass}
@@ -209,7 +209,7 @@ export function GNB() {
                 {accessToken ? (
                   <>
                     <Link
-                      href="/dashboard"
+                      href="/account"
                       className="text-sm px-3 py-2.5 rounded-lg text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800/60 transition-colors"
                     >
                       내 계정

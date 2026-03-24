@@ -3,6 +3,7 @@
 import { useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/store/auth-store';
+import { resolvePostLoginRoute } from '@/lib/post-login-route';
 
 function CallbackHandler() {
   const searchParams = useSearchParams();
@@ -30,7 +31,9 @@ function CallbackHandler() {
       // 직접 리다이렉트 흐름 (모바일 팝업 차단 시)
       if (token) {
         setAccessToken(token);
-        window.location.href = '/';
+        void resolvePostLoginRoute(token, null).then((path) => {
+          window.location.href = path;
+        });
       } else {
         window.location.href = '/login?error=oauth_failed';
       }

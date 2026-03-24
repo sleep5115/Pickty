@@ -59,7 +59,7 @@ class OAuth2SuccessHandler(
     ) {
         val principal = authentication.principal as PrincipalDetails
 
-        val accessToken = jwtTokenProvider.generateAccessToken(principal.userId, principal.email)
+        val accessToken = jwtTokenProvider.generateAccessToken(principal.userId)
         val refreshToken = jwtTokenProvider.generateRefreshToken()
         refreshTokenService.save(principal.userId, refreshToken)
 

@@ -8,6 +8,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema, type LoginFormValues } from '@/lib/schemas/auth';
 import { PUBLIC_API_BASE_URL } from '@/lib/public-site-config';
+import { resolvePostLoginRoute } from '@/lib/post-login-route';
 
 /**
  * 소셜 로그인: 브라우저가 `${PUBLIC_API_BASE_URL}/oauth2/authorization/{provider}` 로 이동(팝업 또는 전체 탭).
@@ -51,28 +52,6 @@ function TwitchIcon() {
   );
 }
 
-function ChzzkIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 200 200" aria-hidden="true" fill="none">
-      <rect width="200" height="200" rx="50" fill="#00FF77" />
-      <text x="50%" y="58%" dominantBaseline="middle" textAnchor="middle" fontSize="120" fontWeight="900" fill="#000">
-        치
-      </text>
-    </svg>
-  );
-}
-
-function SoopIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 200 200" aria-hidden="true" fill="none">
-      <rect width="200" height="200" rx="50" fill="#FF6B35" />
-      <text x="50%" y="58%" dominantBaseline="middle" textAnchor="middle" fontSize="100" fontWeight="900" fill="white">
-        S
-      </text>
-    </svg>
-  );
-}
-
 function EyeIcon({ open }: { open: boolean }) {
   return open ? (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -88,11 +67,6 @@ function EyeIcon({ open }: { open: boolean }) {
 }
 
 const API_URL = PUBLIC_API_BASE_URL;
-
-function safeReturnPath(raw: string | null): string {
-  if (raw && raw.startsWith('/') && !raw.startsWith('//')) return raw;
-  return '/dashboard';
-}
 
 function LoginPageContent() {
   const router = useRouter();
@@ -114,8 +88,11 @@ function LoginPageContent() {
       if (event.origin !== window.location.origin) return;
 
       if (event.data?.type === 'OAUTH_SUCCESS') {
-        setAccessToken(event.data.token as string);
-        router.push(safeReturnPath(searchParams.get('returnTo')));
+        const token = event.data.token as string;
+        setAccessToken(token);
+        void resolvePostLoginRoute(token, searchParams.get('returnTo')).then((path) => {
+          router.push(path);
+        });
       } else if (event.data?.type === 'OAUTH_ERROR') {
         setSocialError('소셜 로그인에 실패했습니다. 다시 시도해 주세요.');
       }
@@ -306,17 +283,6 @@ function LoginPageContent() {
             <div className="flex-1 h-px bg-slate-200 dark:bg-zinc-800" />
           </div>
         </div>
-
-        {/* Signup Link */}
-        <p className="text-center mt-6 text-sm text-slate-500 dark:text-zinc-500">
-          아직 계정이 없으신가요?{' '}
-          <Link
-            href="/signup"
-            className="text-violet-500 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 font-medium transition-colors"
-          >
-            회원가입
-          </Link>
-        </p>
       </div>
     </div>
   );

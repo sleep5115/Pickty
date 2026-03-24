@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useAuthPersistHydrated } from '@/lib/hooks/use-auth-persist-hydrated';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { apiFetch } from '@/lib/api-fetch';
 import { uploadPicktyImages } from '@/lib/image-upload-api';
@@ -30,6 +31,7 @@ function newClientId(): string {
 
 export default function NewTemplatePage() {
   const router = useRouter();
+  const hydrated = useAuthPersistHydrated();
   const accessToken = useAuthStore((s) => s.accessToken);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fileMap, setFileMap] = useState<Record<string, FileEntry>>({});
@@ -127,6 +129,7 @@ export default function NewTemplatePage() {
   }, [fileMap]);
 
   useEffect(() => {
+    if (!hydrated) return;
     if (!accessToken) {
       setIsAdmin(false);
       return;
@@ -137,7 +140,7 @@ export default function NewTemplatePage() {
       .then((r) => (r.ok ? r.json() : null))
       .then((u: { role?: string } | null) => setIsAdmin(u?.role === 'ADMIN'))
       .catch(() => setIsAdmin(false));
-  }, [accessToken]);
+  }, [hydrated, accessToken]);
 
   const ingestFiles = useCallback(
     (list: FileList | File[]) => {
@@ -258,6 +261,14 @@ export default function NewTemplatePage() {
       setSubmitError(err instanceof Error ? err.message : '저장에 실패했습니다.');
     }
   });
+
+  if (!hydrated) {
+    return (
+      <div className="w-full py-20 flex justify-center">
+        <div className="w-10 h-10 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" />
+      </div>
+    );
+  }
 
   if (!accessToken) {
     return (

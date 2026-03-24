@@ -26,7 +26,7 @@ export function Header() {
         {accessToken ? (
           <>
             <Link
-              href="/dashboard"
+              href="/account"
               className="px-3 py-1.5 rounded-lg text-sm text-zinc-300 hover:text-violet-400 transition-colors"
             >
               내 계정

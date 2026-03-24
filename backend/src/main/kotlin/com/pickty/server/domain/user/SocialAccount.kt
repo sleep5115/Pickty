@@ -13,6 +13,8 @@ import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
 
 @Entity
 @Table(
@@ -23,6 +25,7 @@ class SocialAccount(
     user: User,
     provider: Provider,
     providerId: String,
+    providerAttributes: Map<String, Any?> = emptyMap(),
 ) : BaseTimeEntity() {
 
     @Id
@@ -40,4 +43,8 @@ class SocialAccount(
 
     @Column(name = "provider_id", nullable = false)
     val providerId: String = providerId
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "provider_attributes", columnDefinition = "jsonb", nullable = true)
+    var providerAttributes: Map<String, Any?> = providerAttributes
 }
