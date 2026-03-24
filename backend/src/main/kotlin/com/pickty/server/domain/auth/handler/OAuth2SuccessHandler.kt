@@ -23,6 +23,10 @@ import java.time.Duration
  * --- Google Cloud Console (웹 클라이언트)에 복사용 ---
  * 「승인된 리디렉션 URI」(Authorized redirect URIs), 정확히 한 줄씩:
  *   https://api.pickty.app/login/oauth2/code/google
+ *   http://localhost:8080/login/oauth2/code/google
+ *
+ * (로컬에서 API URL 을 127.0.0.1 로 쓰면 Google 에 아래도 동일하게 등록해야 함 — localhost 와 별개)
+ *   http://127.0.0.1:8080/login/oauth2/code/google
  *
  * 「승인된 JavaScript 생성자」(Authorized JavaScript origins) — 팝업/브라우저 출처 허용:
  *   https://pickty.app

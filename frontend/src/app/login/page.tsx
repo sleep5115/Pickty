@@ -16,6 +16,7 @@ import { resolvePostLoginRoute } from '@/lib/post-login-route';
  *
  * Google Cloud Console → 승인된 리디렉션 URI (백엔드 호스트, 복사용):
  *   https://api.pickty.app/login/oauth2/code/google
+ *   http://localhost:8080/login/oauth2/code/google
  */
 function GoogleIcon() {
   return (
