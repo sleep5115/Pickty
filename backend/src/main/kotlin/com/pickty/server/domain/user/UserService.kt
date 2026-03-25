@@ -1,5 +1,6 @@
 package com.pickty.server.domain.user
 
+import com.pickty.server.domain.auth.service.RefreshTokenService
 import com.pickty.server.domain.user.dto.CompleteOnboardingRequest
 import com.pickty.server.domain.user.dto.UpdateProfileRequest
 import tools.jackson.core.type.TypeReference
@@ -15,6 +16,7 @@ import java.time.Year
 class UserService(
     private val userRepository: UserRepository,
     private val socialAccountRepository: SocialAccountRepository,
+    private val refreshTokenService: RefreshTokenService,
     private val redisTemplate: StringRedisTemplate,
     private val objectMapper: ObjectMapper,
 ) {
@@ -137,5 +139,24 @@ class UserService(
     fun getOAuthRaw(userId: Long): Map<String, Any?>? {
         val json = redisTemplate.opsForValue().get("oauth2:raw:$userId") ?: return null
         return objectMapper.readValue(json, object : TypeReference<Map<String, Any?>>() {})
+    }
+
+    @Transactional
+    fun withdrawAccount(userId: Long) {
+        val user = userRepository.findById(userId)
+            .orElseThrow { NoSuchElementException("User not found: $userId") }
+        if (user.accountStatus == AccountStatus.MERGED) {
+            throw ResponseStatusException(HttpStatus.CONFLICT, "병합된 계정은 탈퇴할 수 없습니다.")
+        }
+        if (user.accountStatus == AccountStatus.DELETED) {
+            throw ResponseStatusException(HttpStatus.CONFLICT, "이미 탈퇴 처리된 계정입니다.")
+        }
+        socialAccountRepository.deleteAllByUserId(userId)
+        refreshTokenService.delete(userId)
+        redisTemplate.delete("oauth2:raw:$userId")
+        // deleteAllByUserId 는 clearAutomatically=true → 위에서 로드한 user 는 detached. 비식별화는 관리 상태 엔티티에서만 수행
+        val toAnonymize = userRepository.findById(userId)
+            .orElseThrow { NoSuchElementException("User not found: $userId") }
+        toAnonymize.anonymizeForWithdrawal()
     }
 }

@@ -1,8 +1,6 @@
 package com.pickty.server.domain.tier
 
 import com.pickty.server.global.common.BaseTimeEntity
-import jakarta.persistence.Access
-import jakarta.persistence.AccessType
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.FetchType
@@ -18,7 +16,7 @@ import java.util.UUID
 
 /**
  * 티어표 템플릿 — 아이템 정의(JSONB) + Fork 계보(parent).
- * items 구조 예: `{ "items": [ { "id", "name", "imageUrl" } ] }` (imageUrl은 추후 R2 등 스토리지 URL)
+ * 목록·OG용 썸네일은 **단일 URL**(프론트에서 2×2 합성 PNG 또는 커스텀 1장 업로드).
  */
 @Entity
 @Table(name = "tier_templates")
@@ -58,18 +56,9 @@ class TierTemplate(
     var creatorId: Long? = creatorId
         protected set
 
-    /** 카드 썸네일용 공개 이미지 URL 최대 4개 — jsonb (구 행은 null 가능) */
-    @Access(AccessType.FIELD)
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "thumbnail_urls", columnDefinition = "jsonb")
-    var thumbnailUrls: List<String>? = null
-
-    /**
-     * `true`: 목록 카드는 `thumbnail_urls`의 **첫 URL만** 커스텀 커버로 사용.
-     * `false`: `thumbnail_urls`는 아이템에서 고른 그리드용(최대 4)·비어 있으면 API가 items에서 보완.
-     */
-    @Column(name = "list_thumbnail_uses_custom", nullable = false)
-    var listThumbnailUsesCustom: Boolean = false
+    /** 템플릿 카드·OG 이미지 — 단일 공개 https URL (정규화는 서비스에서 수행) */
+    @Column(name = "thumbnail_url", length = 2048)
+    var thumbnailUrl: String? = null
 
     fun updateItems(newItems: Map<String, Any?>) {
         this.items = newItems

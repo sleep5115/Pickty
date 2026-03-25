@@ -15,19 +15,27 @@ npm run dev
 
 ## 백엔드 (Spring Boot, 프로필 `dev`)
 
-회사 PC 등에서 시스템 **JAVA_HOME**이 JDK 16 등으로 잡혀 있을 수 있음. Pickty는 **JDK 25 (Corretto)** 가 필요하므로, **Cursor / PowerShell 세션에서만** 아래처럼 덮어쓴 뒤 실행한다.
+Pickty는 **JDK 25 (Corretto)** 가 필요하다. **회사 PC**에서는 다른 업무용 프로젝트가 **JDK 16** 등으로 돌아가는 경우가 많으므로, **Windows 사용자·시스템 환경 변수의 `JAVA_HOME`은 건드리지 않는다.** Pickty 백엔드를 띄울 **그 Cursor 터미널 / PowerShell 세션에서만** `JAVA_HOME`과 `Path`를 덮어쓴 뒤 `gradlew`를 실행한다.
 
-- JDK 경로( IntelliJ / Toolbox 기준 ): `<YOUR_JDK_HOME>` (예: `C:\Users\<YOU>\.jdks\corretto-25.0.2`)  
-  (폴더명은 **`.jdks`**, `.jdk` 아님.)  
-  집·회사 PC마다 `C:\Users\…` 사용자명·클론 경로가 다를 수 있음 → **실제 집/회사 경로 표**는 private **`pickty-config` README** (`PC마다 다른 것`)만 참고.
+JDK는 IntelliJ **Project Structure → SDK / Download JDK** 로 받으면 사용자 프로필 아래 **`.jdks`** 에 설치된다(`.jdk` 아님). **실제 `JAVA_HOME`으로 쓸 경로는 `.jdks` 바로 아래가 아니라, 그 안의 `corretto-25.x.x` 같은 버전 폴더**다.
+
+| PC | `.jdks` 위치(기준) | 세션용 `JAVA_HOME` 예시 |
+|----|-------------------|-------------------------|
+| 집 | `C:\Users\Admin\.jdks` | `C:\Users\Admin\.jdks\corretto-25.0.2` |
+| 회사 | `C:\Users\Administrator\.jdks` | `C:\Users\Administrator\.jdks\corretto-25.0.2` |
+
+마지막 경로의 **Corretto 폴더명**은 설치 버전에 따라 `corretto-25.0.3` 등으로 다를 수 있음 → 탐색기나 `Get-ChildItem $env:USERPROFILE\.jdks` 로 확인.
 
 ```powershell
-$env:JAVA_HOME = "<YOUR_JDK_HOME>"
+# 예: 회사 PC — 위 표의 본인 `JAVA_HOME` 예시로 바꿔서 사용
+$env:JAVA_HOME = "C:\Users\Administrator\.jdks\corretto-25.0.2"
 $env:Path = "$env:JAVA_HOME\bin;" + $env:Path
 $env:SPRING_PROFILES_ACTIVE = "dev"
 cd backend
 .\gradlew.bat bootRun
 ```
+
+private **`pickty-config` README** (`PC마다 다른 것`)에도 집·회사 사용자 폴더·클론 경로 메모가 있다.
 
 - **포트 충돌 (`Port 8080 was already in use`)**: IntelliJ 등에서 이미 백엔드를 띄운 경우. 한쪽만 종료하거나 포트 분리.
 

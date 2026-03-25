@@ -491,6 +491,10 @@ export default function AccountPage() {
   const router = useRouter();
   const hydrated = useAuthPersistHydrated();
   const { accessToken, clearAuth, setAccessToken } = useAuthStore();
+  const [withdrawalCompleted, setWithdrawalCompleted] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [profileReloadKey, setProfileReloadKey] = useState(0);
   const [linkError, setLinkError] = useState<string | null>(null);
   const [linkBusy, setLinkBusy] = useState<string | null>(null);
@@ -523,6 +527,7 @@ export default function AccountPage() {
 
   useEffect(() => {
     if (!hydrated) return;
+    if (withdrawalCompleted) return;
     if (!accessToken) {
       setLoading(false);
       router.replace('/login?returnTo=/account');
@@ -562,7 +567,7 @@ export default function AccountPage() {
         setLoading(false);
       }
     })();
-  }, [hydrated, accessToken, router, clearAuth, profileReloadKey]);
+  }, [hydrated, accessToken, router, clearAuth, profileReloadKey, withdrawalCompleted]);
 
   const startSocialLink = useCallback(
     async (registrationId: string) => {
@@ -653,12 +658,57 @@ export default function AccountPage() {
     router.push('/login');
   };
 
-  if (!hydrated || loading) {
+  const confirmWithdraw = useCallback(async () => {
+    if (!accessToken) return;
+    setDeleteBusy(true);
+    setDeleteError(null);
+    try {
+      const res = await apiFetch('/api/v1/user/me', {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${accessToken}` },
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        const t = await res.text();
+        setDeleteError(t || `탈퇴 처리에 실패했습니다. (${res.status})`);
+        return;
+      }
+      setDeleteOpen(false);
+      setWithdrawalCompleted(true);
+      clearAuth();
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : '탈퇴 처리 중 오류가 발생했습니다.');
+    } finally {
+      setDeleteBusy(false);
+    }
+  }, [accessToken, clearAuth]);
+
+  if (!hydrated || (!withdrawalCompleted && loading)) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-10 h-10 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" />
           <p className="text-sm text-slate-400 dark:text-zinc-400">불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (withdrawalCompleted) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center px-4 py-16">
+        <div className="w-full max-w-md text-center space-y-8">
+          <p className="text-base text-slate-700 dark:text-zinc-200 leading-relaxed">
+            탈퇴 처리가 완료되었습니다. <br />
+            그동안 이용해 주셔서 감사합니다.
+          </p>
+          <button
+            type="button"
+            onClick={() => router.push('/')}
+            className="w-full sm:w-auto min-w-[200px] px-6 py-3 rounded-xl text-sm font-semibold text-white bg-violet-600 hover:bg-violet-500 transition-colors"
+          >
+            메인으로 돌아가기
+          </button>
         </div>
       </div>
     );
@@ -800,7 +850,8 @@ export default function AccountPage() {
           <div>
             <p className="text-xs font-medium text-slate-500 dark:text-zinc-500 mb-2">연결된 로그인</p>
             <p className="text-xs text-slate-500 dark:text-zinc-500 mb-3 leading-relaxed">
-              다른 제공자를 연결하면 데이터는 가입일이 더 이른 계정 기준으로 합쳐집니다.
+              다른 소셜을 연결하면 가입일이 더 오래된 계정 기준으로 합쳐져요. <br />
+              활동 내역이 통합되고 어느쪽으로든 로그인 할 수 있어요.
             </p>
             {linkError && (
               <div className="mb-3 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-600 dark:text-red-400">
@@ -953,6 +1004,67 @@ export default function AccountPage() {
             내부 사용자 ID: {user.id}
           </p>
         </>
+      )}
+
+      <div className="pt-10 mt-2 border-t border-slate-200/80 dark:border-zinc-800 flex flex-col items-center gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            setDeleteError(null);
+            setDeleteOpen(true);
+          }}
+          className="text-xs text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-400 underline-offset-2 hover:underline transition-colors"
+        >
+          회원 탈퇴
+        </button>
+      </div>
+
+      {deleteOpen && (
+        <div
+          className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="withdraw-dialog-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !deleteBusy) setDeleteOpen(false);
+          }}
+        >
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xl p-6 space-y-4">
+            <h2 id="withdraw-dialog-title" className="text-lg font-bold text-slate-900 dark:text-zinc-100">
+              회원 탈퇴
+            </h2>
+            <p className="text-sm text-slate-700 dark:text-zinc-200 leading-relaxed">
+              정말 탈퇴하시겠습니까?<br />
+              계정 정보는 즉시 파기되며, 복구가 불가능합니다.
+            </p>
+            <p className="text-xs text-slate-400 dark:text-zinc-500 leading-relaxed">
+              ※ 활동 내역은 자동 삭제되지 않으므로, 삭제를 원하실 경우 탈퇴 전 직접 삭제해 주세요.
+            </p>
+            {deleteError && (
+              <div className="px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-sm text-red-600 dark:text-red-400">
+                {deleteError}
+              </div>
+            )}
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                disabled={deleteBusy}
+                onClick={() => !deleteBusy && setDeleteOpen(false)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-800 disabled:opacity-50"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                disabled={deleteBusy}
+                onClick={() => void confirmWithdraw()}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-600 hover:bg-red-500 disabled:opacity-50"
+              >
+                {deleteBusy ? '처리 중…' : '탈퇴하기'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <ProfileEditModal

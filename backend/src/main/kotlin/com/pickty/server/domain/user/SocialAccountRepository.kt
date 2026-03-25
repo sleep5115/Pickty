@@ -21,4 +21,8 @@ interface SocialAccountRepository : JpaRepository<SocialAccount, Long> {
         @Param("fromUserId") fromUserId: Long,
         @Param("toUser") toUser: User,
     ): Int
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("DELETE FROM SocialAccount s WHERE s.user.id = :userId")
+    fun deleteAllByUserId(@Param("userId") userId: Long): Int
 }

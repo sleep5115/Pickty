@@ -18,7 +18,6 @@ import org.hibernate.annotations.ColumnDefault
 @Table(name = "users")
 class User(
     email: String?,
-    password: String?,
     nickname: String,
     profileImageUrl: String?,
     role: Role = Role.USER,
@@ -40,11 +39,6 @@ class User(
     // 소셜 전용 유저는 null 가능. PostgreSQL은 nullable unique 컬럼에서 NULL 중복 허용
     @Column(unique = true)
     var email: String? = email
-        protected set
-
-    // 자체 로그인 전용. 소셜 전용 유저는 null
-    @Column
-    var password: String? = password
         protected set
 
     @Column(nullable = false)
@@ -115,10 +109,6 @@ class User(
         }
     }
 
-    fun updatePassword(encodedPassword: String) {
-        this.password = encodedPassword
-    }
-
     fun promoteToAdmin() {
         this.role = Role.ADMIN
     }
@@ -168,5 +158,18 @@ class User(
         require(accountStatus != AccountStatus.MERGED) { "이미 병합 처리된 계정입니다." }
         require(accountStatus != AccountStatus.DELETED) { "삭제된 계정은 병합할 수 없습니다." }
         this.accountStatus = AccountStatus.MERGED
+    }
+
+    /**
+     * 회원 탈퇴(소프트 딜리트) — 소셜 연동 레코드는 별도 삭제 후 호출.
+     * [nickname]·[displayAvatarUrl] 은 사이트 내 공개 프로필(템플릿·결과 등 표시용)이므로 유지한다.
+     */
+    fun anonymizeForWithdrawal() {
+        require(accountStatus != AccountStatus.MERGED) { "병합된 계정은 탈퇴할 수 없습니다." }
+        require(accountStatus != AccountStatus.DELETED) { "이미 탈퇴 처리된 계정입니다." }
+        this.accountStatus = AccountStatus.DELETED
+        this.email = null
+        this.userName = null
+        this.profileImageUrl = null
     }
 }

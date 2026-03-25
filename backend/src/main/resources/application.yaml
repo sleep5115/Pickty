@@ -38,10 +38,11 @@ spring:
             client-authentication-method: client_secret_post
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
             authorization-grant-type: authorization_code
+            # 카카오 콘솔에서 프로필 사진은 선택 동의로 두더라도, 여기에 profile_image 를 넣으면
+            # 로그인 시마다 해당 항목 동의 UI가 뜬다. 닉네임·이메일만 쓰면 스코프에서 빼도 됨.
             scope:
               - profile_nickname
               - account_email
-              - profile_image
             client-name: Kakao
         provider:
           kakao:

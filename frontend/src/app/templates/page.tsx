@@ -26,65 +26,22 @@ const DEMO_TEMPLATES = [
   },
 ] as const;
 
-function TemplateThumbnailGrid({ urls }: { urls: string[] }) {
-  const u = urls.filter(Boolean).slice(0, 4);
-  if (u.length === 0) return null;
-
-  const Img = ({ src }: { src: string }) => (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={picktyImageDisplaySrc(src)}
-      alt=""
-      className="block h-full w-full min-h-0 object-cover"
-      loading="lazy"
-      decoding="async"
-    />
-  );
-
-  if (u.length === 1) {
-    return <Img src={u[0]!} />;
-  }
-  if (u.length === 2) {
-    return (
-      <div className="grid h-full min-h-0 w-full grid-cols-2 gap-px bg-slate-200 dark:bg-zinc-700">
-        {u.map((url, i) => (
-          <div key={i} className="min-h-0 min-w-0 overflow-hidden">
-            <Img src={url} />
-          </div>
-        ))}
-      </div>
-    );
-  }
-  return (
-    <div className="grid h-full min-h-0 w-full grid-cols-2 grid-rows-2 gap-px bg-slate-200 dark:bg-zinc-700">
-      {u.map((url, i) => (
-        <div key={i} className="min-h-0 min-w-0 overflow-hidden">
-          <Img src={url} />
-        </div>
-      ))}
-      {u.length === 3 && (
-        <div className="min-h-0 bg-slate-100 dark:bg-zinc-900" aria-hidden />
-      )}
-    </div>
-  );
-}
-
 function TemplateCard({
   id,
   title,
   description,
   itemLine,
-  thumbnailUrls,
+  thumbnailUrl,
   badge,
 }: {
   id: string;
   title: string;
   description: string | null;
   itemLine: string;
-  thumbnailUrls: string[];
+  thumbnailUrl: string | null;
   badge?: string;
 }) {
-  const hasThumbs = thumbnailUrls.length > 0;
+  const hasThumb = Boolean(thumbnailUrl);
   return (
     <li className="min-w-0">
       <Link
@@ -95,9 +52,16 @@ function TemplateCard({
           className="relative w-full shrink-0 overflow-hidden border-b border-slate-100 bg-linear-to-br from-slate-200 to-slate-100 dark:border-zinc-800 dark:from-zinc-800 dark:to-zinc-900"
           style={{ aspectRatio: '16 / 10', minHeight: '140px' }}
         >
-          {hasThumbs ? (
+          {hasThumb ? (
             <div className="absolute inset-0 min-h-0 w-full">
-              <TemplateThumbnailGrid urls={thumbnailUrls} />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={picktyImageDisplaySrc(thumbnailUrl!)}
+                alt=""
+                className="block h-full w-full object-cover"
+                loading="lazy"
+                decoding="async"
+              />
             </div>
           ) : (
             <div className="flex h-full min-h-[140px] items-center justify-center">
@@ -215,7 +179,7 @@ export default function TemplatesPage() {
                 title={t.title}
                 description={t.description}
                 itemLine={`아이템 ${t.itemCount}개`}
-                thumbnailUrls={t.thumbnailUrls}
+                thumbnailUrl={t.thumbnailUrl}
               />
             ))}
           </ul>
@@ -237,7 +201,7 @@ export default function TemplatesPage() {
               title={t.title}
               description={t.description}
               itemLine={`약 ${t.itemCount}개 아이템`}
-              thumbnailUrls={[]}
+              thumbnailUrl={null}
             />
           ))}
         </ul>

@@ -7,6 +7,14 @@ const templateItemRowSchema = z.object({
     .trim()
     .min(1, { message: '아이템 이름을 입력해 주세요.' })
     .max(200, { message: '이름은 200자 이하로 입력해 주세요.' }),
+  /** `fromTemplate` 등으로 불러온 기존 이미지 URL — 새 파일이 있으면 업로드로 대체 */
+  existingImageUrl: z
+    .string()
+    .optional()
+    .transform((v) => {
+      const t = v?.trim();
+      return t && t.length > 0 ? t : undefined;
+    }),
 });
 
 export const templateNewFormSchema = z.object({
@@ -26,7 +34,7 @@ export const templateNewFormSchema = z.object({
   items: z
     .array(templateItemRowSchema)
     .min(1, { message: '이미지를 1개 이상 추가해 주세요.' }),
-  /** 썸네일로 쓸 아이템 clientId — RHF register/setValue 전용; zod default([]) 는 미등록 시 항상 빈 배열로 덮어써 서버에 thumbnailUrls 가 안 감 */
+  /** 썸네일로 쓸 아이템 clientId — RHF register/setValue 전용 */
   thumbnailClientIds: z.array(z.string()).max(4).optional(),
 });
 

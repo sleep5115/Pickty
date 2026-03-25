@@ -10,10 +10,8 @@ data class CreateTemplateRequest(
     /** JSONB에 그대로 저장. 권장: `{ "items": [ { "id", "name", "imageUrl?" } ] }` */
     @field:NotNull val items: Map<String, Any?>,
     val parentTemplateId: UUID? = null,
-    /** 카드 썸네일용 URL 최대 4개 — JSON 에서 null 이 오면 빈 목록으로 처리 */
-    val thumbnailUrls: List<String>? = null,
-    /** `true`면 커스텀 커버 1장만(`thumbnailUrls`는 보통 1개). `false`면 아이템 그리드용 최대 4개 */
-    val listThumbnailUsesCustom: Boolean = false,
+    /** 목록·OG용 단일 썸네일 URL (https) — 없으면 null */
+    @field:Size(max = 2048) val thumbnailUrl: String? = null,
 )
 
 data class TemplateResponse(
@@ -22,6 +20,8 @@ data class TemplateResponse(
     val version: Int,
     val parentTemplateId: UUID?,
     val creatorId: Long?,
+    /** 저장 직후 확인용 — 목록·상세와 동일 규칙으로 정규화된 URL 또는 null */
+    val thumbnailUrl: String?,
 )
 
 /** 템플릿 JSONB(items) 전체 + 메타 — 티어 메이커 진입 시 풀 복원용 */
@@ -31,8 +31,7 @@ data class TemplateDetailResponse(
     val version: Int,
     val parentTemplateId: UUID?,
     val items: Map<String, Any?>,
-    val thumbnailUrls: List<String>,
-    val listThumbnailUsesCustom: Boolean,
+    val thumbnailUrl: String?,
 )
 
 /** 목록 카드용 — JSONB에서 설명·썸네일·개수만 추출 */
@@ -42,9 +41,8 @@ data class TemplateSummaryResponse(
     val version: Int,
     val itemCount: Int,
     val description: String?,
-    /** 카드 그리드 썸네일 — 비어 있으면 프론트가 items에서 첫 이미지로 보완 가능 */
-    val thumbnailUrls: List<String>,
-    val listThumbnailUsesCustom: Boolean,
+    /** 단일 썸네일 — 없으면 null (프론트 플레이스홀더) */
+    val thumbnailUrl: String?,
 )
 
 data class CreateTierResultRequest(

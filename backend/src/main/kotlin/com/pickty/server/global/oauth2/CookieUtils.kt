@@ -33,6 +33,15 @@ object CookieUtils {
             }
     }
 
+    /** 요청에 해당 쿠키가 없어도 만료 `Set-Cookie` 를 보냄 (탈퇴·향후 HttpOnly 리프레시 토큰 무효화 등) */
+    fun expireCookie(response: HttpServletResponse, name: String) {
+        Cookie(name, "").apply {
+            path = "/"
+            setMaxAge(0)
+            isHttpOnly = true
+        }.also { response.addCookie(it) }
+    }
+
     fun serialize(obj: Any): String =
         ByteArrayOutputStream().use { baos ->
             ObjectOutputStream(baos).use { it.writeObject(obj) }

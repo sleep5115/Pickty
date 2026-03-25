@@ -90,7 +90,6 @@ class CustomOAuth2UserService(
         val user = userRepository.save(
             User(
                 email = userInfo.email,
-                password = null,
                 nickname = PENDING_NICKNAME_PLACEHOLDER,
                 profileImageUrl = userInfo.profileImageUrl,
                 userName = userInfo.userName,

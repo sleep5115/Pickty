@@ -212,7 +212,7 @@ export function TierBoard({ dragSelectRef, pointerModeReady = true }: TierBoardP
         {/* 티어 행 영역 */}
         <div>
           {/* 캡처 영역 — Item Pool 제외, 티어 행만 포함 */}
-          <div ref={captureRef} className="bg-white dark:bg-zinc-900">
+          <div ref={captureRef} className="relative bg-white dark:bg-zinc-900">
             <SortableContext items={tierIds} strategy={verticalListSortingStrategy}>
               {tiers.map((tier) => (
                 <TierRow
@@ -227,6 +227,16 @@ export function TierBoard({ dragSelectRef, pointerModeReady = true }: TierBoardP
                 />
               ))}
             </SortableContext>
+            <div
+              className="pointer-events-none absolute bottom-2 right-2 z-10 select-none"
+              aria-hidden
+            >
+              <span
+                className="text-[10px] sm:text-[11px] font-black tracking-tight bg-linear-to-r from-violet-500 via-fuchsia-500 to-pink-500 bg-clip-text text-transparent opacity-[0.88] drop-shadow-[0_1px_2px_rgba(0,0,0,0.55)]"
+              >
+                pickty.app
+              </span>
+            </div>
           </div>
         </div>
 

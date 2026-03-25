@@ -58,29 +58,21 @@ class ServerApplicationTests {
 
 	@Test
 	@Transactional
-	fun tierTemplateThumbnailUrlsJsonbRoundTrip() {
+	fun tierTemplateThumbnailUrlRoundTrip() {
 		val entity = TierTemplate(
-			title = "jsonb-thumb-test",
+			title = "thumb-url-test",
 			itemsPayload = mapOf(
 				"items" to listOf(
 					mapOf("id" to "a", "name" to "A", "imageUrl" to "https://img.pickty.app/item.png"),
 				),
 			),
 		)
-		val urls = listOf(
-			"https://img.pickty.app/one.png",
-			"https://img.pickty.app/two.png",
-			"https://img.pickty.app/three.png",
-			"https://img.pickty.app/four.png",
-		)
-		entity.thumbnailUrls = urls
-		entity.listThumbnailUsesCustom = true
+		entity.thumbnailUrl = "https://img.pickty.app/cover.png"
 		val saved = tierTemplateRepository.saveAndFlush(entity)
 		val id = saved.id ?: error("template id expected")
 		entityManager.clear()
 		val loaded = tierTemplateRepository.findById(id).orElseThrow()
-		assertThat(loaded.thumbnailUrls).containsExactlyElementsOf(urls)
-		assertThat(loaded.listThumbnailUsesCustom).isTrue()
+		assertThat(loaded.thumbnailUrl).isEqualTo("https://img.pickty.app/cover.png")
 	}
 
 }

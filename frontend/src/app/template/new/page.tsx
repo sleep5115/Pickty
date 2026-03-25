@@ -2,15 +2,17 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuthPersistHydrated } from '@/lib/hooks/use-auth-persist-hydrated';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { apiFetch } from '@/lib/api-fetch';
 import { uploadPicktyImages } from '@/lib/image-upload-api';
-import { createTemplate } from '@/lib/tier-api';
+import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
+import { captureTemplateThumbnail2x2 } from '@/lib/template-thumbnail-composite';
+import { createTemplate, getTemplate, templatePayloadToTierItems } from '@/lib/tier-api';
 import {
   stripFilenameToDefaultName,
   templateNewFormSchema,
@@ -29,8 +31,10 @@ function newClientId(): string {
   return `cid-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
-export default function NewTemplatePage() {
+function NewTemplatePageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const fromTemplateId = searchParams.get('fromTemplate');
   const hydrated = useAuthPersistHydrated();
   const accessToken = useAuthStore((s) => s.accessToken);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -48,6 +52,8 @@ export default function NewTemplatePage() {
   const customThumbInputRef = useRef<HTMLInputElement>(null);
   const userEditedThumbsRef = useRef(false);
   const prevItemIdsKeyRef = useRef('');
+  const [persistedListThumbnailUrl, setPersistedListThumbnailUrl] = useState<string | null>(null);
+  const [forkLoadError, setForkLoadError] = useState<string | null>(null);
 
   const form = useForm<TemplateNewFormValues>({
     resolver: zodResolver(templateNewFormSchema),
@@ -142,6 +148,53 @@ export default function NewTemplatePage() {
       .catch(() => setIsAdmin(false));
   }, [hydrated, accessToken]);
 
+  useEffect(() => {
+    if (!hydrated || !accessToken || !fromTemplateId) {
+      setForkLoadError(null);
+      if (!fromTemplateId) setPersistedListThumbnailUrl(null);
+      return;
+    }
+    let cancelled = false;
+    setForkLoadError(null);
+    void (async () => {
+      try {
+        const d = await getTemplate(fromTemplateId);
+        if (cancelled) return;
+        const pool = templatePayloadToTierItems(d.items);
+        if (pool.length === 0) {
+          setForkLoadError('템플릿에 아이템이 없습니다.');
+          return;
+        }
+        const descRaw = d.items.description;
+        const description =
+          typeof descRaw === 'string' && descRaw.trim() ? descRaw.trim() : undefined;
+        const rows = pool.map((p) => ({
+          clientId: newClientId(),
+          name: p.name,
+          existingImageUrl: p.imageUrl,
+        }));
+        form.reset({
+          title: d.title,
+          description: description ?? '',
+          items: rows,
+          thumbnailClientIds: rows.slice(0, 4).map((r) => r.clientId),
+        });
+        setFileMap({});
+        setCustomThumbFile(null);
+        setPersistedListThumbnailUrl(d.thumbnailUrl ?? null);
+        userEditedThumbsRef.current = false;
+        prevItemIdsKeyRef.current = rows.map((r) => r.clientId).join('\0');
+      } catch (e) {
+        if (!cancelled) {
+          setForkLoadError(e instanceof Error ? e.message : '템플릿을 불러오지 못했습니다.');
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrated, accessToken, fromTemplateId, form]);
+
   const ingestFiles = useCallback(
     (list: FileList | File[]) => {
       const arr = Array.from(list).filter((f) => f.type.startsWith('image/'));
@@ -181,28 +234,33 @@ export default function NewTemplatePage() {
       return;
     }
 
-    const orderedFiles: File[] = [];
+    const imageUrlsOrdered: string[] = [];
     for (const row of values.items) {
       const file = fileMap[row.clientId]?.file;
-      if (!file) {
-        setSubmitError('일부 이미지 파일이 없습니다. 해당 아이템을 제거 후 다시 시도해 주세요.');
+      if (file) {
+        try {
+          const [u] = await uploadPicktyImages([file], accessToken);
+          if (!u) {
+            setSubmitError('이미지 업로드에 실패했습니다.');
+            return;
+          }
+          imageUrlsOrdered.push(u);
+        } catch (e) {
+          setSubmitError(e instanceof Error ? e.message : '이미지 업로드에 실패했습니다.');
+          return;
+        }
+      } else if (row.existingImageUrl?.trim()) {
+        imageUrlsOrdered.push(row.existingImageUrl.trim());
+      } else {
+        setSubmitError('일부 아이템에 이미지가 없습니다. 파일을 다시 넣거나 해당 행을 제거해 주세요.');
         return;
       }
-      orderedFiles.push(file);
-    }
-
-    let imageUrls: string[];
-    try {
-      imageUrls = await uploadPicktyImages(orderedFiles, accessToken);
-    } catch (e) {
-      setSubmitError(e instanceof Error ? e.message : '이미지 업로드에 실패했습니다.');
-      return;
     }
 
     const itemsPayload = values.items.map((row, i) => ({
       id: row.clientId,
       name: row.name.trim(),
-      imageUrl: imageUrls[i]!,
+      imageUrl: imageUrlsOrdered[i]!,
     }));
 
     const itemsEnvelope: {
@@ -215,29 +273,64 @@ export default function NewTemplatePage() {
 
     const urlByClientId: Record<string, string> = {};
     for (let i = 0; i < values.items.length; i++) {
-      urlByClientId[values.items[i]!.clientId] = imageUrls[i]!;
+      urlByClientId[values.items[i]!.clientId] = imageUrlsOrdered[i]!;
     }
-    /** 체크한 썸네일 id 는 setValue 로만 갱신돼 있어 zod/제출 payload 에 빠질 수 있음 → getValues 사용 */
-    const thumbClientIds = form.getValues('thumbnailClientIds') ?? [];
+
+    // zod 검증값과 RHF 내부 상태가 어긋나면 getValues만 쓸 때 빈 배열이 될 수 있음 → 합성 분기 스킵·thumbnailUrl 미저장.
+    const primaryThumbIds =
+      values.thumbnailClientIds && values.thumbnailClientIds.length > 0
+        ? values.thumbnailClientIds
+        : (form.getValues('thumbnailClientIds') ?? []);
+    const thumbClientIds =
+      primaryThumbIds.length > 0
+        ? primaryThumbIds
+        : values.items.length === 4
+          ? values.items.map((r) => r.clientId)
+          : [];
     const orderedThumbIds = values.items
       .map((r) => r.clientId)
       .filter((id) => thumbClientIds.includes(id));
-    let thumbnailUrls: string[] = orderedThumbIds.map((id) => urlByClientId[id]!).filter(Boolean);
+
+    const intendedAutoThumb = !customThumbFile && thumbClientIds.length === 4;
+
+    let finalThumbnailUrl: string | null = null;
     if (customThumbFile) {
-      let customUrls: string[];
       try {
-        customUrls = await uploadPicktyImages([customThumbFile], accessToken);
+        const customUrls = await uploadPicktyImages([customThumbFile], accessToken);
+        finalThumbnailUrl = customUrls[0] ?? null;
       } catch (e) {
         setSubmitError(e instanceof Error ? e.message : '커스텀 썸네일 업로드에 실패했습니다.');
         return;
       }
-      const first = customUrls[0];
-      if (first) {
-        /** 목록 카드는 커스텀 썸네일만 사용 (아이템 그리드와 합치지 않음) */
-        thumbnailUrls = [first];
+    } else if (orderedThumbIds.length === 4) {
+      const four = orderedThumbIds.map((id) => urlByClientId[id]).filter(Boolean);
+      if (four.length === 4) {
+        try {
+          const blob = await captureTemplateThumbnail2x2(four);
+          const pngFile = new File([blob], 'template-thumbnail.png', { type: 'image/png' });
+          const [u] = await uploadPicktyImages([pngFile], accessToken);
+          finalThumbnailUrl = u ?? null;
+        } catch (e) {
+          setSubmitError(
+            e instanceof Error
+              ? e.message
+              : '썸네일 자동 합성에 실패했습니다. 네트워크·CORS를 확인하거나 커스텀 썸네일을 올려 보세요.',
+          );
+          return;
+        }
+      } else {
+        setSubmitError(
+          '썸네일로 선택한 아이템 중 이미지 URL이 없는 항목이 있어 합성할 수 없습니다. 각 행에 이미지를 넣은 뒤 다시 저장해 주세요.',
+        );
+        return;
       }
-    } else {
-      thumbnailUrls = thumbnailUrls.slice(0, 4);
+    }
+
+    if (intendedAutoThumb && !finalThumbnailUrl) {
+      setSubmitError(
+        '자동 썸네일을 쓰려면 아이템 순서에 맞게 4개가 모두 체크되어야 합니다. 체크를 확인한 뒤 다시 저장해 주세요.',
+      );
+      return;
     }
 
     try {
@@ -247,16 +340,26 @@ export default function NewTemplatePage() {
           parentTemplateId: null,
           version: 1,
           items: itemsEnvelope,
-          thumbnailUrls,
-          listThumbnailUsesCustom: !!customThumbFile,
+          thumbnailUrl: finalThumbnailUrl ?? null,
         },
         accessToken,
       );
+      if (
+        finalThumbnailUrl &&
+        created.thumbnailFieldInResponse &&
+        (created.thumbnailUrl == null || String(created.thumbnailUrl).trim() === '')
+      ) {
+        setSubmitError(
+          '템플릿은 저장됐지만 서버에 썸네일 URL이 비어 있습니다. 백엔드를 최신으로 맞추고 DB에 tier_templates.thumbnail_url 컬럼이 있는지 확인해 주세요.',
+        );
+        return;
+      }
       setSavedInfo({
         id: created.id,
         title: values.title.trim(),
         itemCount: itemsPayload.length,
       });
+      setPersistedListThumbnailUrl(null);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : '저장에 실패했습니다.');
     }
@@ -359,12 +462,26 @@ export default function NewTemplatePage() {
       <div className="w-full py-8 px-1 sm:px-2">
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">
-          새 템플릿 만들기
+          {fromTemplateId ? '템플릿 다시 만들기' : '새 템플릿 만들기'}
         </h1>
         <p className="mt-1 text-sm text-slate-600 dark:text-zinc-400">
           이미지를 올려 티어표에 넣을 아이템을 만듭니다. 이름은 파일명을 기준으로 채워지며 바꿀 수 있어요.
         </p>
+        {fromTemplateId && (
+          <p className="mt-2 text-xs text-violet-600 dark:text-violet-400">
+            기존 템플릿을 불러왔습니다. 저장하면 <strong>새 템플릿</strong>으로 등록됩니다.
+          </p>
+        )}
       </div>
+
+      {forkLoadError && (
+        <div
+          role="alert"
+          className="mb-6 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+        >
+          {forkLoadError}
+        </div>
+      )}
 
       {isAdmin && (
         <div
@@ -424,7 +541,9 @@ export default function NewTemplatePage() {
               썸네일 등록하기 <span className="text-slate-400 dark:text-zinc-600 font-normal">(선택)</span>
             </span>
             <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
-              따로 등록한 썸네일이 있으면 목록 카드에는 그 이미지 한 장만 씁니다. 없으면 아래 아이템에서 최대 4개를 골라 2×2 형태로 만듭니다.
+              커스텀 이미지를 올리면 목록·공유 카드에 그 한 장을 씁니다. 없으면 아래에서 썸네일로 쓸 아이템을{' '}
+              <span className="font-medium text-slate-800 dark:text-zinc-200">정확히 4개</span> 체크하면 저장 시{' '}
+              <strong>2×2 합성 PNG</strong>를 만들어 한 장으로 올립니다.
             </p>
             <div className="flex flex-wrap items-center gap-3">
               <input
@@ -435,6 +554,7 @@ export default function NewTemplatePage() {
                 onChange={(e) => {
                   const f = e.target.files?.[0];
                   setCustomThumbFile(f ?? null);
+                  if (f) setPersistedListThumbnailUrl(null);
                   e.target.value = '';
                 }}
               />
@@ -464,6 +584,22 @@ export default function NewTemplatePage() {
                   className="object-cover"
                   unoptimized
                 />
+              </div>
+            )}
+            {!customThumbFile && persistedListThumbnailUrl && (
+              <div className="mt-3 space-y-1">
+                <p className="text-xs text-slate-500 dark:text-zinc-500">불러온 템플릿의 목록 썸네일</p>
+                <div className="relative w-28 h-28 rounded-lg overflow-hidden border border-slate-200 dark:border-zinc-700">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={picktyImageDisplaySrc(persistedListThumbnailUrl)}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+                <p className="text-xs text-slate-500 dark:text-zinc-500">
+                  새로 합성·업로드하면 저장 시 이 이미지를 덮어씁니다.
+                </p>
               </div>
             )}
           </div>
@@ -531,14 +667,20 @@ export default function NewTemplatePage() {
           <div className="space-y-2">
             {!customThumbFile && (
               <p className="text-sm text-slate-600 dark:text-zinc-400">
-                목록 카드 썸네일로 쓸 아이템을 <span className="font-medium text-slate-800 dark:text-zinc-200">최대 4개</span>
-                까지 체크하세요. 새로 이미지를 넣으면 앞에서부터 자동으로 체크돼요.
+                자동 합성 썸네일을 쓰려면 <span className="font-medium text-slate-800 dark:text-zinc-200">정확히 4개</span>를
+                체크하세요. 새로 이미지를 넣으면 앞에서부터 자동으로 체크돼요.
               </p>
             )}
             <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
               {fields.map((field, index) => {
                 const clientId = form.watch(`items.${index}.clientId`);
-                const preview = clientId ? fileMap[clientId]?.previewUrl : undefined;
+                const existingImg = form.watch(`items.${index}.existingImageUrl`);
+                const previewLocal = clientId ? fileMap[clientId]?.previewUrl : undefined;
+                const preview =
+                  previewLocal ??
+                  (typeof existingImg === 'string' && existingImg.trim()
+                    ? picktyImageDisplaySrc(existingImg.trim())
+                    : undefined);
                 const picked = (form.watch('thumbnailClientIds') ?? []).includes(clientId ?? '');
                 const thumbCount = (form.watch('thumbnailClientIds') ?? []).length;
                 return (
@@ -564,6 +706,7 @@ export default function NewTemplatePage() {
                     </div>
                     <div className="p-2 flex flex-col gap-2 flex-1">
                       <input type="hidden" {...form.register(`items.${index}.clientId`)} />
+                      <input type="hidden" {...form.register(`items.${index}.existingImageUrl`)} />
                       {!customThumbFile && (
                         <label className="flex items-center gap-2 text-xs text-slate-700 dark:text-zinc-300 cursor-pointer select-none">
                           <input
@@ -655,5 +798,19 @@ export default function NewTemplatePage() {
       </form>
       </div>
     </>
+  );
+}
+
+export default function NewTemplatePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="w-full py-20 flex justify-center">
+          <div className="w-10 h-10 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" />
+        </div>
+      }
+    >
+      <NewTemplatePageInner />
+    </Suspense>
   );
 }

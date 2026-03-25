@@ -4,12 +4,16 @@ import com.pickty.server.domain.user.dto.CompleteOnboardingRequest
 import com.pickty.server.domain.user.dto.OAuthLinkChallengeRequest
 import com.pickty.server.domain.user.dto.OAuthLinkChallengeResponse
 import com.pickty.server.domain.user.dto.UpdateProfileRequest
+import com.pickty.server.global.jwt.AuthCookieNames
+import com.pickty.server.global.oauth2.CookieUtils
 import com.pickty.server.global.oauth2.OAuthLinkService
+import jakarta.servlet.http.HttpServletResponse
 import jakarta.validation.Valid
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PostMapping
@@ -28,6 +32,17 @@ class UserController(
     fun getMe(authentication: Authentication): ResponseEntity<UserResponse> {
         val userId = authentication.principal as Long
         return ResponseEntity.ok(userService.getMe(userId))
+    }
+
+    @DeleteMapping("/me")
+    fun withdraw(
+        authentication: Authentication,
+        response: HttpServletResponse,
+    ): ResponseEntity<Void> {
+        val userId = authentication.principal as Long
+        userService.withdrawAccount(userId)
+        CookieUtils.expireCookie(response, AuthCookieNames.REFRESH_TOKEN)
+        return ResponseEntity.noContent().build()
     }
 
     @GetMapping("/me/sensitive")

@@ -10,6 +10,13 @@ export interface TemplateResponse {
   version: number;
   parentTemplateId: string | null;
   creatorId: number | null;
+  /** POST 생성 응답에 포함 — 저장 반영 여부 확인용 */
+  thumbnailUrl?: string | null;
+  /**
+   * createTemplate 전용 — 응답 JSON에 thumbnailUrl/thumbnail_url 키가 실제로 있었는지.
+   * (구 API·Jackson null 생략과 구분해 클라이언트 검증에 사용)
+   */
+  thumbnailFieldInResponse?: boolean;
 }
 
 export interface TemplateDetailResponse {
@@ -18,9 +25,8 @@ export interface TemplateDetailResponse {
   version: number;
   parentTemplateId: string | null;
   items: Record<string, unknown>;
-  thumbnailUrls?: string[];
-  /** DB `list_thumbnail_uses_custom` — 커스텀 커버 한 장 vs 아이템 그리드 */
-  listThumbnailUsesCustom?: boolean;
+  /** 단일 썸네일 URL */
+  thumbnailUrl?: string | null;
 }
 
 export interface TemplateSummaryResponse {
@@ -29,8 +35,7 @@ export interface TemplateSummaryResponse {
   version: number;
   itemCount: number;
   description: string | null;
-  thumbnailUrls: string[];
-  listThumbnailUsesCustom?: boolean;
+  thumbnailUrl: string | null;
 }
 
 /** 템플릿 JSONB에서 티어 풀 아이템만 추출 (description 등 메타는 무시) */
@@ -58,14 +63,10 @@ export type CreateTemplatePayload = {
     description?: string | null;
     items: Array<{ id: string; name: string; imageUrl?: string | null }>;
   };
-  /** Fork 시 부모 템플릿 UUID */
   parentTemplateId?: string | null;
-  /** 초기 템플릿은 1 고정. 서버가 무시할 수 있으나 Phase 2 계약용으로 전송 */
   version?: number;
-  /** 카드 썸네일 URL 최대 4개 */
-  thumbnailUrls?: string[];
-  /** `true`면 커스텀 커버 1장 모드(서버 컬럼 `list_thumbnail_uses_custom`) */
-  listThumbnailUsesCustom?: boolean;
+  /** 단일 썸네일 */
+  thumbnailUrl?: string | null;
 };
 
 export interface TierResultResponse {
@@ -99,37 +100,26 @@ function authHeaders(token: string | null | undefined): HeadersInit {
   return { Authorization: `Bearer ${token}` };
 }
 
-/** API/직렬화에 따라 camelCase 또는 snake_case로 올 수 있음. DB·역직렬화로 JSON 문자열 한 덩어리로 올 때도 처리 */
-function parseTemplateThumbnailUrls(raw: Record<string, unknown>): string[] {
+/** API 응답에서 템플릿 단일 썸네일 URL (레거시 jsonb 배열 첫 요소도 허용) */
+export function parseTemplateThumbnailUrl(raw: Record<string, unknown>): string | null {
+  const single = raw.thumbnailUrl ?? raw.thumbnail_url;
+  if (typeof single === 'string' && single.trim()) {
+    return resolvePicktyUploadsUrl(single.trim());
+  }
   let v: unknown = raw.thumbnailUrls ?? raw.thumbnail_urls;
   if (typeof v === 'string') {
     const t = v.trim();
-    if (!t) {
-      v = undefined;
-    } else {
-      try {
-        v = JSON.parse(t) as unknown;
-      } catch {
-        return [resolvePicktyUploadsUrl(t)];
-      }
+    if (!t) return null;
+    try {
+      v = JSON.parse(t) as unknown;
+    } catch {
+      return resolvePicktyUploadsUrl(t);
     }
   }
-  if (Array.isArray(v) && v.length > 0) {
-    return v
-      .filter((u): u is string => typeof u === 'string' && u.trim().length > 0)
-      .map((u) => resolvePicktyUploadsUrl(u));
+  if (Array.isArray(v) && v.length > 0 && typeof v[0] === 'string' && v[0].trim()) {
+    return resolvePicktyUploadsUrl(v[0].trim());
   }
-  /** 운영 등 레거시: 목록에 `thumbnailUrls` 대신 단일 `thumbnailUrl` 문자열만 오는 경우 */
-  const single = raw.thumbnailUrl ?? raw.thumbnail_url;
-  if (typeof single === 'string' && single.trim()) {
-    return [resolvePicktyUploadsUrl(single.trim())];
-  }
-  return [];
-}
-
-function parseListThumbnailUsesCustom(raw: Record<string, unknown>): boolean {
-  const v = raw.listThumbnailUsesCustom ?? raw.list_thumbnail_uses_custom;
-  return v === true;
+  return null;
 }
 
 export function parseResultThumbnailUrl(raw: Record<string, unknown>): string | null {
@@ -152,20 +142,40 @@ export function parseResultThumbnailUrl(raw: Record<string, unknown>): string | 
   return resolvePicktyUploadsUrl(v.trim());
 }
 
+function mapTemplateSummaryRow(row: Record<string, unknown>): TemplateSummaryResponse {
+  const id = row.id != null ? String(row.id) : '';
+  const title = typeof row.title === 'string' ? row.title : '';
+  const version = typeof row.version === 'number' ? row.version : Number(row.version) || 0;
+  const itemCountRaw = row.itemCount ?? row.item_count;
+  const itemCount =
+    typeof itemCountRaw === 'number' ? itemCountRaw : Number(itemCountRaw) || 0;
+  const desc = row.description;
+  const description = typeof desc === 'string' ? desc : null;
+  return {
+    id,
+    title,
+    version,
+    itemCount,
+    description,
+    thumbnailUrl: parseTemplateThumbnailUrl(row),
+  };
+}
+
 export async function listTemplates(): Promise<TemplateSummaryResponse[]> {
   const res = await apiFetch('/api/v1/templates');
   if (!res.ok) {
     const t = await res.text();
     throw new Error(t || `템플릿 목록을 불러오지 못했습니다 (${res.status})`);
   }
-  const list = (await res.json()) as Record<string, unknown>[];
-  return list.map((row) => {
-    const t = row as unknown as TemplateSummaryResponse;
-    return {
-      ...t,
-      thumbnailUrls: parseTemplateThumbnailUrls(row),
-      listThumbnailUsesCustom: parseListThumbnailUsesCustom(row),
-    };
+  const raw = (await res.json()) as unknown;
+  if (!Array.isArray(raw)) {
+    throw new Error('템플릿 목록 응답 형식이 올바르지 않습니다.');
+  }
+  return raw.map((row) => {
+    if (!row || typeof row !== 'object') {
+      throw new Error('템플릿 목록 행 형식이 올바르지 않습니다.');
+    }
+    return mapTemplateSummaryRow(row as Record<string, unknown>);
   });
 }
 
@@ -175,10 +185,35 @@ export async function getTemplate(id: string): Promise<TemplateDetailResponse> {
     const t = await res.text();
     throw new Error(t || `템플릿을 불러오지 못했습니다 (${res.status})`);
   }
-  return res.json() as Promise<TemplateDetailResponse>;
+  const row = (await res.json()) as Record<string, unknown>;
+  const base = row as unknown as TemplateDetailResponse;
+  return {
+    ...base,
+    thumbnailUrl: parseTemplateThumbnailUrl(row),
+  };
 }
 
-/** 템플릿 생성 (Fork 시 parentTemplateId·version 등 확장 필드 전달) */
+function mapTemplateCreateResponse(row: Record<string, unknown>): TemplateResponse {
+  const pt = row.parentTemplateId ?? row.parent_template_id;
+  const parentTemplateId =
+    pt === null || pt === undefined || pt === '' ? null : String(pt);
+  const cr = row.creatorId ?? row.creator_id;
+  const creatorIdNum =
+    cr === null || cr === undefined || cr === '' ? NaN : Number(cr);
+  const thumbnailFieldInResponse =
+    Object.prototype.hasOwnProperty.call(row, 'thumbnailUrl') ||
+    Object.prototype.hasOwnProperty.call(row, 'thumbnail_url');
+  return {
+    id: String(row.id ?? ''),
+    title: typeof row.title === 'string' ? row.title : '',
+    version: typeof row.version === 'number' ? row.version : Number(row.version) || 0,
+    parentTemplateId,
+    creatorId: Number.isFinite(creatorIdNum) ? creatorIdNum : null,
+    thumbnailUrl: parseTemplateThumbnailUrl(row),
+    thumbnailFieldInResponse,
+  };
+}
+
 export async function createTemplate(
   body: CreateTemplatePayload,
   accessToken: string | null,
@@ -195,7 +230,8 @@ export async function createTemplate(
     const t = await res.text();
     throw new Error(t || `템플릿 저장 실패 (${res.status})`);
   }
-  return res.json() as Promise<TemplateResponse>;
+  const row = (await res.json()) as Record<string, unknown>;
+  return mapTemplateCreateResponse(row);
 }
 
 export async function createTierResult(
