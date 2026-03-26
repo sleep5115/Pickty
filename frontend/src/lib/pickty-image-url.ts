@@ -119,9 +119,18 @@ export function rewriteTierItemsUploadUrls(items: TierItem[]): TierItem[] {
   return items.map(rewriteTierItemUploadUrl);
 }
 
+function rewriteTierRowUploadUrls(tier: Tier): Tier {
+  const items = rewriteTierItemsUploadUrls(tier.items);
+  const rawBg = tier.backgroundUrl?.trim();
+  let backgroundUrl = tier.backgroundUrl;
+  if (rawBg) {
+    const resolved = resolvePicktyUploadsUrl(rawBg);
+    if (resolved !== rawBg) backgroundUrl = resolved;
+  }
+  if (items === tier.items && backgroundUrl === tier.backgroundUrl) return tier;
+  return { ...tier, items, backgroundUrl };
+}
+
 export function rewriteTiersUploadUrls(tiers: Tier[]): Tier[] {
-  return tiers.map((row) => ({
-    ...row,
-    items: rewriteTierItemsUploadUrls(row.items),
-  }));
+  return tiers.map(rewriteTierRowUploadUrls);
 }

@@ -2,6 +2,11 @@
 
 import { forwardRef } from 'react';
 import type { Tier, TierItem } from '@/lib/store/tier-store';
+import {
+  getTierLabelSurfaceStyle,
+  getTierLabelTextStyle,
+  tierHasBackgroundImage,
+} from '@/lib/tier-label-surface';
 import { StaticItemCard } from '@/components/tier/static-item-card';
 
 interface TierBoardReadonlyProps {
@@ -24,8 +29,16 @@ export const TierBoardReadonly = forwardRef<HTMLDivElement, TierBoardReadonlyPro
               className="flex flex-row min-h-20 border-b border-slate-200 dark:border-zinc-800 last:border-b-0"
             >
               <div
-                className="w-20 min-w-[80px] shrink-0 flex items-center justify-center text-2xl font-black text-zinc-900 select-none"
-                style={{ backgroundColor: tier.color }}
+                className={[
+                  'w-20 min-w-[80px] shrink-0 flex items-center justify-center text-2xl font-black select-none',
+                  tierHasBackgroundImage(tier) ? '' : 'text-zinc-900',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                style={{
+                  ...getTierLabelSurfaceStyle(tier),
+                  ...getTierLabelTextStyle(tier),
+                }}
               >
                 {tier.label}
               </div>

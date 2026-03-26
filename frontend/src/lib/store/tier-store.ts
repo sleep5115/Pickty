@@ -14,6 +14,8 @@ export interface Tier {
   id: string;
   label: string;
   color: string;
+  /** R2 등 업로드 URL — 렌더 시 `picktyImageDisplaySrc` 경유 권장 */
+  backgroundUrl?: string;
   items: TierItem[];
 }
 
@@ -79,8 +81,11 @@ interface TierState {
   /** 티어 행 순서 변경 (dnd-kit arrayMove) */
   reorderTiers: (activeId: string, overId: string) => void;
 
-  /** 특정 티어의 label / color 변경 */
-  updateTier: (tierId: string, updates: { label?: string; color?: string }) => void;
+  /** 특정 티어의 label / color / 배경 이미지 변경 */
+  updateTier: (
+    tierId: string,
+    updates: { label?: string; color?: string; backgroundUrl?: string | undefined },
+  ) => void;
 
   /** 선택한 행의 위 또는 아래에 빈 티어 행 추가 */
   addTierRow: (nearTierId: string, position: 'above' | 'below') => void;

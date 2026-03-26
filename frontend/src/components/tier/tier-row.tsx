@@ -4,6 +4,11 @@ import { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Tier } from '@/lib/store/tier-store';
+import {
+  getTierLabelSurfaceStyle,
+  getTierLabelTextStyle,
+  tierHasBackgroundImage,
+} from '@/lib/tier-label-surface';
 import { ItemCard } from './item-card';
 import { TierSettingsModal } from './tier-settings-modal';
 
@@ -79,7 +84,8 @@ export function TierRow({
           }
           className={[
             'w-20 min-w-[80px] flex items-center justify-center',
-            'text-2xl font-black text-zinc-900 select-none',
+            'text-2xl font-black select-none',
+            tierHasBackgroundImage(tier) ? '' : 'text-zinc-900',
             'transition-all duration-150 shrink-0',
             isTarget
               ? 'brightness-110 ring-2 ring-violet-400'
@@ -87,7 +93,10 @@ export function TierRow({
           ]
             .filter(Boolean)
             .join(' ')}
-          style={{ backgroundColor: tier.color }}
+          style={{
+            ...getTierLabelSurfaceStyle(tier),
+            ...getTierLabelTextStyle(tier),
+          }}
         >
           {tier.label}
         </button>

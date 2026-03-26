@@ -1,8 +1,15 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Tier } from '@/lib/store/tier-store';
-import { useTierStore } from '@/lib/store/tier-store';
+import { Tier, useTierStore } from '@/lib/store/tier-store';
+import { useAuthStore } from '@/lib/store/auth-store';
+import { uploadPicktyImages } from '@/lib/image-upload-api';
+import {
+  getTierLabelSurfaceStyle,
+  getTierLabelTextStyle,
+  tierHasBackgroundImage,
+} from '@/lib/tier-label-surface';
+import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
 
 /** 한글/CJK 포함 시 최대 3자, 영어·숫자만이면 최대 5자 */
 function isWithinLabelLimit(s: string): boolean {
@@ -34,10 +41,16 @@ interface TierSettingsModalProps {
 }
 
 export function TierSettingsModal({ tier, onClose }: TierSettingsModalProps) {
+  const accessToken = useAuthStore((s) => s.accessToken);
   const { updateTier, addTierRow, deleteTierRow, clearTierRow } = useTierStore();
   const [label, setLabel] = useState(tier.label);
   const [color, setColor] = useState(tier.color);
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const bgFileRef = useRef<HTMLInputElement>(null);
+
+  const previewTier: Tier = { ...tier, color };
 
   // ESC로 닫기
   useEffect(() => {
@@ -57,6 +70,33 @@ export function TierSettingsModal({ tier, onClose }: TierSettingsModalProps) {
     const trimmed = label.trim();
     if (trimmed) updateTier(tier.id, { label: trimmed, color });
     onClose();
+  };
+
+  const handleBackgroundFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!accessToken) {
+      setUploadError('배경 이미지 업로드는 로그인 후 이용할 수 있습니다.');
+      return;
+    }
+    setUploadError(null);
+    setUploadBusy(true);
+    try {
+      const [url] = await uploadPicktyImages([file], accessToken);
+      updateTier(tier.id, { backgroundUrl: url });
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : '이미지 업로드에 실패했습니다.';
+      setUploadError(msg);
+    } finally {
+      setUploadBusy(false);
+    }
+  };
+
+  const handleRemoveBackground = () => {
+    setUploadError(null);
+    updateTier(tier.id, { backgroundUrl: undefined });
   };
 
   const handleAddAbove = () => {
@@ -96,8 +136,10 @@ export function TierSettingsModal({ tier, onClose }: TierSettingsModalProps) {
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-zinc-800">
           <div className="flex items-center gap-2.5">
             <div
-              className="w-5 h-5 rounded-sm shrink-0 border border-black/10 dark:border-white/10"
-              style={{ backgroundColor: color }}
+              className="w-5 h-5 rounded-sm shrink-0 border border-black/10 dark:border-white/10 overflow-hidden bg-cover bg-center"
+              style={{
+                ...getTierLabelSurfaceStyle(previewTier),
+              }}
             />
             <span className="text-sm font-semibold text-slate-800 dark:text-zinc-200">
               티어 설정
@@ -152,12 +194,77 @@ export function TierSettingsModal({ tier, onClose }: TierSettingsModalProps) {
             </div>
           </div>
 
+          {/* 배경 이미지 */}
+          <div>
+            <p className="text-xs font-medium text-slate-500 dark:text-zinc-500 uppercase tracking-wider mb-2.5">
+              배경 이미지
+            </p>
+            {tierHasBackgroundImage(tier) && (
+              <div className="mb-2 rounded-lg border border-slate-200 dark:border-zinc-700 overflow-hidden h-16 bg-slate-100 dark:bg-zinc-800">
+                <img
+                  src={picktyImageDisplaySrc(tier.backgroundUrl!.trim())}
+                  alt=""
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
+            <div className="flex flex-col gap-2">
+              <input
+                ref={bgFileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                disabled={uploadBusy || !accessToken}
+                onChange={handleBackgroundFile}
+              />
+              <button
+                type="button"
+                disabled={uploadBusy || !accessToken}
+                onClick={() => bgFileRef.current?.click()}
+                className={[
+                  'w-full py-2 rounded-lg text-sm font-medium border transition-colors',
+                  uploadBusy || !accessToken
+                    ? 'opacity-50 cursor-not-allowed border-slate-200 dark:border-zinc-700 text-slate-400'
+                    : 'border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800',
+                ].join(' ')}
+              >
+                {uploadBusy ? '업로드 중…' : '이미지 파일 선택'}
+              </button>
+              {tierHasBackgroundImage(tier) && (
+                <button
+                  type="button"
+                  disabled={uploadBusy}
+                  onClick={handleRemoveBackground}
+                  className={[
+                    'w-full py-2 rounded-lg text-sm font-medium border transition-colors',
+                    'border-slate-300 dark:border-zinc-600 text-slate-600 dark:text-zinc-400',
+                    'hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-700 dark:hover:text-red-300 hover:border-red-200 dark:hover:border-red-900',
+                    uploadBusy ? 'opacity-50 cursor-not-allowed' : '',
+                  ].join(' ')}
+                >
+                  배경 이미지 제거
+                </button>
+              )}
+              {!accessToken && (
+                <p className="text-xs text-amber-700 dark:text-amber-300/90">
+                  로그인한 계정에서만 업로드할 수 있습니다.
+                </p>
+              )}
+              {uploadError && (
+                <p className="text-xs text-red-600 dark:text-red-400">{uploadError}</p>
+              )}
+            </div>
+          </div>
+
           {/* 라벨 입력 */}
           <div>
             <div className="flex gap-2 items-center">
               <div
-                className="w-8 h-8 rounded flex items-center justify-center text-base font-black text-zinc-900 shrink-0 border border-black/10 dark:border-white/10"
-                style={{ backgroundColor: color }}
+                className="w-8 h-8 rounded flex items-center justify-center text-base font-black shrink-0 border border-black/10 dark:border-white/10 overflow-hidden"
+                style={{
+                  ...getTierLabelSurfaceStyle(previewTier),
+                  ...getTierLabelTextStyle(previewTier),
+                }}
               >
                 {label.slice(0, 2) || '?'}
               </div>
