@@ -264,12 +264,21 @@ export const useTierStore = create<TierState>()((set) => ({
     }),
 
   resetBoard: () =>
-    set({
-      templateId: null,
-      tiers: INITIAL_TIERS.map((t) => ({ ...t, items: [] })),
-      pool: [...INITIAL_POOL],
-      selectedItemIds: [],
-      targetTierId: null,
-      previewItem: null,
+    set((state) => {
+      const fromTiers = state.tiers.flatMap((t) => t.items);
+      const seen = new Set<string>();
+      const pool: TierItem[] = [];
+      for (const item of [...state.pool, ...fromTiers]) {
+        if (seen.has(item.id)) continue;
+        seen.add(item.id);
+        pool.push(item);
+      }
+      return {
+        tiers: INITIAL_TIERS.map((t) => ({ ...t, items: [] })),
+        pool,
+        selectedItemIds: [],
+        targetTierId: null,
+        previewItem: null,
+      };
     }),
 }));
