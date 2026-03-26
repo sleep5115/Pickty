@@ -26,18 +26,22 @@ jobs:
           envs: SSL_CERT,SSL_KEY,APPLICATION_SECRETS_YAML
           command_timeout: 30m
           script: |
-            if [ -z "$APPLICATION_SECRETS_YAML" ]; then
-              echo "GitHub Actions secret APPLICATION_SECRETS_YAML is empty. Set it to the full contents of pickty-config/application-secrets.yaml (prod용)." >&2
-              exit 1
-            fi
             mkdir -p ~/Pickty/deploy/lightsail/certs
             echo "$SSL_CERT" > ~/Pickty/deploy/lightsail/certs/cert.pem
             echo "$SSL_KEY" > ~/Pickty/deploy/lightsail/certs/key.pem
             chmod 644 ~/Pickty/deploy/lightsail/certs/cert.pem
             chmod 600 ~/Pickty/deploy/lightsail/certs/key.pem
             mkdir -p ~/Pickty/deploy/lightsail
-            printf '%s\n' "$APPLICATION_SECRETS_YAML" > ~/Pickty/deploy/lightsail/application-secrets.yaml
-            chmod 644 ~/Pickty/deploy/lightsail/application-secrets.yaml
+            if [ -n "$APPLICATION_SECRETS_YAML" ]; then
+              printf '%s\n' "$APPLICATION_SECRETS_YAML" > ~/Pickty/deploy/lightsail/application-secrets.yaml
+              chmod 644 ~/Pickty/deploy/lightsail/application-secrets.yaml
+            elif [ -f ~/Pickty/deploy/lightsail/application-secrets.yaml ]; then
+              echo "WARN: APPLICATION_SECRETS_YAML GitHub secret is empty — leaving existing ~/Pickty/deploy/lightsail/application-secrets.yaml (set the secret for CI-managed secrets)."
+            else
+              echo "GitHub Actions secret APPLICATION_SECRETS_YAML is empty and no application-secrets.yaml on the server." >&2
+              echo "Fix: Repo Settings → Secrets → APPLICATION_SECRETS_YAML = full pickty-config/application-secrets.yaml (prod), or scp the file to deploy/lightsail/ first." >&2
+              exit 1
+            fi
             cd ~/Pickty
             git pull origin main
             docker compose -f deploy/lightsail/docker-compose.api.yml down --remove-orphans
