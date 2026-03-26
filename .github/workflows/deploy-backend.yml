@@ -1,6 +1,9 @@
 # pickty.app (Lightsail) — main 브랜치 push + 아래 paths 변경 시에만 운영 배포
 # dev 브랜치는 로컬/개발용, 운영은 prod 프로필 + pickty_prod
 # frontend/** 만 바뀐 push 는 이 워크플로우를 돌리지 않음
+#
+# application-secrets.yaml 은 Pickty 레포·GitHub Secret 이 아니라
+# pickty-config 레포의 deploy-secrets 워크플로(또는 수동 scp)로 서버에 둔다.
 
 name: Deploy backend to Lightsail
 
@@ -23,7 +26,7 @@ jobs:
           host: ${{ secrets.LIGHTSAIL_HOST }}
           username: ${{ secrets.LIGHTSAIL_USERNAME }}
           key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
-          envs: SSL_CERT,SSL_KEY,APPLICATION_SECRETS_YAML
+          envs: SSL_CERT,SSL_KEY
           command_timeout: 30m
           script: |
             mkdir -p ~/Pickty/deploy/lightsail/certs
@@ -31,22 +34,11 @@ jobs:
             echo "$SSL_KEY" > ~/Pickty/deploy/lightsail/certs/key.pem
             chmod 644 ~/Pickty/deploy/lightsail/certs/cert.pem
             chmod 600 ~/Pickty/deploy/lightsail/certs/key.pem
-            mkdir -p ~/Pickty/deploy/lightsail
-            if [ -n "$APPLICATION_SECRETS_YAML" ]; then
-              printf '%s\n' "$APPLICATION_SECRETS_YAML" > ~/Pickty/deploy/lightsail/application-secrets.yaml
-              chmod 644 ~/Pickty/deploy/lightsail/application-secrets.yaml
-            elif [ -f ~/Pickty/deploy/lightsail/application-secrets.yaml ]; then
-              echo "WARN: APPLICATION_SECRETS_YAML GitHub secret is empty — leaving existing ~/Pickty/deploy/lightsail/application-secrets.yaml (set the secret for CI-managed secrets)."
-            else
-              echo "GitHub Actions secret APPLICATION_SECRETS_YAML is empty and no application-secrets.yaml on the server." >&2
-              echo "Fix: Repo Settings → Secrets → APPLICATION_SECRETS_YAML = full pickty-config/application-secrets.yaml (prod), or scp the file to deploy/lightsail/ first." >&2
-              exit 1
-            fi
             cd ~/Pickty
             git pull origin main
+            if [ ! -f ~/Pickty/deploy/lightsail/application-secrets.yaml ]; then exit 1; fi
             docker compose -f deploy/lightsail/docker-compose.api.yml down --remove-orphans
             docker compose -f deploy/lightsail/docker-compose.api.yml up -d --build
         env:
           SSL_CERT: ${{ secrets.SSL_CERT }}
           SSL_KEY: ${{ secrets.SSL_KEY }}
-          APPLICATION_SECRETS_YAML: ${{ secrets.APPLICATION_SECRETS_YAML }}

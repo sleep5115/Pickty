@@ -14,6 +14,14 @@ alwaysApply: true
 - `backend/` — **Backend** (Kotlin, Spring Boot)
 - `docker-compose.yml` — PostgreSQL 17 + Valkey 9 (**선택**: PC 로컬). 호스트 포트 **5442·6380**(컨테이너 5432·6379) — 집·회사 동일. **`POSTGRES_PASSWORD`** 는 루트 **`.env`**. Spring **`dev`**: **`application-secrets.yaml`**. DBeaver 등은 PROGRESS.md 참고
 
+### Cursor 워크스페이스 · 협업 문서 (필수)
+
+- **Cursor는 이 레포 루트 `Pickty/` 폴더만 연다** (`파일` → `폴더 열기` → `Pickty`). 부모 폴더만 열면 `.cursor/rules` 자동 로드·`@` 경로가 꼬일 수 있다.
+- **비공개 설정 레포 `pickty-config`** 는 **Pickty와 같은 부모 아래 형제 폴더**로 둔다. 워크스페이스에 꼭 넣을 필요 없음(시크릿이 채팅·인덱싱에 올라갈 위험 감소). 복사 절차는 아래 **Git 계정 관리** 블록 주석 참고.
+- 개발·에이전트 맥락은 **이 두 파일만** 유지한다 (여기까지 기록하며 개발해 왔음).
+  1. **`.cursor/rules/pickty-project-context.mdc`** — 전역 규칙·스택·보안·Git·워크플로 (`alwaysApply`)
+  2. **`PROGRESS.md`** — 진행 현황·인프라 스냅샷·단기 메모. 새 채팅/에이전트는 코드 작업 전 **반드시 `PROGRESS.md`를 먼저 읽는다**
+
 ### 브랜치 전략
 | 브랜치 | 용도 |
 |---|---|
@@ -94,13 +102,14 @@ alwaysApply: true
   ```
 - **Spring 프로필**: **`dev`**(기본) = 일상 개발, DB **`pickty_dev`**, Valkey **1**, **`./gradlew bootRun`**. **`local`** = 로컬 Docker **`pickty`** + 호스트 **5442·6380**, **`./gradlew bootRunLocal`**. OAuth·JWT는 **`application-secrets.yaml`**. **`./gradlew test`** → Testcontainers(**Docker 필요**).
 - **`application-secrets.yaml`** / **`application-local.yaml`** / **`backend/gradle.properties`** / 루트 **`.env`** — 정본은 **`pickty-config`**, Pickty 쪽은 gitignore · 복사만. JDK는 **`JAVA_HOME` 권장**; `gradle.properties`의 `org.gradle.java.home`은 필요 시 PC별 한 줄만 활성화(`REPLACE_ME` 샘플)
+- **Lightsail 운영 시크릿 경로:** 서버 **`~/Pickty/deploy/lightsail/application-secrets.yaml`** — Pickty **`deploy-backend.yml`** 은 GitHub Secret 으로 넣지 않고 **파일 존재만 검사** 후 compose 빌드. yaml 갱신은 **`pickty-config`** 레포 **`deploy-secrets.yml`**(또는 수동 scp). 상세 **`deploy/lightsail/README.md`**
 - 절대로 `git config --global`로 설정하지 말 것 (회사 글로벌 config 오염 방지)
 
 ## 진행 현황 파일 관리 규칙
 
 웹 AI(Gemini)는 이 프로젝트 코드를 직접 볼 수 없다. 따라서 진행 현황을 별도 파일로 관리하며, **작업을 완료할 때마다 반드시 이 파일을 업데이트**해야 한다.
 
-- **`Pickty/PROGRESS.md`** — 진행 현황 원본. Cursor는 **`Pickty/`** 를 워크스페이스 루트로 연다.
+- **`PROGRESS.md`** — 진행 현황 원본. 워크스페이스 루트가 **`Pickty/`** 이므로 경로는 루트 기준 **`PROGRESS.md`**.
 - Gemini에게는 이 파일 내용을 복사해 붙여넣는다.
 - **새 채팅(에이전트)이 시작되면 코드 작업 전에 반드시 `PROGRESS.md`를 먼저 읽는다**
   - 사용자가 별도로 지시하지 않아도 자율적으로 읽을 것
@@ -108,7 +117,8 @@ alwaysApply: true
 
 ## 커서룰즈 관리 규칙
 
-Pickty 작업 시 워크스페이스 루트는 **`Pickty/`**. 룰: **`Pickty/.cursor/rules/pickty-project-context.mdc`**
+- 워크스페이스 루트: **`Pickty/`** (이 레포). 규칙 정본: **`.cursor/rules/pickty-project-context.mdc`** (`alwaysApply: true` — 채팅에서 **`@`로 이 파일을 붙일 필요 없음**. 자동으로 맥락에 포함된다.)
+- 진행 상황만 따로 강조할 때: **`@PROGRESS.md`** (또는 에이전트 시작 시 규칙대로 먼저 읽기). `.cursor`는 숨김이라 피커에 잘 안 나올 수 있음.
 
 ## 보안 규칙 (절대 위반 금지)
 

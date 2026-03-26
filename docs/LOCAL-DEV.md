@@ -1,5 +1,25 @@
 # 로컬 개발 메모 (Windows)
 
+## 로컬 폴더 구조 (`Pickty_Workspace`)
+
+**껍데기** `Pickty_Workspace` 는 `.git` 없음. 그 **안**에 본체 레포와 설정 레포만 둔다.
+
+```text
+Pickty_Workspace/
+  Pickty/              ← GitHub Pickty 클론 (.git) — Cursor·IntelliJ는 보통 이 폴더를 연다
+    frontend/
+    backend/
+    …
+  pickty-config/       ← private 설정 레포 (.git), Pickty 루트 `.gitignore` 대상 아님(형제)
+```
+
+| PC | `Pickty_Workspace` 절대 경로 |
+|----|------------------------------|
+| 집(현재) | `C:\Users\Admin\CursorProjects\Pickty_Workspace` |
+| 회사 | `C:\Users\Administrator\CursorProjects\Pickty_Workspace` |
+
+`Pickty` 루트에서 설정을 복사할 때 상대 경로 예: `..\pickty-config\application-secrets.yaml` → `backend\src\main\resources\` (및 룰의 나머지 복사 항목).
+
 ## 프론트엔드 (Next.js)
 
 - 디렉터리: `frontend/`

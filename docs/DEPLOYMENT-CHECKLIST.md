@@ -4,6 +4,17 @@
 
 ---
 
+## 0. 백엔드 시크릿·코드 배포 (Lightsail)
+
+| 구분 | 레포 | 비고 |
+|------|------|------|
+| **코드·Docker 이미지** | Pickty | `main` → `.github/workflows/deploy-backend.yml` — TLS Secret + 서버 `git pull` + compose `--build`. 서버에 `application-secrets.yaml` 이 없으면 이 단계에서 실패. |
+| **운영 `application-secrets.yaml`** | pickty-config | `main` 에 해당 파일만 변경 push → `.github/workflows/deploy-secrets.yml` — SCP 후 `pickty-api` 만 `restart`. Pickty 와 동일 SSH Secrets 를 pickty-config GitHub 저장소에도 등록. |
+
+자세한 트리거·경로는 Pickty **`deploy/lightsail/README.md`** 참고.
+
+---
+
 ## 1. 배포 전 최종 점검 (Pre-deployment)
 
 | 검증 항목 | 기대값 | 확인 방법 |
