@@ -51,32 +51,7 @@ function newTierRowId(): string {
   return `tier-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
-const INITIAL_POOL: TierItem[] = [
-  { id: 'item-1', name: '곤 프릭스' },
-  { id: 'item-2', name: '킬루아' },
-  { id: 'item-3', name: '쿠라피카' },
-  { id: 'item-4', name: '레오리오' },
-  { id: 'item-5', name: '히소카' },
-  { id: 'item-6', name: '네테로' },
-  { id: 'item-7', name: '비스켓' },
-  { id: 'item-8', name: '메루엠' },
-  { id: 'item-9', name: '코무기' },
-  { id: 'item-10', name: '일루미' },
-  { id: 'item-11', name: '치로루' },
-  { id: 'item-12', name: '제노' },
-  { id: 'item-13', name: '실바' },
-  { id: 'item-14', name: '나니카' },
-  { id: 'item-15', name: '모라우' },
-  { id: 'item-16', name: '크노브' },
-  { id: 'item-17', name: '팜' },
-  { id: 'item-18', name: '이카루고' },
-  { id: 'item-19', name: '샤르나크' },
-  { id: 'item-20', name: '핑크' },
-  { id: 'item-21', name: '고레이누' },
-  { id: 'item-22', name: '카이토' },
-  { id: 'item-23', name: '나크' },
-  { id: 'item-24', name: '치아들' },
-];
+const INITIAL_POOL: TierItem[] = [];
 
 interface TierState {
   /** 서버 템플릿 UUID — 없으면 첫 서버 저장 시 템플릿 생성 */

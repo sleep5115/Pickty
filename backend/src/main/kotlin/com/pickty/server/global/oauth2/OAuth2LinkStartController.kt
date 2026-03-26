@@ -51,6 +51,6 @@ class OAuth2LinkStartController(
     }
 
     companion object {
-        private val ALLOWED_REGISTRATION_IDS = setOf("google", "kakao")
+        private val ALLOWED_REGISTRATION_IDS = setOf("google", "kakao", "naver")
     }
 }

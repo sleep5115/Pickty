@@ -16,6 +16,7 @@ sealed class OAuth2UserInfo {
             when (registrationId.lowercase()) {
                 "google" -> Google(attributes)
                 "kakao" -> Kakao(attributes)
+                "naver" -> Naver(attributes)
                 else -> throw IllegalArgumentException("지원하지 않는 OAuth2 Provider: $registrationId")
             }
     }
@@ -46,6 +47,28 @@ sealed class OAuth2UserInfo {
         private fun profileString(key: String): String? {
             val profile = kakaoAccount()?.get("profile") as? Map<*, *> ?: return null
             val v = profile[key] ?: return null
+            return v.toString().trim().takeIf { it.isNotEmpty() }
+        }
+    }
+
+    /** https://developers.naver.com/docs/login/profile/profile.md */
+    data class Naver(private val attributes: Map<String, Any>) : OAuth2UserInfo() {
+        override val provider = Provider.NAVER
+
+        private val response: Map<*, *> =
+            attributes["response"] as? Map<*, *>
+                ?: throw IllegalArgumentException("네이버 사용자 정보에 response가 없습니다.")
+
+        override val providerId =
+            response["id"]?.toString()?.trim()?.takeIf { it.isNotEmpty() }
+                ?: throw IllegalArgumentException("네이버 사용자 정보에 id가 없습니다.")
+
+        override val email = responseString("email")
+        override val userName = responseString("nickname") ?: responseString("name")
+        override val profileImageUrl = responseString("profile_image")
+
+        private fun responseString(key: String): String? {
+            val v = response[key] ?: return null
             return v.toString().trim().takeIf { it.isNotEmpty() }
         }
     }

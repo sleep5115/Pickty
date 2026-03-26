@@ -12,11 +12,16 @@ import { resolvePostLoginRoute } from '@/lib/post-login-route';
 
 /**
  * 소셜 로그인: 브라우저가 `${PUBLIC_API_BASE_URL}/oauth2/authorization/{provider}` 로 이동(팝업 또는 전체 탭).
- * 성공 시 백엔드 OAuth2SuccessHandler 가 `{허용된 프론트 오리진}/auth/callback?token=...` 로 리다이렉트(쿠키 Origin 화이트리스트 우선, 없으면 FRONTEND_URL 기본값 https://pickty.app).
+ * 성공 시 백엔드가 Refresh(HttpOnly 쿠키) 설정 후 `{허용된 프론트 오리진}/auth/callback?exchange=...` 로 리다이렉트.
+ * 프론트는 `POST /api/v1/auth/oauth-exchange`(credentials)로 Access JSON 수령.
  *
  * Google Cloud Console → 승인된 리디렉션 URI (백엔드 호스트, 복사용):
  *   https://api.pickty.app/login/oauth2/code/google
  *   http://localhost:8080/login/oauth2/code/google
+ *
+ * 네이버 개발자 센터 → Callback URL:
+ *   https://api.pickty.app/login/oauth2/code/naver
+ *   http://localhost:8080/login/oauth2/code/naver
  */
 function GoogleIcon() {
   return (
@@ -91,7 +96,7 @@ function LoginPageContent() {
       if (event.data?.type === 'OAUTH_SUCCESS') {
         const token = event.data.token as string;
         setAccessToken(token);
-        void resolvePostLoginRoute(token, searchParams.get('returnTo')).then((path) => {
+        void resolvePostLoginRoute(searchParams.get('returnTo')).then((path) => {
           router.push(path);
         });
       } else if (event.data?.type === 'OAUTH_ERROR') {
@@ -106,6 +111,10 @@ function LoginPageContent() {
   const onSubmit = async (data: LoginFormValues) => {
     // TODO: 자체 로그인 API 연동
     console.log('login:', data);
+  };
+
+  const handleComingSoonSocial = () => {
+    window.alert('준비 중입니다');
   };
 
   const handleSocialLogin = (provider: string) => {
@@ -255,7 +264,7 @@ function LoginPageContent() {
               <button
                 type="button"
                 aria-label="Twitch로 로그인"
-                onClick={() => handleSocialLogin('twitch')}
+                onClick={handleComingSoonSocial}
                 className="w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer"
                 style={{ backgroundColor: '#9146FF' }}
               >
@@ -265,7 +274,7 @@ function LoginPageContent() {
               <button
                 type="button"
                 aria-label="치지직으로 로그인"
-                onClick={() => handleSocialLogin('chzzk')}
+                onClick={handleComingSoonSocial}
                 className="w-11 h-11 rounded-full flex items-center justify-center bg-slate-100 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 overflow-hidden transition-all duration-200 hover:scale-110 hover:border-[#00FF77] active:scale-95 cursor-pointer"
               >
                 <span className="text-xs font-black text-[#00FF77]">치직</span>
@@ -274,7 +283,7 @@ function LoginPageContent() {
               <button
                 type="button"
                 aria-label="SOOP으로 로그인"
-                onClick={() => handleSocialLogin('soop')}
+                onClick={handleComingSoonSocial}
                 className="w-11 h-11 rounded-full flex items-center justify-center text-white font-black text-sm transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer"
                 style={{ backgroundColor: '#FF6B35' }}
               >

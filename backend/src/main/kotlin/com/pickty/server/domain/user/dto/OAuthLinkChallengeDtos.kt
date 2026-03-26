@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Pattern
 
 data class OAuthLinkChallengeRequest(
     @field:NotBlank
-    @field:Pattern(regexp = "^(google|kakao)$", message = "registrationId는 google 또는 kakao만 허용됩니다.")
+    @field:Pattern(regexp = "^(google|kakao|naver)$", message = "registrationId는 google, kakao, naver만 허용됩니다.")
     val registrationId: String,
 )
 

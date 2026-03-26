@@ -35,4 +35,14 @@ class JwtTokenProvider(
     fun getUserId(token: String): Long = jwtDecoder.decode(token).subject.toLong()
 
     fun isValid(token: String): Boolean = runCatching { jwtDecoder.decode(token) }.isSuccess
+
+    /** 서명이 유효한 토큰에 대해 만료까지 남은 초 (0 이상). */
+    fun remainingValiditySeconds(token: String): Long =
+        runCatching {
+            val jwt = jwtDecoder.decode(token)
+            val exp = jwt.expiresAt
+                ?: (jwt.claims["exp"] as? Number)?.let { Instant.ofEpochSecond(it.toLong()) }
+                ?: return@runCatching 0L
+            maxOf(0L, exp.epochSecond - Instant.now().epochSecond)
+        }.getOrDefault(0L)
 }

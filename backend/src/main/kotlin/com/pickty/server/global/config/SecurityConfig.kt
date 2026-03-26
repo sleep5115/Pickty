@@ -67,6 +67,9 @@ class SecurityConfig(
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
             .authorizeHttpRequests { auth ->
                 auth
+                    .requestMatchers(HttpMethod.POST, "/api/v1/auth/oauth-exchange").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/v1/auth/refresh").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/v1/auth/logout").permitAll()
                     .requestMatchers(HttpMethod.GET, "/oauth2/link/start").permitAll()
                     // 인증이 필요한 경로만 명시적으로 잠금 (Guest First)
                     .requestMatchers(HttpMethod.GET, "/api/v1/user/**").authenticated()

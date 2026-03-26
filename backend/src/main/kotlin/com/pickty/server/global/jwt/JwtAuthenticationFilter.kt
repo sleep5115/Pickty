@@ -1,21 +1,26 @@
 package com.pickty.server.global.jwt
 
+import com.pickty.server.domain.auth.service.JwtBlacklistService
 import com.pickty.server.domain.user.AccountStatus
 import com.pickty.server.domain.user.UserRepository
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import org.springframework.http.MediaType
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
+import tools.jackson.databind.ObjectMapper
 
 @Component
 class JwtAuthenticationFilter(
     private val jwtTokenProvider: JwtTokenProvider,
     private val userRepository: UserRepository,
+    private val jwtBlacklistService: JwtBlacklistService,
+    private val objectMapper: ObjectMapper,
 ) : OncePerRequestFilter() {
 
     override fun shouldNotFilter(request: HttpServletRequest): Boolean {
@@ -28,11 +33,21 @@ class JwtAuthenticationFilter(
         response: HttpServletResponse,
         filterChain: FilterChain,
     ) {
-        resolveToken(request)
+        val token = resolveToken(request)
+        if (!token.isNullOrBlank()) {
+            val skipBlacklist = request.requestURI == "/api/v1/auth/logout" &&
+                request.method.equals("POST", ignoreCase = true)
+            if (!skipBlacklist && jwtBlacklistService.isBlacklisted(token)) {
+                respondUnauthorized(response)
+                return
+            }
+        }
+
+        token
             ?.takeIf { jwtTokenProvider.isValid(it) }
-            ?.let { token ->
+            ?.let { validToken ->
                 runCatching {
-                    val userId = jwtTokenProvider.getUserId(token)
+                    val userId = jwtTokenProvider.getUserId(validToken)
                     userRepository.findById(userId).ifPresent { user ->
                         if (user.accountStatus == AccountStatus.MERGED || user.accountStatus == AccountStatus.DELETED) {
                             return@ifPresent
@@ -47,6 +62,18 @@ class JwtAuthenticationFilter(
                 }
             }
         filterChain.doFilter(request, response)
+    }
+
+    private fun respondUnauthorized(response: HttpServletResponse) {
+        response.status = HttpServletResponse.SC_UNAUTHORIZED
+        response.contentType = MediaType.APPLICATION_JSON_VALUE
+        response.characterEncoding = Charsets.UTF_8.name()
+        val body = mapOf(
+            "status" to 401,
+            "error" to "Unauthorized",
+            "message" to "무효화된 토큰입니다.",
+        )
+        objectMapper.writeValue(response.writer, body)
     }
 
     private fun resolveToken(request: HttpServletRequest): String? =

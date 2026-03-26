@@ -3,14 +3,18 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/store/auth-store';
+import { logoutSession } from '@/lib/auth-session';
 
 export function Header() {
   const router = useRouter();
   const { accessToken, clearAuth } = useAuthStore();
 
   const handleLogout = () => {
-    clearAuth();
-    router.push('/login');
+    void (async () => {
+      await logoutSession(accessToken);
+      clearAuth();
+      router.push('/login');
+    })();
   };
 
   return (

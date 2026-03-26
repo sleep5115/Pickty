@@ -5,27 +5,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
 import { listTemplates, type TemplateSummaryResponse } from '@/lib/tier-api';
 
-const DEMO_TEMPLATES = [
-  {
-    id: 'a1000000-0000-4000-8000-000000000001',
-    title: '포켓몬 티어',
-    description: '1세대부터 최신까지, 몬스터들을 한판에',
-    itemCount: 48,
-  },
-  {
-    id: 'a1000000-0000-4000-8000-000000000002',
-    title: '롤 챔피언 티어',
-    description: '소환사의 협곡 픽 순위를 정리해 보세요',
-    itemCount: 170,
-  },
-  {
-    id: 'a1000000-0000-4000-8000-000000000003',
-    title: '걸그룹 티어',
-    description: '최애 그룹·곡을 나만의 순위로',
-    itemCount: 36,
-  },
-] as const;
-
 function TemplateCard({
   id,
   title,
@@ -184,27 +163,6 @@ export default function TemplatesPage() {
             ))}
           </ul>
         )}
-      </section>
-
-      <section
-        aria-labelledby="templates-demo-heading"
-        className="border-t border-slate-200 pt-4 dark:border-zinc-800"
-      >
-        <h2 id="templates-demo-heading" className="mb-3 text-sm font-semibold text-slate-600 dark:text-zinc-400">
-          추천 주제로 시작해 보기
-        </h2>
-        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {DEMO_TEMPLATES.map((t) => (
-            <TemplateCard
-              key={t.id}
-              id={t.id}
-              title={t.title}
-              description={t.description}
-              itemLine={`약 ${t.itemCount}개 아이템`}
-              thumbnailUrl={null}
-            />
-          ))}
-        </ul>
       </section>
     </div>
   );

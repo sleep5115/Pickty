@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Download } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { TierBoardReadonly } from '@/components/tier/tier-board-readonly';
@@ -122,9 +123,10 @@ export function TierResultClientPage() {
             type="button"
             onClick={() => void handleDownloadPng()}
             disabled={downloadBusy}
-            className="text-sm px-4 py-2 rounded-lg font-semibold bg-violet-600 hover:bg-violet-500 disabled:opacity-60 text-white transition-colors"
+            className="inline-flex items-center justify-center gap-2 text-sm px-4 py-2 rounded-lg font-semibold bg-violet-600 hover:bg-violet-500 disabled:opacity-60 text-white transition-colors"
           >
-            {downloadBusy ? '이미지 생성 중…' : 'PNG 다운로드'}
+            <Download className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
+            {downloadBusy ? '이미지 생성 중…' : '다운로드'}
           </button>
           <Link
             href="/tier/my"

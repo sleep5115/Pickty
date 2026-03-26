@@ -52,7 +52,11 @@ class AccountMergeService(
         tierResultRepository.migrateUserId(absorbed.id, survivor.id)
 
         // absorbed 엔티티를 save 하면 cascade/orphanRemoval 이 이관된 SocialAccount 를 삭제할 수 있음 — 벌크 UPDATE 만 사용
-        userRepository.updateAccountStatus(absorbed.id, AccountStatus.MERGED)
+        userRepository.markAbsorbedSubtreeMergedAndAnonymize(
+            absorbedId = absorbed.id,
+            survivorId = survivor.id,
+            mergedStatus = AccountStatus.MERGED.name,
+        )
 
         return survivor.id
     }

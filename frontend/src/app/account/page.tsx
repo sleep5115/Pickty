@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuthStore } from '@/lib/store/auth-store';
+import { logoutSession } from '@/lib/auth-session';
 import { apiFetch } from '@/lib/api-fetch';
 import { useAuthPersistHydrated } from '@/lib/hooks/use-auth-persist-hydrated';
 import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
@@ -89,11 +90,10 @@ const OPTIONAL_SOCIAL_LINKS: {
   registrationId: string;
   providerKey: string;
   label: string;
-  available: boolean;
 }[] = [
-  { registrationId: 'google', providerKey: 'GOOGLE', label: 'Google', available: true },
-  { registrationId: 'kakao', providerKey: 'KAKAO', label: '카카오', available: true },
-  { registrationId: 'naver', providerKey: 'NAVER', label: '네이버', available: false },
+  { registrationId: 'google', providerKey: 'GOOGLE', label: 'Google' },
+  { registrationId: 'kakao', providerKey: 'KAKAO', label: '카카오' },
+  { registrationId: 'naver', providerKey: 'NAVER', label: '네이버' },
 ];
 
 const BIRTH_YEAR_OPTIONS = (() => {
@@ -654,8 +654,11 @@ export default function AccountPage() {
   }, [user]);
 
   const handleLogout = () => {
-    clearAuth();
-    router.push('/login');
+    void (async () => {
+      await logoutSession(accessToken);
+      clearAuth();
+      router.push('/login');
+    })();
   };
 
   const confirmWithdraw = useCallback(async () => {
@@ -867,15 +870,11 @@ export default function AccountPage() {
                   <button
                     key={opt.registrationId}
                     type="button"
-                    disabled={!opt.available || linkBusy !== null}
-                    onClick={() => opt.available && startSocialLink(opt.registrationId)}
+                    disabled={linkBusy !== null}
+                    onClick={() => void startSocialLink(opt.registrationId)}
                     className="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 disabled:opacity-45 disabled:cursor-not-allowed transition-colors"
                   >
-                    {opt.available
-                      ? linkBusy === opt.registrationId
-                        ? `${opt.label} 연결 중…`
-                        : `${opt.label} 연동하기`
-                      : `${opt.label} (준비 중)`}
+                    {linkBusy === opt.registrationId ? `${opt.label} 연결 중…` : `${opt.label} 연동하기`}
                   </button>
                 );
               })}

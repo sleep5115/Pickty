@@ -4,40 +4,54 @@ import { useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { resolvePostLoginRoute } from '@/lib/post-login-route';
+import { exchangeOAuthCode } from '@/lib/auth-session';
 
 function CallbackHandler() {
   const searchParams = useSearchParams();
   const setAccessToken = useAuthStore((s) => s.setAccessToken);
 
   useEffect(() => {
-    const token = searchParams.get('token');
+    const exchange = searchParams.get('exchange');
     const error = searchParams.get('error');
 
-    if (window.opener) {
-      // 팝업 흐름 (데스크톱): 부모 창에 토큰 전달 후 팝업 닫기
-      if (token) {
-        window.opener.postMessage(
-          { type: 'OAUTH_SUCCESS', token },
-          window.location.origin,
-        );
-      } else {
-        window.opener.postMessage(
-          { type: 'OAUTH_ERROR', error: error ?? 'unknown' },
-          window.location.origin,
-        );
+    void (async () => {
+      if (window.opener) {
+        if (exchange) {
+          const accessToken = await exchangeOAuthCode(exchange);
+          if (accessToken) {
+            window.opener.postMessage(
+              { type: 'OAUTH_SUCCESS', token: accessToken },
+              window.location.origin,
+            );
+          } else {
+            window.opener.postMessage(
+              { type: 'OAUTH_ERROR', error: error ?? 'exchange_failed' },
+              window.location.origin,
+            );
+          }
+        } else {
+          window.opener.postMessage(
+            { type: 'OAUTH_ERROR', error: error ?? 'unknown' },
+            window.location.origin,
+          );
+        }
+        window.close();
+        return;
       }
-      window.close();
-    } else {
-      // 직접 리다이렉트 흐름 (모바일 팝업 차단 시)
-      if (token) {
-        setAccessToken(token);
-        void resolvePostLoginRoute(token, null).then((path) => {
+
+      if (exchange) {
+        const accessToken = await exchangeOAuthCode(exchange);
+        if (accessToken) {
+          setAccessToken(accessToken);
+          const path = await resolvePostLoginRoute(null);
           window.location.href = path;
-        });
+        } else {
+          window.location.href = '/login?error=oauth_failed';
+        }
       } else {
         window.location.href = '/login?error=oauth_failed';
       }
-    }
+    })();
   }, [searchParams, setAccessToken]);
 
   return (

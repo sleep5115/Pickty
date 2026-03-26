@@ -61,6 +61,14 @@ class User(
     var accountStatus: AccountStatus = accountStatus
         protected set
 
+    /**
+     * 계정 병합으로 본체([AccountMergeService])에 흡수된 경우, 생존 계정의 user id.
+     * 벌크 UPDATE로만 설정한다(save + orphanRemoval 위험 방지).
+     */
+    @Column(name = "merged_into_user_id")
+    var mergedIntoUserId: Long? = null
+        protected set
+
     @Enumerated(EnumType.STRING)
     @Column(length = 16)
     var gender: Gender? = gender
@@ -151,13 +159,6 @@ class User(
         this.displayAvatarUrl = displayAvatarUrl?.trim()?.takeIf { it.isNotEmpty() }
         this.gender = gender
         this.birthYear = birthYear
-    }
-
-    /** 계정 병합으로 흡수된 계정 — 로그인·JWT 대상에서 제외 */
-    fun markAccountMerged() {
-        require(accountStatus != AccountStatus.MERGED) { "이미 병합 처리된 계정입니다." }
-        require(accountStatus != AccountStatus.DELETED) { "삭제된 계정은 병합할 수 없습니다." }
-        this.accountStatus = AccountStatus.MERGED
     }
 
     /**

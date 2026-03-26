@@ -2,8 +2,10 @@ package com.pickty.server.domain.auth.handler
 
 import tools.jackson.databind.ObjectMapper
 import com.pickty.server.domain.auth.PrincipalDetails
+import com.pickty.server.domain.auth.service.OAuthExchangeService
 import com.pickty.server.domain.auth.service.RefreshTokenService
 import com.pickty.server.global.jwt.JwtTokenProvider
+import com.pickty.server.global.jwt.RefreshTokenCookieWriter
 import com.pickty.server.global.oauth2.CookieUtils
 import com.pickty.server.global.oauth2.HttpCookieOAuth2AuthorizationRequestRepository
 import com.pickty.server.global.oauth2.OAuthLinkConstants
@@ -18,7 +20,8 @@ import org.springframework.web.util.UriComponentsBuilder
 import java.time.Duration
 
 /**
- * 로그인 성공 후 브라우저를 [resolvedOrigin]/auth/callback 으로 보냄.
+ * 로그인 성공 후 Refresh 는 HttpOnly+Secure 쿠키, Access 는 1회용 exchange 코드로
+ * [resolvedOrigin]/auth/callback?exchange=... 리다이렉트 후 `POST /api/v1/auth/oauth-exchange` 로 수령.
  * resolvedOrigin 은 OAuth 시작 시 쿠키에 저장된 Origin(화이트리스트) 또는 [FRONTEND_URL].
  *
  * --- Google Cloud Console (웹 클라이언트)에 복사용 ---
@@ -39,12 +42,16 @@ import java.time.Duration
  *   https://api.pickty.app/login/oauth2/code/kakao
  *   http://localhost:8080/login/oauth2/code/kakao
  *
- * (Naver 등 추가 시 Spring Security 등록명에 맞춰 /login/oauth2/code/{registrationId} 동일 패턴)
+ * 네이버 개발자 센터 → Callback URL:
+ *   https://api.pickty.app/login/oauth2/code/naver
+ *   http://localhost:8080/login/oauth2/code/naver
  */
 @Component
 class OAuth2SuccessHandler(
     private val jwtTokenProvider: JwtTokenProvider,
     private val refreshTokenService: RefreshTokenService,
+    private val oauthExchangeService: OAuthExchangeService,
+    private val refreshTokenCookieWriter: RefreshTokenCookieWriter,
     private val cookieAuthorizationRequestRepository: HttpCookieOAuth2AuthorizationRequestRepository,
     private val redisTemplate: StringRedisTemplate,
     private val objectMapper: ObjectMapper,
@@ -68,9 +75,11 @@ class OAuth2SuccessHandler(
     ) {
         val principal = authentication.principal as PrincipalDetails
 
-        val accessToken = jwtTokenProvider.generateAccessToken(principal.userId)
         val refreshToken = jwtTokenProvider.generateRefreshToken()
         refreshTokenService.save(principal.userId, refreshToken)
+        refreshTokenCookieWriter.write(response, refreshToken)
+
+        val exchangeCode = oauthExchangeService.createForUser(principal.userId)
 
         // 디버그용: 소셜 로그인 시 OAuth2 provider가 반환한 raw 속성을 30분간 캐시
         val attrsJson = objectMapper.writeValueAsString(principal.attributes)
@@ -84,10 +93,9 @@ class OAuth2SuccessHandler(
         val savedOrigin = CookieUtils.getCookie(request, HttpCookieOAuth2AuthorizationRequestRepository.OAUTH2_FRONTEND_ORIGIN_COOKIE)?.value
         val resolvedOrigin = savedOrigin?.takeIf { it in allowedOrigins } ?: frontendUrl
 
-        // TODO: 운영 환경에서는 refreshToken을 HttpOnly 쿠키로 전달하도록 변경
         val targetUrl = UriComponentsBuilder
             .fromUriString("$resolvedOrigin/auth/callback")
-            .queryParam("token", accessToken)
+            .queryParam("exchange", exchangeCode)
             .build().toUriString()
 
         redirectStrategy.sendRedirect(request, response, targetUrl)

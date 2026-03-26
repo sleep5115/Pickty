@@ -64,8 +64,19 @@ class UserService(
         return s.trim().takeIf { it.isNotEmpty() }
     }
 
+    /** 네이버 회원정보는 `response` 맵 안에 id·email·nickname·profile_image 등이 있음 */
+    private fun naverResponse(attrs: Map<String, Any?>): Map<*, *>? = attrs["response"] as? Map<*, *>
+
+    private fun mapString(v: Any?): String? {
+        val s = v as? String ?: return null
+        return s.trim().takeIf { it.isNotEmpty() }
+    }
+
     private fun linkedAccountEmail(attrs: Map<String, Any?>, userEmail: String?, singleAccount: Boolean): String? {
         oauthAttrString(attrs, "email")?.let { return it }
+        naverResponse(attrs)?.let { resp ->
+            mapString(resp["email"])?.let { return it }
+        }
         val kakao = attrs["kakao_account"] as? Map<*, *> ?: return userEmail?.takeIf { singleAccount }
         val raw = kakao["email"] ?: return userEmail?.takeIf { singleAccount }
         val s = raw as? String ?: return userEmail?.takeIf { singleAccount }
@@ -74,6 +85,10 @@ class UserService(
 
     private fun linkedAccountDisplayName(attrs: Map<String, Any?>, userName: String?, singleAccount: Boolean): String? {
         oauthAttrString(attrs, "name")?.let { return it }
+        naverResponse(attrs)?.let { resp ->
+            mapString(resp["nickname"])?.let { return it }
+            mapString(resp["name"])?.let { return it }
+        }
         val kakao = attrs["kakao_account"] as? Map<*, *> ?: return userName?.takeIf { singleAccount }
         val profile = kakao["profile"] as? Map<*, *> ?: return userName?.takeIf { singleAccount }
         val raw = profile["nickname"] ?: return userName?.takeIf { singleAccount }
@@ -87,6 +102,9 @@ class UserService(
         singleAccount: Boolean,
     ): String? {
         oauthAttrString(attrs, "picture")?.let { return it }
+        naverResponse(attrs)?.let { resp ->
+            mapString(resp["profile_image"])?.let { return it }
+        }
         val kakao = attrs["kakao_account"] as? Map<*, *> ?: return profileImageUrl?.takeIf { singleAccount }
         val profile = kakao["profile"] as? Map<*, *> ?: return profileImageUrl?.takeIf { singleAccount }
         val raw = profile["profile_image_url"] ?: return profileImageUrl?.takeIf { singleAccount }
@@ -151,6 +169,17 @@ class UserService(
         if (user.accountStatus == AccountStatus.DELETED) {
             throw ResponseStatusException(HttpStatus.CONFLICT, "이미 탈퇴 처리된 계정입니다.")
         }
+
+        val absorbedIds = userRepository.findMergedDescendantUserIdsForSurvivor(userId)
+        for (id in absorbedIds) {
+            socialAccountRepository.deleteAllByUserId(id)
+            refreshTokenService.delete(id)
+            redisTemplate.delete("oauth2:raw:$id")
+        }
+        if (absorbedIds.isNotEmpty()) {
+            userRepository.finalizeAllMergedDescendantsWhenSurvivorWithdraws(userId)
+        }
+
         socialAccountRepository.deleteAllByUserId(userId)
         refreshTokenService.delete(userId)
         redisTemplate.delete("oauth2:raw:$userId")

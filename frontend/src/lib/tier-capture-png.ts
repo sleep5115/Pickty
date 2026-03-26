@@ -51,6 +51,9 @@ export async function captureTierElementToPng(
     return await toPng(clone, {
       width,
       height: captureHeight,
+      // html-to-image 기본 캐시 키가 쿼리를 제거함 → `/api/pickty-image?key=A` 와 `?key=B` 가 동일 키로
+      // 합쳐져 첫 이미지만 모든 타일에 재사용되는 버그 방지
+      includeQueryParams: true,
       style: {
         overflow: 'visible',
         width: `${width}px`,

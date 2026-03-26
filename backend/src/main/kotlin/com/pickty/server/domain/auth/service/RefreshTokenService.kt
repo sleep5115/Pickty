@@ -11,24 +11,40 @@ class RefreshTokenService(
     private val jwtProperties: JwtProperties,
 ) {
     companion object {
-        private const val KEY_PREFIX = "refresh:"
+        private const val USER_PREFIX = "refresh:user:"
+        private const val TOKEN_PREFIX = "refresh:token:"
     }
 
+    private fun ttl(): Duration =
+        Duration.ofSeconds(jwtProperties.refreshTokenExpirationSeconds)
+
     fun save(userId: Long, refreshToken: String) {
-        redisTemplate.opsForValue().set(
-            "$KEY_PREFIX$userId",
-            refreshToken,
-            Duration.ofSeconds(jwtProperties.refreshTokenExpirationSeconds),
-        )
+        get(userId)?.let { old -> deleteKeys(userId, old) }
+        val ttl = ttl()
+        redisTemplate.opsForValue().set("$USER_PREFIX$userId", refreshToken, ttl)
+        redisTemplate.opsForValue().set("$TOKEN_PREFIX$refreshToken", userId.toString(), ttl)
     }
 
     fun get(userId: Long): String? =
-        redisTemplate.opsForValue().get("$KEY_PREFIX$userId")
+        redisTemplate.opsForValue().get("$USER_PREFIX$userId")
+
+    fun resolveUserIdByRefreshToken(refreshToken: String): Long? =
+        redisTemplate.opsForValue().get("$TOKEN_PREFIX$refreshToken")?.toLongOrNull()
 
     fun delete(userId: Long) {
-        redisTemplate.delete("$KEY_PREFIX$userId")
+        get(userId)?.let { deleteKeys(userId, it) }
+    }
+
+    fun deleteByRefreshToken(refreshToken: String) {
+        val userId = resolveUserIdByRefreshToken(refreshToken) ?: return
+        deleteKeys(userId, refreshToken)
     }
 
     fun isValid(userId: Long, refreshToken: String): Boolean =
         get(userId) == refreshToken
+
+    private fun deleteKeys(userId: Long, refreshToken: String) {
+        redisTemplate.delete("$USER_PREFIX$userId")
+        redisTemplate.delete("$TOKEN_PREFIX$refreshToken")
+    }
 }

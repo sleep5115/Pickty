@@ -234,6 +234,22 @@ function NewTemplatePageInner() {
       return;
     }
 
+    const primaryThumbIds =
+      values.thumbnailClientIds && values.thumbnailClientIds.length > 0
+        ? values.thumbnailClientIds
+        : (form.getValues('thumbnailClientIds') ?? []);
+
+    if (!customThumbFile) {
+      if (values.items.length < 4) {
+        setSubmitError('썸네일을 올리지 않으면 아이템이 4개 이상 있어야 합니다.');
+        return;
+      }
+      if (primaryThumbIds.length !== 4) {
+        setSubmitError('4개를 선택(체크)해 주세요.');
+        return;
+      }
+    }
+
     const imageUrlsOrdered: string[] = [];
     for (const row of values.items) {
       const file = fileMap[row.clientId]?.file;
@@ -276,17 +292,7 @@ function NewTemplatePageInner() {
       urlByClientId[values.items[i]!.clientId] = imageUrlsOrdered[i]!;
     }
 
-    // zod 검증값과 RHF 내부 상태가 어긋나면 getValues만 쓸 때 빈 배열이 될 수 있음 → 합성 분기 스킵·thumbnailUrl 미저장.
-    const primaryThumbIds =
-      values.thumbnailClientIds && values.thumbnailClientIds.length > 0
-        ? values.thumbnailClientIds
-        : (form.getValues('thumbnailClientIds') ?? []);
-    const thumbClientIds =
-      primaryThumbIds.length > 0
-        ? primaryThumbIds
-        : values.items.length === 4
-          ? values.items.map((r) => r.clientId)
-          : [];
+    const thumbClientIds = primaryThumbIds;
     const orderedThumbIds = values.items
       .map((r) => r.clientId)
       .filter((id) => thumbClientIds.includes(id));
@@ -299,7 +305,7 @@ function NewTemplatePageInner() {
         const customUrls = await uploadPicktyImages([customThumbFile], accessToken);
         finalThumbnailUrl = customUrls[0] ?? null;
       } catch (e) {
-        setSubmitError(e instanceof Error ? e.message : '커스텀 썸네일 업로드에 실패했습니다.');
+        setSubmitError(e instanceof Error ? e.message : '썸네일 업로드에 실패했습니다.');
         return;
       }
     } else if (orderedThumbIds.length === 4) {
@@ -314,22 +320,18 @@ function NewTemplatePageInner() {
           setSubmitError(
             e instanceof Error
               ? e.message
-              : '썸네일 자동 합성에 실패했습니다. 네트워크·CORS를 확인하거나 커스텀 썸네일을 올려 보세요.',
+              : '썸네일 자동 만들기에 실패했습니다. 다시 시도하거나 썸네일을 직접 올려 보세요.',
           );
           return;
         }
       } else {
-        setSubmitError(
-          '썸네일로 선택한 아이템 중 이미지 URL이 없는 항목이 있어 합성할 수 없습니다. 각 행에 이미지를 넣은 뒤 다시 저장해 주세요.',
-        );
+        setSubmitError('선택한 4개 중 이미지가 비어 있는 항목이 있습니다. 모두 이미지를 넣은 뒤 다시 저장해 주세요.');
         return;
       }
     }
 
     if (intendedAutoThumb && !finalThumbnailUrl) {
-      setSubmitError(
-        '자동 썸네일을 쓰려면 아이템 순서에 맞게 4개가 모두 체크되어야 합니다. 체크를 확인한 뒤 다시 저장해 주세요.',
-      );
+      setSubmitError('썸네일을 올리지 않았다면 이미지 4개를 선택해 주세요.');
       return;
     }
 
@@ -541,9 +543,7 @@ function NewTemplatePageInner() {
               썸네일 등록하기 <span className="text-slate-400 dark:text-zinc-600 font-normal">(선택)</span>
             </span>
             <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
-              커스텀 이미지를 올리면 목록·공유 카드에 그 한 장을 씁니다. 없으면 아래에서 썸네일로 쓸 아이템을{' '}
-              <span className="font-medium text-slate-800 dark:text-zinc-200">정확히 4개</span> 체크하면 저장 시{' '}
-              <strong>2×2 합성 PNG</strong>를 만들어 한 장으로 올립니다.
+              따로 올리지 않으면, 아래 업로드 아이템 중 4개를 고르시면 자동으로 만들어 드려요.
             </p>
             <div className="flex flex-wrap items-center gap-3">
               <input
@@ -588,7 +588,7 @@ function NewTemplatePageInner() {
             )}
             {!customThumbFile && persistedListThumbnailUrl && (
               <div className="mt-3 space-y-1">
-                <p className="text-xs text-slate-500 dark:text-zinc-500">불러온 템플릿의 목록 썸네일</p>
+                <p className="text-xs text-slate-500 dark:text-zinc-500">불러온 템플릿 썸네일</p>
                 <div className="relative w-28 h-28 rounded-lg overflow-hidden border border-slate-200 dark:border-zinc-700">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -598,7 +598,7 @@ function NewTemplatePageInner() {
                   />
                 </div>
                 <p className="text-xs text-slate-500 dark:text-zinc-500">
-                  새로 합성·업로드하면 저장 시 이 이미지를 덮어씁니다.
+                  저장 시 새로 올리거나 자동 생성하면 이 이미지를 덮어씁니다.
                 </p>
               </div>
             )}
@@ -667,8 +667,8 @@ function NewTemplatePageInner() {
           <div className="space-y-2">
             {!customThumbFile && (
               <p className="text-sm text-slate-600 dark:text-zinc-400">
-                자동 합성 썸네일을 쓰려면 <span className="font-medium text-slate-800 dark:text-zinc-200">정확히 4개</span>를
-                체크하세요. 새로 이미지를 넣으면 앞에서부터 자동으로 체크돼요.
+                썸네일을 등록하지 않았다면, <span className="font-medium text-slate-800 dark:text-zinc-200">4개</span>를
+                아래에서 선택(체크)해 주세요.
               </p>
             )}
             <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">

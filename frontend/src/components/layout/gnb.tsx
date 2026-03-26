@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAuthStore } from '@/lib/store/auth-store';
+import { logoutSession } from '@/lib/auth-session';
 
 const NAV_LINKS = [
   { href: '/templates', label: '티어표' },
@@ -22,10 +23,13 @@ export function GNB() {
   const accountRef = useRef<HTMLDivElement>(null);
 
   const handleLogout = () => {
-    logout();
-    setMenuOpen(false);
-    setAccountOpen(false);
-    router.push('/');
+    void (async () => {
+      await logoutSession(accessToken);
+      logout();
+      setMenuOpen(false);
+      setAccountOpen(false);
+      router.push('/');
+    })();
   };
 
   // 햄버거 메뉴 외부 클릭
