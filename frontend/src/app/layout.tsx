@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { SonnerToaster } from "@/components/providers/sonner-toaster";
 import { GNB } from "@/components/layout/gnb";
 import "./globals.css";
 
@@ -18,6 +19,16 @@ export const metadata: Metadata = {
   // 후순위 미구현 시 description/title에서 월드컵 문구 제외
   title: "Pickty — 티어표 만들기",
   description: "나만의 티어표를 만들고 공유하세요.",
+  icons: {
+    icon: [
+      {
+        url: "/brand/pickty-mark-transparent-128.png",
+        type: "image/png",
+        sizes: "128x128",
+      },
+    ],
+    apple: [{ url: "/brand/pickty-mark-transparent-128.png", sizes: "128x128" }],
+  },
 };
 
 export default function RootLayout({
@@ -33,6 +44,7 @@ export default function RootLayout({
     >
       <body>
         <ThemeProvider>
+          <SonnerToaster />
           {/*
            * bg-* 를 div에 지정: ThemeProvider가 html[class="dark"]를 제어하므로
            * dark: 접두사 클래스가 이 div에도 적용됨.

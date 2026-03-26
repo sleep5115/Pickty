@@ -3,12 +3,13 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { Layers } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { logoutSession } from '@/lib/auth-session';
 
 const NAV_LINKS = [
-  { href: '/templates', label: '티어표' },
+  { href: '/templates', label: '티어표', Icon: Layers },
   // 후순위 미구현: 이상형 월드컵
   // { href: '/worldcup', label: '이상형 월드컵' },
 ] as const;
@@ -75,29 +76,36 @@ export function GNB() {
           Pickty
         </Link>
 
-        <div className="hidden md:flex items-center gap-1">
-          {NAV_LINKS.map(({ href, label }) => {
-            const active =
-              href === '/templates'
-                ? pathname.startsWith('/templates') ||
-                  pathname.startsWith('/tier') ||
-                  pathname.startsWith('/template')
-                : pathname.startsWith(href);
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={[
-                  'text-sm px-3 py-1.5 rounded-lg transition-colors',
-                  active
-                    ? 'text-slate-900 dark:text-zinc-100 bg-slate-100 dark:bg-zinc-800 font-medium'
-                    : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800/60',
-                ].join(' ')}
-              >
-                {label}
-              </Link>
-            );
-          })}
+        <div className="hidden md:flex items-center">
+          <div
+            className="flex items-center gap-0.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50/90 dark:bg-zinc-900/70 p-1 shadow-sm shadow-slate-200/40 dark:shadow-black/20"
+            role="navigation"
+            aria-label="주요 메뉴"
+          >
+            {NAV_LINKS.map(({ href, label, Icon }) => {
+              const active =
+                href === '/templates'
+                  ? pathname.startsWith('/templates') ||
+                    pathname.startsWith('/tier') ||
+                    pathname.startsWith('/template')
+                  : pathname.startsWith(href);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={[
+                    'inline-flex items-center gap-2 h-9 px-3 rounded-lg text-sm font-medium transition-all duration-200',
+                    active
+                      ? 'bg-white dark:bg-zinc-800 text-violet-700 dark:text-violet-300 shadow-sm ring-1 ring-slate-200/80 dark:ring-zinc-600'
+                      : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-white/70 dark:hover:bg-zinc-800/80',
+                  ].join(' ')}
+                >
+                  <Icon className="w-4 h-4 shrink-0 opacity-90" aria-hidden />
+                  {label}
+                </Link>
+              );
+            })}
+          </div>
         </div>
 
         <div className="hidden md:flex items-center gap-2 shrink-0">
@@ -110,7 +118,7 @@ export function GNB() {
                 aria-expanded={accountOpen}
                 aria-haspopup="menu"
                 className={[
-                  'text-sm px-3 py-1.5 rounded-lg border transition-colors flex items-center gap-1.5',
+                  'h-9 text-sm px-3 rounded-xl border transition-colors inline-flex items-center gap-1.5',
                   accountOpen
                     ? 'border-violet-400 dark:border-violet-600 bg-violet-50 dark:bg-violet-950/40 text-slate-900 dark:text-zinc-100'
                     : 'border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:border-slate-300 dark:hover:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-900',
@@ -157,7 +165,7 @@ export function GNB() {
           ) : (
             <Link
               href="/login"
-              className="text-sm px-4 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white font-medium transition-colors"
+              className="h-9 inline-flex items-center justify-center rounded-xl px-4 text-sm font-medium bg-violet-600 hover:bg-violet-500 text-white transition-colors shadow-sm shadow-violet-600/25 hover:shadow-violet-500/30"
             >
               로그인
             </Link>
@@ -185,7 +193,7 @@ export function GNB() {
           {menuOpen && (
             <div className="absolute top-14 right-0 left-0 border-b border-slate-200 dark:border-zinc-800 bg-white/98 dark:bg-zinc-950/98 backdrop-blur-sm shadow-lg">
               <div className="max-w-6xl mx-auto px-4 py-2 flex flex-col gap-1">
-                {NAV_LINKS.map(({ href, label }) => {
+                {NAV_LINKS.map(({ href, label, Icon }) => {
                   const active =
                     href === '/templates'
                       ? pathname.startsWith('/templates') ||
@@ -197,12 +205,13 @@ export function GNB() {
                       key={href}
                       href={href}
                       className={[
-                        'text-sm px-3 py-2.5 rounded-lg transition-colors',
+                        'flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-xl border transition-colors',
                         active
-                          ? 'text-slate-900 dark:text-zinc-100 bg-slate-100 dark:bg-zinc-800 font-medium'
-                          : 'text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800/60',
+                          ? 'text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/40 border-violet-200 dark:border-violet-800 font-medium'
+                          : 'text-slate-600 dark:text-zinc-300 border-transparent hover:bg-slate-100 dark:hover:bg-zinc-800/60 hover:border-slate-200 dark:hover:border-zinc-700',
                       ].join(' ')}
                     >
+                      <Icon className="w-4 h-4 shrink-0 opacity-90" aria-hidden />
                       {label}
                     </Link>
                   );
@@ -235,7 +244,7 @@ export function GNB() {
                   <Link
                     href="/login"
                     onClick={() => setMenuOpen(false)}
-                    className="text-sm px-3 py-2.5 rounded-lg text-center bg-violet-600 hover:bg-violet-500 text-white font-medium transition-colors"
+                    className="h-9 flex items-center justify-center text-sm rounded-xl text-center bg-violet-600 hover:bg-violet-500 text-white font-medium transition-colors shadow-sm"
                   >
                     로그인
                   </Link>

@@ -1,10 +1,5 @@
 import { z } from 'zod';
 
-export const loginSchema = z.object({
-  email: z.string().email({ message: '올바른 이메일 형식이 아닙니다.' }),
-  password: z.string().min(8, { message: '비밀번호는 최소 8자 이상이어야 합니다.' }),
-});
-
 const currentYear = new Date().getFullYear();
 
 export const onboardingSchema = z.object({
@@ -16,5 +11,4 @@ export const onboardingSchema = z.object({
   birthYear: z.number().int().min(1900).max(currentYear).optional(),
 });
 
-export type LoginFormValues = z.infer<typeof loginSchema>;
 export type OnboardingFormValues = z.infer<typeof onboardingSchema>;

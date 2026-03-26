@@ -1,14 +1,13 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/store/auth-store';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { loginSchema, type LoginFormValues } from '@/lib/schemas/auth';
 import { PUBLIC_API_BASE_URL } from '@/lib/public-site-config';
 import { resolvePostLoginRoute } from '@/lib/post-login-route';
+import { toast } from 'sonner';
 
 /**
  * 소셜 로그인: 브라우저가 `${PUBLIC_API_BASE_URL}/oauth2/authorization/{provider}` 로 이동(팝업 또는 전체 탭).
@@ -58,17 +57,27 @@ function TwitchIcon() {
   );
 }
 
-function EyeIcon({ open }: { open: boolean }) {
-  return open ? (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  ) : (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-      <line x1="1" y1="1" x2="23" y2="23" />
-    </svg>
+function ChzzkIcon() {
+  return (
+    <Image
+      src="/brand/2.png"
+      alt=""
+      width={28}
+      height={28}
+      className="size-[26px] object-contain pointer-events-none select-none"
+    />
+  );
+}
+
+function SoopIcon() {
+  return (
+    <Image
+      src="/brand/1.png"
+      alt=""
+      width={28}
+      height={28}
+      className="size-[26px] object-contain pointer-events-none select-none"
+    />
   );
 }
 
@@ -78,16 +87,7 @@ function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setAccessToken } = useAuthStore();
-  const [showPassword, setShowPassword] = useState(false);
   const [socialError, setSocialError] = useState<string | null>(null);
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
-  });
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -108,13 +108,8 @@ function LoginPageContent() {
     return () => window.removeEventListener('message', handleMessage);
   }, [router, searchParams, setAccessToken]);
 
-  const onSubmit = async (data: LoginFormValues) => {
-    // TODO: 자체 로그인 API 연동
-    console.log('login:', data);
-  };
-
   const handleComingSoonSocial = () => {
-    window.alert('준비 중입니다');
+    toast.message('준비 중입니다');
   };
 
   const handleSocialLogin = (provider: string) => {
@@ -132,7 +127,6 @@ function LoginPageContent() {
     );
 
     if (!popup) {
-      // 팝업이 차단된 경우 현재 탭에서 리다이렉트
       window.location.href = `${API_URL}/oauth2/authorization/${provider}`;
     } else {
       popup.focus();
@@ -142,90 +136,27 @@ function LoginPageContent() {
   return (
     <div className="flex-1 flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm">
-        {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-block">
             <span className="text-4xl font-black tracking-tight bg-linear-to-r from-violet-500 via-fuchsia-500 to-pink-500 bg-clip-text text-transparent">
               Pickty
             </span>
           </Link>
-          {/* 후순위 미구현: 월드컵 문구 숨김 */}
           <p className="mt-2 text-sm text-slate-500 dark:text-zinc-400">티어표 만들기</p>
         </div>
 
-        {/* Card */}
         <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-8 shadow-xl shadow-black/10 dark:shadow-black/50">
-          <h1 className="text-xl font-bold text-slate-900 dark:text-zinc-100 mb-6">로그인</h1>
+          <div className="text-center mb-8">
+            <h1 className="text-xl font-bold text-slate-900 dark:text-zinc-100">로그인</h1>
+            <p className="mt-2 text-sm text-slate-500 dark:text-zinc-400">소셜 계정으로 로그인하세요</p>
+          </div>
 
           {socialError && (
-            <div className="mb-4 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-sm text-red-500 dark:text-red-400">
+            <div className="mb-5 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-sm text-red-500 dark:text-red-400">
               {socialError}
             </div>
           )}
 
-          {/* Email/Password Form */}
-          <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-1.5">
-                이메일
-              </label>
-              <input
-                id="email"
-                type="email"
-                autoComplete="email"
-                placeholder="example@email.com"
-                className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/40 transition-colors"
-                {...register('email')}
-              />
-              {errors.email && (
-                <p className="mt-1.5 text-xs text-red-500 dark:text-red-400">{errors.email.message}</p>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-1.5">
-                비밀번호
-              </label>
-              <div className="relative">
-                <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
-                  placeholder="비밀번호를 입력하세요"
-                  className="w-full px-4 py-2.5 pr-11 rounded-xl bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/40 transition-colors"
-                  {...register('password')}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300 transition-colors"
-                  aria-label={showPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
-                >
-                  <EyeIcon open={showPassword} />
-                </button>
-              </div>
-              {errors.password && (
-                <p className="mt-1.5 text-xs text-red-500 dark:text-red-400">{errors.password.message}</p>
-              )}
-            </div>
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full py-2.5 rounded-xl font-semibold text-sm text-white bg-linear-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-violet-500/20 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-            >
-              {isSubmitting ? '로그인 중...' : '로그인'}
-            </button>
-          </form>
-
-          {/* Divider */}
-          <div className="my-6 flex items-center gap-3">
-            <div className="flex-1 h-px bg-slate-200 dark:bg-zinc-800" />
-            <span className="text-xs text-slate-400 dark:text-zinc-500 font-medium">또는</span>
-            <div className="flex-1 h-px bg-slate-200 dark:bg-zinc-800" />
-          </div>
-
-          {/* Wide Social Buttons */}
           <div className="space-y-3">
             <button
               type="button"
@@ -257,8 +188,7 @@ function LoginPageContent() {
             </button>
           </div>
 
-          {/* Circular Social Buttons */}
-          <div className="mt-5 flex items-center justify-center gap-4">
+          <div className="mt-8 flex items-center justify-center gap-4">
             <div className="flex-1 h-px bg-slate-200 dark:bg-zinc-800" />
             <div className="flex gap-3">
               <button
@@ -275,19 +205,20 @@ function LoginPageContent() {
                 type="button"
                 aria-label="치지직으로 로그인"
                 onClick={handleComingSoonSocial}
-                className="w-11 h-11 rounded-full flex items-center justify-center bg-slate-100 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 overflow-hidden transition-all duration-200 hover:scale-110 hover:border-[#00FF77] active:scale-95 cursor-pointer"
+                className="w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer shadow-sm overflow-hidden"
+                style={{ backgroundColor: '#141517' }}
               >
-                <span className="text-xs font-black text-[#00FF77]">치직</span>
+                <ChzzkIcon />
               </button>
 
               <button
                 type="button"
                 aria-label="SOOP으로 로그인"
                 onClick={handleComingSoonSocial}
-                className="w-11 h-11 rounded-full flex items-center justify-center text-white font-black text-sm transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer"
-                style={{ backgroundColor: '#FF6B35' }}
+                className="w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer shadow-sm overflow-hidden"
+                style={{ backgroundColor: '#141517' }}
               >
-                S
+                <SoopIcon />
               </button>
             </div>
             <div className="flex-1 h-px bg-slate-200 dark:bg-zinc-800" />
