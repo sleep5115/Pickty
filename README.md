@@ -38,6 +38,7 @@ Pickty/
 ├── backend/           # API 서버 (Spring Boot)
 ├── docs/              # 데이터베이스 마이그레이션 및 인프라 설계 문서
 └── deploy/            # 배포 및 서버 환경 구성 스크립트
+```
 
 ---
 
