@@ -32,6 +32,7 @@ Data & Infrastructure
 
 프론트엔드와 백엔드를 하나의 저장소에서 관리하는 모노레포(Monorepo) 구조를 채택했습니다.
 
+```text
 Pickty/
 ├── frontend/          # 웹 클라이언트 (Next.js)
 ├── backend/           # API 서버 (Spring Boot)
