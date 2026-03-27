@@ -92,7 +92,7 @@ class TierResultService(
         )
     }
 
-    /** PNG 미리보기 URL 없을 때 목록·상세 카드용 — 스냅샷 풀/티어 아이템 첫 http(s) 이미지 */
+    /** PNG 미리보기 URL 없을 때 목록, 상세 카드용 — 스냅샷 풀/티어 아이템 첫 http(s) 이미지 */
     @Suppress("UNCHECKED_CAST")
     private fun firstHttpImageFromSnapshot(snapshot: Map<String, Any?>): String? {
         val pool = snapshot["pool"]
