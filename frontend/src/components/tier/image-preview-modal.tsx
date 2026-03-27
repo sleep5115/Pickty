@@ -18,6 +18,22 @@ const PREVIEW_SQUARE_CAP_PX = PREVIEW_BASE_CAP_PX * PREVIEW_SIZE_SCALE;
 
 const SWIPE_PX = 56;
 
+/** 휠·트랙패드 연속 이벤트로 stepImagePreview가 폭주하지 않도록 */
+const WHEEL_NAV_COOLDOWN_MS = 280;
+
+function wheelGalleryDirection(e: WheelEvent): -1 | 0 | 1 {
+  const { deltaX, deltaY } = e;
+  if (deltaX === 0 && deltaY === 0) return 0;
+  if (Math.abs(deltaY) >= Math.abs(deltaX)) {
+    if (deltaY > 0) return 1;
+    if (deltaY < 0) return -1;
+    return 0;
+  }
+  if (deltaX > 0) return 1;
+  if (deltaX < 0) return -1;
+  return 0;
+}
+
 /**
  * 바깥 클릭 닫힘. Alt+PointerDown 아무 곳이나 닫힘(연속 Alt+클릭 탐색).
  * 풀 → 티어 행 순 이미지 갤러리: 이전·다음 버튼, 좌우 방향키, 모바일 스와이프.
@@ -40,6 +56,8 @@ export function ImagePreviewModal() {
   }, [gallery, previewItem]);
 
   const touchStartX = useRef<number | null>(null);
+  const previewWheelRef = useRef<HTMLDivElement>(null);
+  const lastWheelNavAtRef = useRef(0);
 
   useEffect(() => {
     if (!previewItem?.imageUrl) return;
@@ -72,6 +90,37 @@ export function ImagePreviewModal() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [previewItem, setPreviewItem, stepImagePreview]);
+
+  useEffect(() => {
+    if (!previewItem?.imageUrl) return;
+    const el = previewWheelRef.current;
+    if (!el) return;
+
+    const showNav = gallery.length > 1;
+
+    const onWheel = (e: WheelEvent) => {
+      const now = Date.now();
+      if (now - lastWheelNavAtRef.current < WHEEL_NAV_COOLDOWN_MS) {
+        e.preventDefault();
+        return;
+      }
+
+      const dir = wheelGalleryDirection(e);
+      if (dir === 0) return;
+
+      e.preventDefault();
+
+      if (!showNav) return;
+
+      lastWheelNavAtRef.current = now;
+      stepImagePreview(dir);
+    };
+
+    // React synthetic onWheel은 브라우저에서 passive로 잡히는 경우가 많아
+    // 배경 페이지 스크롤 방지(preventDefault)를 위해 네이티브 리스너 사용
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [gallery.length, previewItem?.imageUrl, stepImagePreview]);
 
   if (!previewItem?.imageUrl) {
     return null;
@@ -117,6 +166,7 @@ export function ImagePreviewModal() {
         )}
 
         <div
+          ref={previewWheelRef}
           className="relative box-border shrink-0 overflow-hidden rounded-none shadow-none ring-0 outline-none"
           style={squareStyle}
           onTouchStart={(e) => {

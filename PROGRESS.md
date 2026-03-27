@@ -102,6 +102,7 @@
 |---|---|---|
 | 개발 환경 세팅 | ✅ 완료 | |
 | 모노레포 전환 | ✅ 완료 | frontend/ + backend/ 폴더 구조, 브랜치 전략 확정 |
+| 루트 README | ✅ 완료 | GitHub용 요약 — UGC 소개·스택·구조·(시크릿 없으면 풀스택 실행 어렵다는 안내)·문서 링크 ([README.md](README.md)) |
 | 로컬 설정 관리 | ✅ 완료 | pickty-config private 레포로 PC 간 공유 |
 | GNB / 글로벌 레이아웃 | ✅ 완료 | max-w-6xl, 햄버거(모바일), 테마 토글, 로그인/로그아웃, AdBanner 자리 |
 | Frontend 기초 | ✅ 완료 | Next 16, React 19, Tailwind v4 |
