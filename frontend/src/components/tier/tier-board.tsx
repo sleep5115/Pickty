@@ -59,7 +59,6 @@ export function TierBoard({ dragSelectRef, pointerModeReady = true }: TierBoardP
 
   // ─── 내보내기 모달 ────────────────────────────────────────────────────────
   const [isExportOpen, setIsExportOpen] = useState(false);
-  const [isServerSaveOpen, setIsServerSaveOpen] = useState(false);
   const captureRef = useRef<HTMLDivElement>(null);
 
   // ─── Drag & Drop ─────────────────────────────────────────────────────────

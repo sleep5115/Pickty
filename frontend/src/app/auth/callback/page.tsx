@@ -3,8 +3,9 @@
 import { useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/store/auth-store';
-import { resolvePostLoginRoute } from '@/lib/post-login-route';
+import { resolvePostOAuthTierFlow } from '@/lib/post-oauth-tier-flow';
 import { exchangeOAuthCode } from '@/lib/auth-session';
+import { toast } from 'sonner';
 
 function CallbackHandler() {
   const searchParams = useSearchParams();
@@ -43,8 +44,17 @@ function CallbackHandler() {
         const accessToken = await exchangeOAuthCode(exchange);
         if (accessToken) {
           setAccessToken(accessToken);
-          const path = await resolvePostLoginRoute(null);
-          window.location.href = path;
+          const nav = await resolvePostOAuthTierFlow(accessToken, null);
+          if (nav.kind === 'tier_result') {
+            window.location.href = `/tier/result/${nav.resultId}`;
+          } else if (nav.kind === 'signup_profile') {
+            window.location.href = '/signup/profile';
+          } else {
+            if (nav.toastMessage) {
+              toast.error(nav.toastMessage);
+            }
+            window.location.href = nav.path;
+          }
         } else {
           window.location.href = '/login?error=oauth_failed';
         }

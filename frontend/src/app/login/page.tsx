@@ -6,7 +6,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { PUBLIC_API_BASE_URL } from '@/lib/public-site-config';
-import { resolvePostLoginRoute } from '@/lib/post-login-route';
+import { resolvePostOAuthTierFlow } from '@/lib/post-oauth-tier-flow';
 import { toast } from 'sonner';
 
 /**
@@ -96,9 +96,24 @@ function LoginPageContent() {
       if (event.data?.type === 'OAUTH_SUCCESS') {
         const token = event.data.token as string;
         setAccessToken(token);
-        void resolvePostLoginRoute(searchParams.get('returnTo')).then((path) => {
-          router.push(path);
-        });
+        void (async () => {
+          try {
+            const nav = await resolvePostOAuthTierFlow(token, searchParams.get('returnTo'));
+            if (nav.kind === 'tier_result') {
+              router.replace(`/tier/result/${nav.resultId}`);
+            } else if (nav.kind === 'signup_profile') {
+              router.replace('/signup/profile');
+            } else {
+              if (nav.toastMessage) {
+                toast.error(nav.toastMessage);
+              }
+              router.replace(nav.path);
+            }
+          } catch {
+            toast.error('로그인 후 이동 처리에 실패했습니다.');
+            router.replace('/templates');
+          }
+        })();
       } else if (event.data?.type === 'OAUTH_ERROR') {
         setSocialError('소셜 로그인에 실패했습니다. 다시 시도해 주세요.');
       }

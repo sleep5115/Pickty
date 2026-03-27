@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/lib/store/auth-store';
@@ -9,6 +10,7 @@ import { uploadPicktyImages } from '@/lib/image-upload-api';
 import { useTierStore } from '@/lib/store/tier-store';
 import { createTemplate, createTierResult } from '@/lib/tier-api';
 import { buildTierSnapshot, collectDistinctItems } from '@/lib/tier-snapshot';
+import { stashTierAutoSaveThumbnailFromPreviewUrl } from '@/lib/tier-autosave-thumbnail';
 
 interface ExportModalProps {
   captureRef: React.RefObject<HTMLDivElement | null>;
@@ -23,6 +25,7 @@ const BENEFITS = [
 ];
 
 export function ExportModal({ captureRef, onClose }: ExportModalProps) {
+  const router = useRouter();
   const accessToken = useAuthStore((s) => s.accessToken);
   const isLoggedIn = !!accessToken;
 
@@ -94,6 +97,15 @@ export function ExportModal({ captureRef, onClose }: ExportModalProps) {
     setSaveError(null);
     onClose();
   };
+
+  const handleLoginToSave = useCallback(async () => {
+    await stashTierAutoSaveThumbnailFromPreviewUrl(previewUrl);
+    useTierStore.getState().beginTierAutoSaveFlow({
+      listTitle: listTitle.trim() || null,
+      listDescription: listDescription.trim() || null,
+    });
+    router.push('/login?returnTo=%2Ftier');
+  }, [listTitle, listDescription, router, previewUrl]);
 
   const handleDownload = () => {
     if (!previewUrl) return;
@@ -182,7 +194,7 @@ export function ExportModal({ captureRef, onClose }: ExportModalProps) {
         {savedPath ? (
           <ServerSavedView savedPath={savedPath} onCopyLink={copySavedLink} onClose={handleClose} />
         ) : isDownloaded ? (
-          <DownloadedView onClose={handleClose} />
+          <DownloadedView onClose={handleClose} onLoginToSave={handleLoginToSave} />
         ) : isLoggedIn ? (
           <LoggedInSaveDownloadPanel
             listTitle={listTitle}
@@ -205,6 +217,7 @@ export function ExportModal({ captureRef, onClose }: ExportModalProps) {
             onDownload={handleDownload}
             onRegenerate={generate}
             onClose={handleClose}
+            onLoginToSave={handleLoginToSave}
           />
         )}
       </div>
@@ -212,32 +225,28 @@ export function ExportModal({ captureRef, onClose }: ExportModalProps) {
   );
 }
 
-/** 비로그인: 예전 모달과 동일 — 로그인 안내 + 이미지 다운로드만 */
+/** 비로그인: 로그인 안내 + 자동 저장 유도 / PNG 다운로드 */
 function GuestDownloadOnlyPanel({
   previewUrl,
   isGenerating,
   onDownload,
   onRegenerate,
   onClose,
+  onLoginToSave,
 }: {
   previewUrl: string | null;
   isGenerating: boolean;
   onDownload: () => void;
   onRegenerate: () => void;
   onClose: () => void;
+  onLoginToSave: () => void | Promise<void>;
 }) {
+  const canStashThumbnail = Boolean(previewUrl) && !isGenerating;
   return (
     <>
       <div className="flex items-start justify-between px-5 py-4 border-b border-slate-100 dark:border-zinc-800 shrink-0">
         <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
-          티어표를 프로필에 저장하려면{' '}
-          <Link
-            href="/login?returnTo=%2Ftier"
-            className="text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline underline-offset-2 transition-colors"
-          >
-            로그인
-          </Link>
-          하세요.
+          계정에 저장하려면 소셜 로그인이 필요해요. 아래에서 로그인하면 작성 중인 티어표를 이어서 자동 저장합니다.
         </p>
         <button
           type="button"
@@ -249,19 +258,33 @@ function GuestDownloadOnlyPanel({
         </button>
       </div>
 
-      <div className="px-5 pt-4 pb-2 shrink-0">
+      <div className="px-5 pt-4 pb-2 shrink-0 space-y-2">
+        <button
+          type="button"
+          onClick={() => void onLoginToSave()}
+          disabled={!canStashThumbnail}
+          title={!canStashThumbnail ? '미리보기가 준비된 뒤에 눌러 주세요' : undefined}
+          className={[
+            'w-full py-3 rounded-lg font-semibold text-sm transition-all text-white shadow-lg shadow-violet-900/30',
+            canStashThumbnail
+              ? 'bg-violet-600 hover:bg-violet-500 active:scale-[0.98]'
+              : 'bg-slate-400 dark:bg-zinc-600 cursor-not-allowed opacity-80',
+          ].join(' ')}
+        >
+          로그인하고 서버에 저장
+        </button>
         <button
           type="button"
           onClick={onDownload}
           disabled={!previewUrl}
           className={[
-            'w-full py-3 rounded-lg font-semibold text-sm transition-all',
+            'w-full py-3 rounded-lg font-semibold text-sm transition-all border border-slate-300 dark:border-zinc-600',
             previewUrl
-              ? 'bg-violet-600 hover:bg-violet-500 text-white active:scale-[0.98] shadow-lg shadow-violet-900/30'
+              ? 'text-slate-800 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-800 active:scale-[0.98]'
               : 'bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-600 cursor-not-allowed',
           ].join(' ')}
         >
-          이미지 다운로드
+          이미지 다운로드만
         </button>
       </div>
 
@@ -481,7 +504,13 @@ function ServerSavedView({
   );
 }
 
-function DownloadedView({ onClose }: { onClose: () => void }) {
+function DownloadedView({
+  onClose,
+  onLoginToSave,
+}: {
+  onClose: () => void;
+  onLoginToSave: () => void | Promise<void>;
+}) {
   return (
     <div className="flex flex-col items-center text-center px-8 py-10 gap-6">
       <div className="flex flex-col items-center gap-2">
@@ -505,16 +534,17 @@ function DownloadedView({ onClose }: { onClose: () => void }) {
       </ul>
 
       <div className="flex flex-col gap-3 w-full max-w-xs pt-1">
-        <Link
-          href="/login?returnTo=%2Ftier"
+        <button
+          type="button"
+          onClick={() => void onLoginToSave()}
           className={[
             'w-full py-3 rounded-lg font-semibold text-sm text-center',
             'bg-violet-600 hover:bg-violet-500 text-white',
             'transition-all active:scale-[0.98] shadow-lg shadow-violet-900/30',
           ].join(' ')}
         >
-          로그인
-        </Link>
+          로그인하고 서버에 저장
+        </button>
         <button
           type="button"
           onClick={onClose}

@@ -53,6 +53,7 @@
 | Auth — 세션 하드닝 **(2026-03-26)** | ✅ | Refresh **HttpOnly** 쿠키, OAuth 후 **`?exchange` → `POST /api/v1/auth/oauth-exchange`**, **`/auth/refresh`·`/auth/logout`**, Access **블랙리스트**, `credentials: 'include'` |
 | Tier Maker — 보드 UX | ✅ | DnD·행 정렬·설정 모달·멀티 선택·캡처·라이트/다크·모바일 |
 | Tier — 템플릿·이미지·결과 API + R2 | ✅ | `POST/GET templates`, `POST /images`→R2, `GET .../images/file/{key}`, 결과 CRUD·`/tier/my`·썸네일·동적 OG·워터마크 |
+| Tier — 비회원 → 로그인/가입 **자동 저장** | ✅(1차) | `tier-store` **sessionStorage persist** + `tierAutoSaveIntent` · `post-oauth-tier-flow` · 로그인/`auth/callback`/온보딩 후 **`POST /api/v1/tiers/results`** · 미리보기 PNG **`tier-autosave-thumbnail`** 스태시→인증 후 R2 업로드(수동 저장과 동일 보드 썸네일) · `/tier` 템플릿 진입 시 intent+`templateId` 일치하면 **서버 덮어쓰기 생략** |
 | 프론트 업로드 압축 | ✅(1차) | `browser-image-compression`(WebP·장변 1024 등), 순차 업로드 — **P0 수치 정합·한도 검증**은 여전히 점검 과제 |
 | Ideal Type World Cup | ⬜ | **후순위** — UI 비노출, 착수 미정 |
 | Tier — 장기 과제 | ⬜ | R2 **리사이즈·CDN**, 스트리머 방 **TTL/배치**, 임시 결과→계정 **귀속** 등 — **대규모 트래픽 방어**는 바로 아래 절(확정) |
@@ -72,6 +73,7 @@
 - **템플릿 썸네일**: DB **`tier_templates.thumbnail_url`** 단일. 2×2 **`template-thumbnail-composite.ts`**(Canvas). 마이그레이션: `docs/migrations/2026-03-25-p1-tier-template-user.sql`.
 - **티어 결과**: 저장 시 PNG·**`tier_results.thumbnail_url`** · 동적 OG **`/tier/result/[id]`** · 보드 **워터마크 `pickty.app`**.
 - **내 티어표**: GNB **내 정보** → **`/tier/my`**.
+- **비회원 저장→소셜**: export 모달 **「로그인하고 서버에 저장」** → 보드·intent **sessionStorage** · **ACTIVE** 즉시 결과 저장 후 **`/tier/result/[id]`** · **PENDING** 은 온보딩 후 저장·이동 · 비회원 시 **제목·설명 입력 없음**(기본 제목 등) — **나중에 `/tier/my`에서 메타 수정** 예정.
 - **공유·OG**: `generateMetadata` + `fetchTierResultForOpenGraph` / `fetchTemplateForOpenGraph`. **카톡 등 크롤러용 `og:image`** 는 R2 직링크 대신 **`resolvePicktyImageUrlForOpenGraph`** 로 **`https://api.pickty.app/api/v1/images/file/{key}`** 절대 URL 사용(`pickty-image-url.ts`). UI: **`공유`** 라벨 + **`sonner`** 토스트(클립보드) — `tier-board`(템플릿 링크), `tier-result-client-page`, `export-modal` 저장 완료 화면.
 - **413·순차 업로드**: Tomcat `maxPostSize` + **`TomcatMaxPostSizeCustomizer`**; **`uploadPicktyImages`** 파일별 순차 POST.
 - **Next 16**: 로컬 API URL `next/image` 시 **`dangerouslyAllowLocalIP: true`**.
@@ -86,6 +88,18 @@
   - **`저장 | 다운로드`**: **모달 없이** 동일 해제만. **둘째 탭**부터 모달. 타겟 중에는 버튼에 **`active:scale-95` 미적용**(눌림 없이 해제만 느낌); 타겟 없을 때만 스케일.  
   - 상단 **타겟팅 토스트**가 사라지는 것이 첫 탭 피드백으로 충분하다는 합의.
 - **캡처**: **`export-modal`** `generate()` 시작 시 `clearTarget`·`clearSelection` 후 **이중 `requestAnimationFrame`** 으로 리페인트 대기 → PNG에 보라 테두리·흐림 잔상 방지.
+
+---
+
+## 티어 — 비회원 자동 저장 플로우 **(2026-03-27)**
+
+- **스토어**: `useTierStore`에 **`persist`(sessionStorage, `pickty-tier-board`)** — `tiers`·`pool`·`templateId`·`tierAutoSaveIntent`·자동 저장용 제목/설명 메타. `beginTierAutoSaveFlow` / `clearTierAutoSaveIntent` · 초기화 시 썸네일 스태시도 정리(`tier-autosave-thumbnail`).
+- **썸네일**: 비로그인은 업로드 불가 → 모달 **미리보기 blob URL**을 Data URL로 **`sessionStorage`**(`pickty-tier-autosave-thumb-dataurl`)에 두고, **`runPersistedTierAutoSave`** 안에서 토큰으로 업로드 후 `createTierResult.thumbnailUrl` 설정(`thumbnailUrl: null`이면 백엔드가 첫 아이템 등 폴백).
+- **라우팅**: `resolvePostOAuthTierFlow` — intent 있을 때 **PENDING** → `/signup/profile`만(API 저장 안 함) · **ACTIVE** → 즉시 저장·결과 페이지 · 실패 시 intent·스태시 정리 후 기본 `returnTo` 경로 + 토스트(로그인 페이지 등).
+- **온보딩**: `signup/profile` 제출 성공 직후 intent 있으면 **온보딩 PATCH 다음** `runPersistedTierAutoSave` → 성공 시 **`/tier/result/[id]`**, 아니면 `/account`.
+- **템플릿 재진입**: `tier-page-client` — persist 하이드 후 **`tierAutoSaveIntent` + URL `templateId` === 스토어 `templateId`** 이면 **`getTemplate`/`loadTemplateWorkspace` 생략**(로컬 이어쓰기).
+- **하이드레이션**: `use-tier-persist-hydrated` — 템플릿 로드 effect가 persist 복원 전에 도는 것 방지.
+- **메모**: 구글 프로필 이미지 `lh3.googleusercontent.com` **429** 는 CDN 레이트리밋 가능성 — 코드 이슈 아님, 재시도·캐시·(장기) 아바타 자체 호스팅 검토.
 
 ---
 
@@ -114,6 +128,23 @@
 - [x] Tier Maker 화면·백엔드 스펙·R2 (구현 기준 확정)
 - [ ] World Cup — 후순위
 - [ ] 스트리머 모드 범위
+- [ ] **P2 커뮤니티·소셜** — 아래 「커뮤니티 확장 (P2 로드맵)」세부 기획(확정)
+
+### 커뮤니티 확장 (P2 로드맵) — 소셜/커뮤니티 세부 기획 (확정)
+
+- **지표 (조회수·평가 분리)**  
+  - **템플릿**: **좋아요(Like)** 단일 버튼.  
+  - **개별 결과 티어표**: **추천/비추천(Up/Downvote)**.  
+  - **조회수**: 실시간 DB 갱신 대신 Valkey에 모았다가 **주기적 배치(Batch)** 로 DB 반영.
+
+- **댓글 (모바일·익명)**  
+  - **뎁스**: 무한 계단형 대신 **1단 + `@닉네임` 멘션** (유튜브/인스타류 UX).  
+  - **알림**: 멘션 대상 유저에게 알림 → 재방문·키배 유도.  
+  - **비회원**: 작성 허용 — **닉네임 + 짧은 비밀번호 + IP 해시** 저장으로 관리.
+
+- **통계·전시 (참여 유도)**  
+  - **평균 티어표**: 다수 유저 배치를 취합해 “사람들은 주로 어디에 뒀을까?”를 보여주는 **집계 티어표**.  
+  - **인기(대표) 티어표**: 추천 상위 **Top 1~3** 결과를 템플릿 하단·댓글 상단 **가로 슬라이더**로 고정 노출.
 
 ### Phase 3 — 구현
 - [x] 티어 템플릿·이미지·결과·프론트(R2)
@@ -126,12 +157,14 @@
 
 ### Phase 5 — Ops
 - [ ] 백업·모니터링·스케일아웃 — MVP 이후
+- [ ] **Docker 재시작 정책 최적화:** `docker-compose.yml`의 백엔드(`api`) 컨테이너 재시작 정책을 `restart: unless-stopped`로 설정하여 의도치 않은 OOM 종료 시에만 자동 복구되도록 구성.
+- [ ] **장애 모니터링 및 알림 구축:** UptimeRobot 등을 활용해 외곽에서 API 헬스체크(`/actuator/health` 등)를 5분 주기로 찌르고, 서버가 뻗거나 응답이 없을 경우에만 **디스코드(Discord) 웹훅**으로 알림을 발송하도록 세팅 (정상 배포 시의 불필요한 알림 방지).
 
 ---
 
 ## 다음 작업 (우선순위)
 
-1. 티어: 템플릿 역할 정리, 임시→계정 귀속, 스트리머 TTL 등.
+1. 티어: 템플릿 역할 정리, 임시→계정 귀속, 스트리머 TTL 등 · **`/tier/my`에서 결과 제목·설명(및 필요 시 썸네일) 수정** — 비회원 자동 저장은 현재 기본 제목 위주.
 2. P0: 압축·한도·프록시 수치 정합.
 3. World Cup / P2: 후순위.
 
@@ -152,7 +185,12 @@
 | `docs/migrations/2026-03-26-users-merged-into-user-id.sql` | 병합 |
 | `frontend/src/lib/pickty-image-url.ts` | `resolvePicktyImageUrlForOpenGraph`, 표시용 URL |
 | `frontend/src/lib/tier-result-opengraph.ts`, `template-opengraph.ts` | OG fetch |
-| `frontend/src/components/tier/tier-board.tsx`, `export-modal.tsx` | 타겟팅·캡처·공유 |
+| `frontend/src/components/tier/tier-board.tsx`, `export-modal.tsx` | 타겟팅·캡처·공유·비회원 자동 저장 CTA |
+| `frontend/src/lib/store/tier-store.ts` | Zustand + **sessionStorage persist**, `tierAutoSaveIntent` |
+| `frontend/src/lib/post-oauth-tier-flow.ts`, `tier-autosave-thumbnail.ts` | OAuth/온보딩 후 자동 저장·썸네일 스태시 |
+| `frontend/src/lib/hooks/use-tier-persist-hydrated.ts` | 티어 persist 하이드 대기 |
+| `frontend/src/app/tier/tier-page-client.tsx` | intent 시 템플릿 API 덮어쓰기 방지 |
+| `frontend/src/app/login/page.tsx`, `auth/callback/page.tsx`, `signup/profile/page.tsx` | `resolvePostOAuthTierFlow` 연동 |
 | `frontend/src/components/layout/gnb.tsx` | 모바일/내 정보 + 타겟 시 1차 클릭 해제 |
 | `backend/.../domain/tier/`, `upload/` | 템플릿·결과·R2·`ImageUploadController` |
 

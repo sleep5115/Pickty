@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { TierBoard } from '@/components/tier/tier-board';
 import { ImagePreviewModal } from '@/components/tier/image-preview-modal';
 import { useTierStore } from '@/lib/store/tier-store';
+import { useTierPersistHydrated } from '@/lib/hooks/use-tier-persist-hydrated';
 import { usePointerDevice } from '@/hooks/use-pointer-device';
 import { getTemplate, templatePayloadToTierItems } from '@/lib/tier-api';
 
@@ -12,6 +13,7 @@ function TierPageInner() {
   const searchParams = useSearchParams();
   const templateIdParam = searchParams.get('templateId');
   const loadTemplateWorkspace = useTierStore((s) => s.loadTemplateWorkspace);
+  const tierHydrated = useTierPersistHydrated();
 
   const { clearTarget, resetBoard, setPreviewItem } = useTierStore();
   const { isPointerFine } = usePointerDevice();
@@ -38,6 +40,18 @@ function TierPageInner() {
       setTemplateBanner(null);
       return;
     }
+    if (!tierHydrated) return;
+
+    const snap = useTierStore.getState();
+    if (
+      snap.tierAutoSaveIntent &&
+      snap.templateId != null &&
+      snap.templateId === templateIdParam
+    ) {
+      setTemplateBanner(null);
+      return;
+    }
+
     let cancelled = false;
     setTemplateBanner('템플릿 불러오는 중…');
     void (async () => {
@@ -60,7 +74,7 @@ function TierPageInner() {
     return () => {
       cancelled = true;
     };
-  }, [templateIdParam, loadTemplateWorkspace]);
+  }, [templateIdParam, loadTemplateWorkspace, tierHydrated]);
 
   return (
     <div ref={dragSelectRef} className="flex flex-col select-none bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100">

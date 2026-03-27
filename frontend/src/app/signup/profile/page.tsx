@@ -11,6 +11,8 @@ import { useAuthStore } from '@/lib/store/auth-store';
 import { apiFetch } from '@/lib/api-fetch';
 import { uploadPicktyImages } from '@/lib/image-upload-api';
 import { generateRandomPlayfulNickname } from '@/lib/nickname-playful';
+import { runPersistedTierAutoSave } from '@/lib/post-oauth-tier-flow';
+import { toast } from 'sonner';
 
 const BIRTH_YEAR_OPTIONS = (() => {
   const y = new Date().getFullYear();
@@ -174,6 +176,15 @@ export default function OnboardingProfilePage() {
         const text = await res.text();
         setLoadError(text || `저장에 실패했습니다. (${res.status})`);
         return;
+      }
+
+      const autoSave = await runPersistedTierAutoSave(accessToken);
+      if (autoSave.ok) {
+        router.replace(`/tier/result/${autoSave.resultId}`);
+        return;
+      }
+      if (autoSave.reason === 'error' && autoSave.message) {
+        toast.error(autoSave.message);
       }
       router.replace('/account');
     } finally {

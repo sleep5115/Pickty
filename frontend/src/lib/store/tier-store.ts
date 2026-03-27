@@ -1,5 +1,7 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { arrayMove } from '@dnd-kit/sortable';
+import { clearTierAutoSaveThumbnailStash } from '@/lib/tier-autosave-thumbnail';
 
 export interface TierItem {
   id: string;
@@ -65,6 +67,18 @@ interface TierState {
   /** 이미지 확대 모달에 표시할 아이템 */
   previewItem: PicktyItem | null;
 
+  /**
+   * 로그인·가입 직후 자동 저장 플로우 (sessionStorage persist).
+   * `intent: 'auto_save'` 요구사항에 대응하는 플래그.
+   */
+  tierAutoSaveIntent: boolean;
+  autoSaveListTitle: string | null;
+  autoSaveListDescription: string | null;
+
+  /** 소셜 로그인 직전 호출 — 스토어가 persist 되도록 한 틱 남김 */
+  beginTierAutoSaveFlow: (meta?: { listTitle?: string | null; listDescription?: string | null }) => void;
+  clearTierAutoSaveIntent: () => void;
+
   toggleTargetTier: (tierId: string) => void;
   clearTarget: () => void;
 
@@ -107,178 +121,220 @@ interface TierState {
   stepImagePreview: (delta: number) => void;
 }
 
-export const useTierStore = create<TierState>()((set) => ({
-  templateId: null,
-  tiers: INITIAL_TIERS,
-  pool: INITIAL_POOL,
-  selectedItemIds: [],
-  targetTierId: null,
-  previewItem: null,
-
-  setTemplateId: (id) => set({ templateId: id }),
-
-  setPreviewItem: (item) => set({ previewItem: item }),
-
-  stepImagePreview: (delta) =>
-    set((state) => {
-      const gallery = buildTierImageGallery(state);
-      if (gallery.length === 0) return { previewItem: null };
-      const id = state.previewItem?.id;
-      let idx = id ? gallery.findIndex((i) => i.id === id) : 0;
-      if (idx < 0) idx = 0;
-      const next = Math.max(0, Math.min(gallery.length - 1, idx + delta));
-      return { previewItem: gallery[next]! };
-    }),
-
-  loadTemplateWorkspace: ({ templateId, pool }) =>
-    set({
-      templateId,
-      tiers: INITIAL_TIERS.map((t) => ({ ...t, items: [] })),
-      pool,
+export const useTierStore = create<TierState>()(
+  persist(
+    (set) => ({
+      templateId: null,
+      tiers: INITIAL_TIERS,
+      pool: INITIAL_POOL,
       selectedItemIds: [],
       targetTierId: null,
       previewItem: null,
-    }),
 
-  toggleTargetTier: (tierId) =>
-    set((state) => ({
-      targetTierId: state.targetTierId === tierId ? null : tierId,
-      selectedItemIds: [],
-    })),
+      tierAutoSaveIntent: false,
+      autoSaveListTitle: null,
+      autoSaveListDescription: null,
 
-  clearTarget: () => set({ targetTierId: null }),
-
-  toggleItemSelection: (itemId) =>
-    set((state) => ({
-      selectedItemIds: state.selectedItemIds.includes(itemId)
-        ? state.selectedItemIds.filter((id) => id !== itemId)
-        : [...state.selectedItemIds, itemId],
-    })),
-
-  selectItems: (itemIds) =>
-    set((state) => ({
-      selectedItemIds: [...new Set([...state.selectedItemIds, ...itemIds])],
-    })),
-
-  clearSelection: () => set({ selectedItemIds: [] }),
-
-  moveItems: (itemIds, toTierId) =>
-    set((state) => {
-      const idsSet = new Set(itemIds);
-      const collected: TierItem[] = [];
-
-      const newTiers = state.tiers.map((tier) => ({
-        ...tier,
-        items: tier.items.filter((item) => {
-          if (idsSet.has(item.id)) {
-            collected.push(item);
-            return false;
-          }
-          return true;
+      beginTierAutoSaveFlow: (meta) =>
+        set({
+          tierAutoSaveIntent: true,
+          autoSaveListTitle: meta?.listTitle?.trim() || null,
+          autoSaveListDescription: meta?.listDescription?.trim() || null,
         }),
-      }));
 
-      const newPool = state.pool.filter((item) => {
-        if (idsSet.has(item.id)) {
-          collected.push(item);
-          return false;
-        }
-        return true;
-      });
+      clearTierAutoSaveIntent: () => {
+        clearTierAutoSaveThumbnailStash();
+        set({
+          tierAutoSaveIntent: false,
+          autoSaveListTitle: null,
+          autoSaveListDescription: null,
+        });
+      },
 
-      if (toTierId === 'pool') {
-        return {
-          tiers: newTiers,
-          pool: [...newPool, ...collected],
-          selectedItemIds: state.selectedItemIds.filter((id) => !idsSet.has(id)),
-        };
-      }
+      setTemplateId: (id) => set({ templateId: id }),
 
-      return {
-        tiers: newTiers.map((tier) =>
-          tier.id === toTierId
-            ? { ...tier, items: [...tier.items, ...collected] }
-            : tier,
-        ),
-        pool: newPool,
-        selectedItemIds: state.selectedItemIds.filter((id) => !idsSet.has(id)),
-      };
+      setPreviewItem: (item) => set({ previewItem: item }),
+
+      stepImagePreview: (delta) =>
+        set((state) => {
+          const gallery = buildTierImageGallery(state);
+          if (gallery.length === 0) return { previewItem: null };
+          const id = state.previewItem?.id;
+          let idx = id ? gallery.findIndex((i) => i.id === id) : 0;
+          if (idx < 0) idx = 0;
+          const next = Math.max(0, Math.min(gallery.length - 1, idx + delta));
+          return { previewItem: gallery[next]! };
+        }),
+
+      loadTemplateWorkspace: ({ templateId, pool }) =>
+        set({
+          templateId,
+          tiers: INITIAL_TIERS.map((t) => ({ ...t, items: [] })),
+          pool,
+          selectedItemIds: [],
+          targetTierId: null,
+          previewItem: null,
+        }),
+
+      toggleTargetTier: (tierId) =>
+        set((state) => ({
+          targetTierId: state.targetTierId === tierId ? null : tierId,
+          selectedItemIds: [],
+        })),
+
+      clearTarget: () => set({ targetTierId: null }),
+
+      toggleItemSelection: (itemId) =>
+        set((state) => ({
+          selectedItemIds: state.selectedItemIds.includes(itemId)
+            ? state.selectedItemIds.filter((id) => id !== itemId)
+            : [...state.selectedItemIds, itemId],
+        })),
+
+      selectItems: (itemIds) =>
+        set((state) => ({
+          selectedItemIds: [...new Set([...state.selectedItemIds, ...itemIds])],
+        })),
+
+      clearSelection: () => set({ selectedItemIds: [] }),
+
+      moveItems: (itemIds, toTierId) =>
+        set((state) => {
+          const idsSet = new Set(itemIds);
+          const collected: TierItem[] = [];
+
+          const newTiers = state.tiers.map((tier) => ({
+            ...tier,
+            items: tier.items.filter((item) => {
+              if (idsSet.has(item.id)) {
+                collected.push(item);
+                return false;
+              }
+              return true;
+            }),
+          }));
+
+          const newPool = state.pool.filter((item) => {
+            if (idsSet.has(item.id)) {
+              collected.push(item);
+              return false;
+            }
+            return true;
+          });
+
+          if (toTierId === 'pool') {
+            return {
+              tiers: newTiers,
+              pool: [...newPool, ...collected],
+              selectedItemIds: state.selectedItemIds.filter((id) => !idsSet.has(id)),
+            };
+          }
+
+          return {
+            tiers: newTiers.map((tier) =>
+              tier.id === toTierId
+                ? { ...tier, items: [...tier.items, ...collected] }
+                : tier,
+            ),
+            pool: newPool,
+            selectedItemIds: state.selectedItemIds.filter((id) => !idsSet.has(id)),
+          };
+        }),
+
+      reorderTiers: (activeId, overId) =>
+        set((state) => {
+          const oldIndex = state.tiers.findIndex((t) => t.id === activeId);
+          const newIndex = state.tiers.findIndex((t) => t.id === overId);
+          if (oldIndex === -1 || newIndex === -1) return {};
+          return { tiers: arrayMove(state.tiers, oldIndex, newIndex) };
+        }),
+
+      updateTier: (tierId, updates) =>
+        set((state) => ({
+          tiers: state.tiers.map((tier) =>
+            tier.id === tierId ? { ...tier, ...updates } : tier,
+          ),
+        })),
+
+      addTierRow: (nearTierId, position) =>
+        set((state) => {
+          const index = state.tiers.findIndex((t) => t.id === nearTierId);
+          if (index === -1) return {};
+          const newTier: Tier = {
+            id: newTierRowId(),
+            label: 'New',
+            color: '#A3A3A3',
+            items: [],
+          };
+          const insertAt = position === 'above' ? index : index + 1;
+          const newTiers = [...state.tiers];
+          newTiers.splice(insertAt, 0, newTier);
+          return { tiers: newTiers };
+        }),
+
+      deleteTierRow: (tierId) =>
+        set((state) => {
+          const tier = state.tiers.find((t) => t.id === tierId);
+          if (!tier) return {};
+          const returnedIds = new Set(tier.items.map((i) => i.id));
+          return {
+            tiers: state.tiers.filter((t) => t.id !== tierId),
+            pool: [...state.pool, ...tier.items],
+            targetTierId: state.targetTierId === tierId ? null : state.targetTierId,
+            selectedItemIds: state.selectedItemIds.filter((id) => !returnedIds.has(id)),
+          };
+        }),
+
+      clearTierRow: (tierId) =>
+        set((state) => {
+          const tier = state.tiers.find((t) => t.id === tierId);
+          if (!tier) return {};
+          const returnedIds = new Set(tier.items.map((i) => i.id));
+          return {
+            tiers: state.tiers.map((t) =>
+              t.id === tierId ? { ...t, items: [] } : t,
+            ),
+            pool: [...state.pool, ...tier.items],
+            selectedItemIds: state.selectedItemIds.filter((id) => !returnedIds.has(id)),
+          };
+        }),
+
+      resetBoard: () => {
+        clearTierAutoSaveThumbnailStash();
+        set((state) => {
+          const fromTiers = state.tiers.flatMap((t) => t.items);
+          const seen = new Set<string>();
+          const pool: TierItem[] = [];
+          for (const item of [...state.pool, ...fromTiers]) {
+            if (seen.has(item.id)) continue;
+            seen.add(item.id);
+            pool.push(item);
+          }
+          return {
+            tiers: INITIAL_TIERS.map((t) => ({ ...t, items: [] })),
+            pool,
+            selectedItemIds: [],
+            targetTierId: null,
+            previewItem: null,
+            tierAutoSaveIntent: false,
+            autoSaveListTitle: null,
+            autoSaveListDescription: null,
+          };
+        });
+      },
     }),
-
-  reorderTiers: (activeId, overId) =>
-    set((state) => {
-      const oldIndex = state.tiers.findIndex((t) => t.id === activeId);
-      const newIndex = state.tiers.findIndex((t) => t.id === overId);
-      if (oldIndex === -1 || newIndex === -1) return {};
-      return { tiers: arrayMove(state.tiers, oldIndex, newIndex) };
-    }),
-
-  updateTier: (tierId, updates) =>
-    set((state) => ({
-      tiers: state.tiers.map((tier) =>
-        tier.id === tierId ? { ...tier, ...updates } : tier,
-      ),
-    })),
-
-  addTierRow: (nearTierId, position) =>
-    set((state) => {
-      const index = state.tiers.findIndex((t) => t.id === nearTierId);
-      if (index === -1) return {};
-      const newTier: Tier = {
-        id: newTierRowId(),
-        label: 'New',
-        color: '#A3A3A3',
-        items: [],
-      };
-      const insertAt = position === 'above' ? index : index + 1;
-      const newTiers = [...state.tiers];
-      newTiers.splice(insertAt, 0, newTier);
-      return { tiers: newTiers };
-    }),
-
-  deleteTierRow: (tierId) =>
-    set((state) => {
-      const tier = state.tiers.find((t) => t.id === tierId);
-      if (!tier) return {};
-      const returnedIds = new Set(tier.items.map((i) => i.id));
-      return {
-        tiers: state.tiers.filter((t) => t.id !== tierId),
-        pool: [...state.pool, ...tier.items],
-        targetTierId: state.targetTierId === tierId ? null : state.targetTierId,
-        selectedItemIds: state.selectedItemIds.filter((id) => !returnedIds.has(id)),
-      };
-    }),
-
-  clearTierRow: (tierId) =>
-    set((state) => {
-      const tier = state.tiers.find((t) => t.id === tierId);
-      if (!tier) return {};
-      const returnedIds = new Set(tier.items.map((i) => i.id));
-      return {
-        tiers: state.tiers.map((t) =>
-          t.id === tierId ? { ...t, items: [] } : t,
-        ),
-        pool: [...state.pool, ...tier.items],
-        selectedItemIds: state.selectedItemIds.filter((id) => !returnedIds.has(id)),
-      };
-    }),
-
-  resetBoard: () =>
-    set((state) => {
-      const fromTiers = state.tiers.flatMap((t) => t.items);
-      const seen = new Set<string>();
-      const pool: TierItem[] = [];
-      for (const item of [...state.pool, ...fromTiers]) {
-        if (seen.has(item.id)) continue;
-        seen.add(item.id);
-        pool.push(item);
-      }
-      return {
-        tiers: INITIAL_TIERS.map((t) => ({ ...t, items: [] })),
-        pool,
-        selectedItemIds: [],
-        targetTierId: null,
-        previewItem: null,
-      };
-    }),
-}));
+    {
+      name: 'pickty-tier-board',
+      storage: createJSONStorage(() => sessionStorage),
+      partialize: (s) => ({
+        templateId: s.templateId,
+        tiers: s.tiers,
+        pool: s.pool,
+        tierAutoSaveIntent: s.tierAutoSaveIntent,
+        autoSaveListTitle: s.autoSaveListTitle,
+        autoSaveListDescription: s.autoSaveListDescription,
+      }),
+      version: 1,
+    },
+  ),
+);
