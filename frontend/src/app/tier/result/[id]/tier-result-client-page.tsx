@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { Download } from 'lucide-react';
+import { Download, Link2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { TierBoardReadonly } from '@/components/tier/tier-board-readonly';
@@ -66,6 +67,17 @@ export function TierResultClientPage() {
     };
   }, [id]);
 
+  const copyShareLink = useCallback(async () => {
+    if (typeof window === 'undefined' || !id) return;
+    const url = `${window.location.origin}/tier/result/${encodeURIComponent(id)}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success('공유 링크를 클립보드에 복사했어요.');
+    } catch {
+      toast.error('복사에 실패했어요. 주소 표시줄의 URL을 직접 복사해 주세요.');
+    }
+  }, [id]);
+
   const handleDownloadPng = useCallback(async () => {
     const el = captureRef.current;
     if (!el) return;
@@ -121,9 +133,23 @@ export function TierResultClientPage() {
         <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
+            onClick={() => void copyShareLink()}
+            className={[
+              'inline-flex items-center justify-center gap-2 text-sm px-4 py-2 rounded-lg font-semibold',
+              'border border-slate-300 dark:border-zinc-600 text-slate-800 dark:text-zinc-200',
+              'transition-all duration-150 ease-out',
+              'hover:bg-slate-50 dark:hover:bg-zinc-800/80',
+              'active:scale-[0.98] active:bg-slate-100 dark:active:bg-zinc-700',
+            ].join(' ')}
+          >
+            <Link2 className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
+            공유
+          </button>
+          <button
+            type="button"
             onClick={() => void handleDownloadPng()}
             disabled={downloadBusy}
-            className="inline-flex items-center justify-center gap-2 text-sm px-4 py-2 rounded-lg font-semibold bg-violet-600 hover:bg-violet-500 disabled:opacity-60 text-white transition-colors"
+            className="inline-flex items-center justify-center gap-2 text-sm px-4 py-2 rounded-lg font-semibold bg-violet-600 hover:bg-violet-500 disabled:opacity-60 text-white transition-all duration-150 active:scale-[0.98]"
           >
             <Download className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
             {downloadBusy ? '이미지 생성 중…' : '다운로드'}

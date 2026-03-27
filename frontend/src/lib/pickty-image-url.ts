@@ -60,6 +60,38 @@ export function resolvePicktyUploadsUrl(imageUrl: string): string {
 }
 
 /**
+ * 링크 미리보기(카카오·슬랙·X 등) 크롤러용 `og:image` 절대 URL.
+ * `img.pickty.app` 직링크는 봇 요청에서 403이 나는 경우가 많아, Pickty R2 객체(`uuid.ext`)는
+ * 공개 **`GET /api/v1/images/file/{key}`** 로 바꿔 넣는다.
+ */
+export function resolvePicktyImageUrlForOpenGraph(imageUrl: string | null | undefined): string | null {
+  if (imageUrl == null) return null;
+  const trimmed = imageUrl.trim();
+  if (!trimmed) return null;
+  const resolved = resolvePicktyUploadsUrl(trimmed);
+  let abs: URL;
+  try {
+    abs = new URL(resolved);
+  } catch {
+    try {
+      const path = resolved.startsWith('/') ? resolved : `/${resolved}`;
+      abs = new URL(path, `${apiOrigin()}/`);
+    } catch {
+      return null;
+    }
+  }
+  const key = tryExtractPicktyStoredImageKeyFromResolvedUrl(abs);
+  if (key) {
+    const base = API_URL.replace(/\/$/, '');
+    return `${base}/api/v1/images/file/${encodeURIComponent(key)}`;
+  }
+  if (abs.protocol === 'https:') {
+    return abs.toString();
+  }
+  return null;
+}
+
+/**
  * 화면 표시용 (`<img src>`).
  * - `img.pickty.app` 등을 브라우저가 **직접** 열면 `Referer: http://localhost:3002` 때문에 Cloudflare **403** · **ORB** 가 날 수 있음.
  * - R2 객체 키(`uuid.ext`)는 **동일 출처** `/api/pickty-image?key=` 로만 노출(Next 서버가 img 또는 백엔드 `file?key=` 로 받아 전달).

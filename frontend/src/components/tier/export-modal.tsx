@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { captureTierElementToPng, formatImageCaptureError } from '@/lib/tier-capture-png';
 import { uploadPicktyImages } from '@/lib/image-upload-api';
@@ -142,10 +143,16 @@ export function ExportModal({ captureRef, onClose }: ExportModalProps) {
     }
   };
 
-  const copySavedLink = () => {
+  const copySavedLink = useCallback(async () => {
     if (!savedPath || typeof window === 'undefined') return;
-    void navigator.clipboard.writeText(`${window.location.origin}${savedPath}`);
-  };
+    const url = `${window.location.origin}${savedPath}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success('클립보드에 복사했어요.');
+    } catch {
+      toast.error('복사에 실패했어요. 브라우저 권한·보안 연결(HTTPS)을 확인하거나 주소를 직접 복사해 주세요.');
+    }
+  }, [savedPath]);
 
   const modalWidthClass = isLoggedIn
     ? 'w-[min(560px,calc(100vw-2rem))]'
@@ -424,7 +431,7 @@ function ServerSavedView({
   onClose,
 }: {
   savedPath: string;
-  onCopyLink: () => void;
+  onCopyLink: () => void | Promise<void>;
   onClose: () => void;
 }) {
   return (
@@ -444,10 +451,17 @@ function ServerSavedView({
         </Link>
         <button
           type="button"
-          onClick={onCopyLink}
-          className="flex-1 py-3 rounded-lg border border-slate-300 dark:border-zinc-600 text-sm font-medium text-slate-800 dark:text-zinc-200"
+          onClick={() => void onCopyLink()}
+          className={[
+            'flex-1 py-3 rounded-lg border border-slate-300 dark:border-zinc-600',
+            'text-sm font-medium text-slate-800 dark:text-zinc-200',
+            'transition-all duration-150 ease-out',
+            'hover:bg-slate-50 dark:hover:bg-zinc-800/80',
+            'active:scale-[0.98] active:bg-slate-100 dark:active:bg-zinc-700',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900',
+          ].join(' ')}
         >
-          링크 복사
+          공유
         </button>
       </div>
       <button type="button" onClick={onClose} className="text-sm text-slate-500 dark:text-zinc-500 hover:underline">

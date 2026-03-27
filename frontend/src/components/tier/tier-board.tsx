@@ -15,6 +15,8 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
+import { Link2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { useTierStore } from '@/lib/store/tier-store';
 import { usePointerDevice } from '@/hooks/use-pointer-device';
 import { useDragSelect } from '@/hooks/use-drag-select';
@@ -47,6 +49,7 @@ export function TierBoard({ dragSelectRef, pointerModeReady = true }: TierBoardP
     clearSelection,
     toggleItemSelection,
   } = useTierStore();
+  const templateId = useTierStore((s) => s.templateId);
 
   const { isPointerFine } = usePointerDevice();
   const isFine = pointerModeReady ? (isPointerFine ?? true) : true;
@@ -70,6 +73,17 @@ export function TierBoard({ dragSelectRef, pointerModeReady = true }: TierBoardP
       activationConstraint: { distance: 8 },
     }),
   );
+
+  const copyTemplateShareLink = useCallback(async () => {
+    if (!templateId || typeof window === 'undefined') return;
+    const url = `${window.location.origin}/tier?templateId=${encodeURIComponent(templateId)}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success('클립보드에 복사했어요.');
+    } catch {
+      toast.error('복사에 실패했어요. 주소 표시줄의 URL을 직접 복사해 주세요.');
+    }
+  }, [templateId]);
 
   const tierIds = tiers.map((t) => t.id);
 
@@ -240,8 +254,27 @@ export function TierBoard({ dragSelectRef, pointerModeReady = true }: TierBoardP
           </div>
         </div>
 
-        {/* 저장(서버) | 다운로드(PNG) — 모달에서 제목·설명 입력 후 분기 */}
-        <div className="flex justify-end px-3 py-2 bg-slate-100 dark:bg-zinc-950 border-t border-slate-200 dark:border-zinc-800">
+        {/* 공유(템플릿) | 저장(서버) | 다운로드(PNG) — 모달에서 제목·설명 입력 후 분기 */}
+        <div className="flex justify-end items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-zinc-950 border-t border-slate-200 dark:border-zinc-800">
+          {templateId && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                void copyTemplateShareLink();
+              }}
+              className={[
+                'inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold',
+                'border border-slate-300 dark:border-zinc-600 text-slate-800 dark:text-zinc-200',
+                'transition-all duration-150 ease-out',
+                'hover:bg-slate-50 dark:hover:bg-zinc-800/80',
+                'active:scale-[0.98] active:bg-slate-100 dark:active:bg-zinc-700',
+              ].join(' ')}
+            >
+              <Link2 className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
+              공유
+            </button>
+          )}
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); setIsExportOpen(true); }}

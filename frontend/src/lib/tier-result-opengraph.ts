@@ -1,4 +1,5 @@
 import { parseResultThumbnailUrl } from '@/lib/tier-api';
+import { resolvePicktyImageUrlForOpenGraph } from '@/lib/pickty-image-url';
 import { PUBLIC_API_BASE_URL } from '@/lib/public-site-config';
 
 const DEFAULT_DESCRIPTION = '나만의 티어표를 만들고 공유하세요.';
@@ -42,7 +43,8 @@ export async function fetchTierResultForOpenGraph(id: string): Promise<TierResul
     /** 공유 카드 제목: 지정 시 리스트 제목 우선(유저 표기), 없으면 템플릿 제목 */
     const headline = listTitle || templateTitle || '티어표';
     const description = listDesc || DEFAULT_DESCRIPTION;
-    const imageUrl = parseResultThumbnailUrl(row);
+    const rawThumb = parseResultThumbnailUrl(row);
+    const imageUrl = resolvePicktyImageUrlForOpenGraph(rawThumb);
     return { headline, description, imageUrl };
   } catch {
     return null;

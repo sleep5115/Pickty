@@ -1,4 +1,5 @@
 import { parseTemplateThumbnailUrl } from '@/lib/tier-api';
+import { resolvePicktyImageUrlForOpenGraph } from '@/lib/pickty-image-url';
 import { PUBLIC_API_BASE_URL } from '@/lib/public-site-config';
 
 export type TemplateOgPayload = {
@@ -18,9 +19,10 @@ export async function fetchTemplateForOpenGraph(templateId: string): Promise<Tem
     const row = (await res.json()) as Record<string, unknown>;
     const title =
       typeof row.title === 'string' && row.title.trim() ? row.title.trim() : '티어 템플릿';
+    const rawThumb = parseTemplateThumbnailUrl(row);
     return {
       title,
-      imageUrl: parseTemplateThumbnailUrl(row),
+      imageUrl: resolvePicktyImageUrlForOpenGraph(rawThumb),
     };
   } catch {
     return null;
