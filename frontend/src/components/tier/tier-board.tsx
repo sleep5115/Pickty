@@ -277,11 +277,20 @@ export function TierBoard({ dragSelectRef, pointerModeReady = true }: TierBoardP
           )}
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); setIsExportOpen(true); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (targetTierId !== null) {
+                clearTarget();
+                clearSelection();
+                return;
+              }
+              setIsExportOpen(true);
+            }}
             className={[
               'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold',
               'bg-violet-600 hover:bg-violet-500 text-white',
-              'transition-all active:scale-95 shadow-lg shadow-violet-900/30',
+              'transition-all shadow-lg shadow-violet-900/30',
+              targetTierId === null ? 'active:scale-95' : '',
             ].join(' ')}
           >
             <FloppyDiskIcon />

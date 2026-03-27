@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Layers } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAuthStore } from '@/lib/store/auth-store';
+import { useTierStore } from '@/lib/store/tier-store';
 import { logoutSession } from '@/lib/auth-session';
 
 const NAV_LINKS = [
@@ -114,7 +115,14 @@ export function GNB() {
             <div className="relative" ref={accountRef}>
               <button
                 type="button"
-                onClick={() => setAccountOpen((v) => !v)}
+                onClick={() => {
+                  if (useTierStore.getState().targetTierId !== null) {
+                    useTierStore.getState().clearTarget();
+                    useTierStore.getState().clearSelection();
+                    return;
+                  }
+                  setAccountOpen((v) => !v);
+                }}
                 aria-expanded={accountOpen}
                 aria-haspopup="menu"
                 className={[
@@ -176,7 +184,14 @@ export function GNB() {
           <ThemeToggle />
           <button
             type="button"
-            onClick={() => setMenuOpen((v) => !v)}
+            onClick={() => {
+              if (useTierStore.getState().targetTierId !== null) {
+                useTierStore.getState().clearTarget();
+                useTierStore.getState().clearSelection();
+                return;
+              }
+              setMenuOpen((v) => !v);
+            }}
             aria-label="메뉴 열기"
             className={[
               'w-9 h-9 flex flex-col items-center justify-center gap-1.5 rounded-lg transition-colors',

@@ -52,6 +52,16 @@ export function ExportModal({ captureRef, onClose }: ExportModalProps) {
     const CAPTURE_WIDTH = 800;
 
     try {
+      // 타겟팅·멀티선택 UI가 캡처에 남지 않도록 먼저 해제 후, 리페인트까지 대기
+      const st = useTierStore.getState();
+      st.clearTarget();
+      st.clearSelection();
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => resolve());
+        });
+      });
+
       const url = await captureTierElementToPng(el, CAPTURE_WIDTH);
       setPreviewUrl(url);
     } catch (err) {
