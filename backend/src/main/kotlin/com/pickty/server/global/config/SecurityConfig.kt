@@ -82,6 +82,8 @@ class SecurityConfig(
                     .requestMatchers(HttpMethod.POST, "/api/v1/images").authenticated()
                     .requestMatchers(HttpMethod.POST, "/api/v1/tiers/results").authenticated()
                     .requestMatchers(HttpMethod.GET, "/api/v1/tiers/results/mine").authenticated()
+                    .requestMatchers(HttpMethod.PATCH, "/api/v1/tiers/results/**").authenticated()
+                    .requestMatchers(HttpMethod.DELETE, "/api/v1/tiers/results/**").authenticated()
                     .anyRequest().permitAll()
             }
             .oauth2Login { oauth2 ->

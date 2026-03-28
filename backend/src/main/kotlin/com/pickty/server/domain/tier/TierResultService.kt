@@ -1,8 +1,11 @@
 package com.pickty.server.domain.tier
 
+import com.fasterxml.jackson.databind.JsonNode
 import com.pickty.server.domain.tier.dto.CreateTierResultRequest
 import com.pickty.server.domain.tier.dto.TierResultResponse
 import com.pickty.server.domain.tier.dto.TierResultSummaryResponse
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -41,25 +44,31 @@ class TierResultService(
     }
 
     @Transactional(readOnly = true)
-    fun listMine(userId: Long): List<TierResultSummaryResponse> {
+    fun listMine(userId: Long): List<TierResultSummaryResponse> =
+        tierResultRepository.findByUserIdWithTemplateOrderByCreatedAtDesc(userId).map { toSummaryResponse(it) }
+
+    @Transactional(readOnly = true)
+    fun listAll(pageable: Pageable): Page<TierResultSummaryResponse> =
+        tierResultRepository.findAllByOrderByCreatedAtDesc(pageable).map { toSummaryResponse(it) }
+
+    private fun toSummaryResponse(e: TierResult): TierResultSummaryResponse {
         val fmt = DateTimeFormatter.ISO_LOCAL_DATE_TIME
-        return tierResultRepository.findByUserIdWithTemplateOrderByCreatedAtDesc(userId).map { e ->
-            val rid = e.id ?: throw IllegalStateException("result id null")
-            val tpl = e.template
-            val tid = tpl.id ?: throw IllegalStateException("template id null")
-            TierResultSummaryResponse(
-                id = rid,
-                templateId = tid,
-                templateTitle = tpl.title,
-                templateVersion = tpl.version,
-                listTitle = e.listTitle,
-                listDescription = e.listDescription,
-                isPublic = e.isPublic,
-                createdAt = e.createdAt.format(fmt),
-                thumbnailUrl = e.thumbnailUrl?.trim()?.takeIf { it.isNotEmpty() }
-                    ?: firstHttpImageFromSnapshot(e.snapshotData),
-            )
-        }
+        val rid = e.id ?: throw IllegalStateException("result id null")
+        val tpl = e.template
+        val tid = tpl.id ?: throw IllegalStateException("template id null")
+        return TierResultSummaryResponse(
+            id = rid,
+            templateId = tid,
+            templateTitle = tpl.title,
+            templateVersion = tpl.version,
+            listTitle = e.listTitle,
+            listDescription = e.listDescription,
+            isPublic = e.isPublic,
+            userId = e.userId,
+            createdAt = e.createdAt.format(fmt),
+            thumbnailUrl = e.thumbnailUrl?.trim()?.takeIf { it.isNotEmpty() }
+                ?: firstHttpImageFromSnapshot(e.snapshotData),
+        )
     }
 
     @Transactional(readOnly = true)
@@ -70,6 +79,43 @@ class TierResultService(
         val dto = toResponse(entity)
         tierResultCacheService.put(id, dto)
         return dto
+    }
+
+    @Transactional
+    fun patchMetadata(id: UUID, userId: Long, body: JsonNode): TierResultResponse {
+        val entity = tierResultRepository.findByIdWithTemplate(id)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "tier result not found")
+        if (entity.userId != userId) {
+            throw ResponseStatusException(HttpStatus.FORBIDDEN, "not owner")
+        }
+        var title = entity.listTitle
+        var description = entity.listDescription
+        if (body.has("title")) {
+            val n = body.get("title")
+            title = if (n.isNull) null else n.asText()?.trim()?.takeIf { it.isNotEmpty() }
+        }
+        if (body.has("description")) {
+            val n = body.get("description")
+            description = if (n.isNull) null else n.asText()?.trim()?.takeIf { it.isNotEmpty() }
+        }
+        entity.applyListMeta(title, description)
+        val rid = entity.id ?: throw IllegalStateException("result id null")
+        tierResultCacheService.evict(rid)
+        return toResponse(entity)
+    }
+
+    @Transactional
+    fun delete(id: UUID, userId: Long, isAdmin: Boolean) {
+        val entity = tierResultRepository.findById(id)
+            .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "tier result not found") }
+        val ownerId = entity.userId
+        val allowed = isAdmin || (ownerId != null && ownerId == userId)
+        if (!allowed) {
+            throw ResponseStatusException(HttpStatus.FORBIDDEN, "not allowed")
+        }
+        val rid = entity.id ?: throw IllegalStateException("result id null")
+        tierResultRepository.delete(entity)
+        tierResultCacheService.evict(rid)
     }
 
     private fun toResponse(entity: TierResult): TierResultResponse {

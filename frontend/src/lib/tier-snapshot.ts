@@ -40,3 +40,15 @@ export function rewriteSnapshotUploadedImageUrls(data: Record<string, unknown>):
     pool: rewriteTierItemsUploadUrls(pool as TierItem[]),
   };
 }
+
+/** API `snapshotData` → 보드 복원용 (리믹스·읽기 전용과 동일 스키마) */
+export function parseSnapshotDataToBoard(
+  data: Record<string, unknown>,
+): { tiers: Tier[]; pool: TierItem[] } | null {
+  const normalized = rewriteSnapshotUploadedImageUrls(data);
+  if (normalized.schemaVersion !== 1) return null;
+  const tiers = normalized.tiers;
+  const pool = normalized.pool;
+  if (!Array.isArray(tiers) || !Array.isArray(pool)) return null;
+  return { tiers: tiers as Tier[], pool: pool as TierItem[] };
+}

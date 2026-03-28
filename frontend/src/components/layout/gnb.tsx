@@ -1,16 +1,30 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { startTransition, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Layers } from 'lucide-react';
+import { Layers, Newspaper } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useTierStore } from '@/lib/store/tier-store';
 import { logoutSession } from '@/lib/auth-session';
 
 const NAV_LINKS = [
-  { href: '/templates', label: '티어표', Icon: Layers },
+  {
+    href: '/templates',
+    label: '티어표',
+    Icon: Layers,
+    isActive: (p: string) =>
+      p.startsWith('/templates') ||
+      p.startsWith('/template') ||
+      (p.startsWith('/tier') && !p.startsWith('/tier/feed')),
+  },
+  {
+    href: '/tier/feed',
+    label: '최신 피드',
+    Icon: Newspaper,
+    isActive: (p: string) => p.startsWith('/tier/feed'),
+  },
   // 후순위 미구현: 이상형 월드컵
   // { href: '/worldcup', label: '이상형 월드컵' },
 ] as const;
@@ -59,8 +73,10 @@ export function GNB() {
   }, [accountOpen]);
 
   useEffect(() => {
-    setMenuOpen(false);
-    setAccountOpen(false);
+    startTransition(() => {
+      setMenuOpen(false);
+      setAccountOpen(false);
+    });
   }, [pathname]);
 
   const accountLinkClass =
@@ -83,13 +99,8 @@ export function GNB() {
             role="navigation"
             aria-label="주요 메뉴"
           >
-            {NAV_LINKS.map(({ href, label, Icon }) => {
-              const active =
-                href === '/templates'
-                  ? pathname.startsWith('/templates') ||
-                    pathname.startsWith('/tier') ||
-                    pathname.startsWith('/template')
-                  : pathname.startsWith(href);
+            {NAV_LINKS.map(({ href, label, Icon, isActive }) => {
+              const active = isActive(pathname);
               return (
                 <Link
                   key={href}
@@ -158,6 +169,14 @@ export function GNB() {
                   >
                     내 티어표
                   </Link>
+                  <Link
+                    href="/tier/feed"
+                    role="menuitem"
+                    onClick={() => setAccountOpen(false)}
+                    className={accountLinkClass}
+                  >
+                    최신 피드
+                  </Link>
                   <div className="my-1 border-t border-slate-100 dark:border-zinc-800" />
                   <button
                     type="button"
@@ -208,13 +227,8 @@ export function GNB() {
           {menuOpen && (
             <div className="absolute top-14 right-0 left-0 border-b border-slate-200 dark:border-zinc-800 bg-white/98 dark:bg-zinc-950/98 backdrop-blur-sm shadow-lg">
               <div className="max-w-6xl mx-auto px-4 py-2 flex flex-col gap-1">
-                {NAV_LINKS.map(({ href, label, Icon }) => {
-                  const active =
-                    href === '/templates'
-                      ? pathname.startsWith('/templates') ||
-                        pathname.startsWith('/tier') ||
-                        pathname.startsWith('/template')
-                      : pathname.startsWith(href);
+                {NAV_LINKS.map(({ href, label, Icon, isActive }) => {
+                  const active = isActive(pathname);
                   return (
                     <Link
                       key={href}
@@ -247,6 +261,12 @@ export function GNB() {
                       className="text-sm px-3 py-2.5 rounded-lg text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800/60 transition-colors"
                     >
                       내 티어표
+                    </Link>
+                    <Link
+                      href="/tier/feed"
+                      className="text-sm px-3 py-2.5 rounded-lg text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800/60 transition-colors"
+                    >
+                      최신 피드
                     </Link>
                     <button
                       onClick={handleLogout}

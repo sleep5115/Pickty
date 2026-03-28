@@ -116,6 +116,12 @@ interface TierState {
   /** 서버 템플릿으로 풀만 교체 — 티어 행은 기본 S~E 빈 상태 */
   loadTemplateWorkspace: (payload: { templateId: string; pool: TierItem[] }) => void;
 
+  /**
+   * 저장된 티어 결과 스냅샷으로 보드 전체 복원(리믹스).
+   * POST 저장 시에는 항상 새 row가 되며 기존 결과를 덮어쓰지 않음.
+   */
+  hydrateFromResultSnapshot: (payload: { templateId: string; tiers: Tier[]; pool: TierItem[] }) => void;
+
   setPreviewItem: (item: PicktyItem | null) => void;
   /** 이미지 확대 중 이전(-1)/다음(+1) — 갤러리는 매번 풀+티어에서 재계산 */
   stepImagePreview: (delta: number) => void;
@@ -175,6 +181,24 @@ export const useTierStore = create<TierState>()(
           targetTierId: null,
           previewItem: null,
         }),
+
+      hydrateFromResultSnapshot: ({ templateId, tiers, pool }) => {
+        clearTierAutoSaveThumbnailStash();
+        set({
+          templateId,
+          tiers: tiers.map((t) => ({
+            ...t,
+            items: t.items.map((i) => ({ ...i })),
+          })),
+          pool: pool.map((i) => ({ ...i })),
+          selectedItemIds: [],
+          targetTierId: null,
+          previewItem: null,
+          tierAutoSaveIntent: false,
+          autoSaveListTitle: null,
+          autoSaveListDescription: null,
+        });
+      },
 
       toggleTargetTier: (tierId) =>
         set((state) => ({

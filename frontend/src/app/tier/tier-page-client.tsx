@@ -1,18 +1,21 @@
 'use client';
 
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { Suspense, startTransition, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { TierBoard } from '@/components/tier/tier-board';
 import { ImagePreviewModal } from '@/components/tier/image-preview-modal';
 import { useTierStore } from '@/lib/store/tier-store';
 import { useTierPersistHydrated } from '@/lib/hooks/use-tier-persist-hydrated';
 import { usePointerDevice } from '@/hooks/use-pointer-device';
-import { getTemplate, templatePayloadToTierItems } from '@/lib/tier-api';
+import { getTemplate, getTierResult, templatePayloadToTierItems } from '@/lib/tier-api';
+import { parseSnapshotDataToBoard } from '@/lib/tier-snapshot';
 
 function TierPageInner() {
   const searchParams = useSearchParams();
   const templateIdParam = searchParams.get('templateId');
+  const sourceResultIdParam = searchParams.get('sourceResultId');
   const loadTemplateWorkspace = useTierStore((s) => s.loadTemplateWorkspace);
+  const hydrateFromResultSnapshot = useTierStore((s) => s.hydrateFromResultSnapshot);
   const tierHydrated = useTierPersistHydrated();
 
   const { clearTarget, resetBoard, setPreviewItem } = useTierStore();
@@ -25,7 +28,7 @@ function TierPageInner() {
   const dragSelectRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setDeviceReady(true);
+    startTransition(() => setDeviceReady(true));
     const handler = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       setPreviewItem(null);
@@ -36,11 +39,47 @@ function TierPageInner() {
   }, [clearTarget, setPreviewItem]);
 
   useEffect(() => {
+    if (!tierHydrated) return;
+
+    if (sourceResultIdParam) {
+      let cancelled = false;
+      startTransition(() => {
+        setTemplateBanner('티어표 불러오는 중…');
+      });
+      void (async () => {
+        try {
+          const res = await getTierResult(sourceResultIdParam);
+          if (cancelled) return;
+          if (templateIdParam && res.templateId !== templateIdParam) {
+            setTemplateBanner('URL의 템플릿과 결과가 일치하지 않습니다.');
+            return;
+          }
+          const board = parseSnapshotDataToBoard(res.snapshotData as Record<string, unknown>);
+          if (!board) {
+            setTemplateBanner('지원하지 않는 티어표 데이터입니다.');
+            return;
+          }
+          hydrateFromResultSnapshot({
+            templateId: res.templateId,
+            tiers: board.tiers,
+            pool: board.pool,
+          });
+          setTemplateBanner(null);
+        } catch {
+          if (!cancelled) {
+            setTemplateBanner('티어 결과를 불러오지 못했습니다.');
+          }
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }
+
     if (!templateIdParam) {
-      setTemplateBanner(null);
+      startTransition(() => setTemplateBanner(null));
       return;
     }
-    if (!tierHydrated) return;
 
     const snap = useTierStore.getState();
     if (
@@ -48,12 +87,12 @@ function TierPageInner() {
       snap.templateId != null &&
       snap.templateId === templateIdParam
     ) {
-      setTemplateBanner(null);
+      startTransition(() => setTemplateBanner(null));
       return;
     }
 
     let cancelled = false;
-    setTemplateBanner('템플릿 불러오는 중…');
+    startTransition(() => setTemplateBanner('템플릿 불러오는 중…'));
     void (async () => {
       try {
         const detail = await getTemplate(templateIdParam);
@@ -74,7 +113,13 @@ function TierPageInner() {
     return () => {
       cancelled = true;
     };
-  }, [templateIdParam, loadTemplateWorkspace, tierHydrated]);
+  }, [
+    templateIdParam,
+    sourceResultIdParam,
+    loadTemplateWorkspace,
+    hydrateFromResultSnapshot,
+    tierHydrated,
+  ]);
 
   return (
     <div ref={dragSelectRef} className="flex flex-col select-none bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100">

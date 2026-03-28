@@ -68,7 +68,7 @@ data class TierResultResponse(
     val thumbnailUrl: String?,
 )
 
-/** 내 티어표 목록 — 스냅샷 JSON 제외 */
+/** 목록 카드용 — 스냅샷 JSON 제외 (글로벌 피드·내 티어표 공통) */
 data class TierResultSummaryResponse(
     val id: UUID,
     val templateId: UUID,
@@ -77,6 +77,8 @@ data class TierResultSummaryResponse(
     val listTitle: String?,
     val listDescription: String?,
     val isPublic: Boolean,
+    /** null 이면 익명·미귀속 결과 */
+    val userId: Long?,
     val createdAt: String,
     val thumbnailUrl: String?,
 )

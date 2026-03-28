@@ -78,4 +78,10 @@ class TierResult(
         this.userId = userId
         this.isTemporary = false
     }
+
+    /** 메타만 수정 — 서비스 레이어에서 소유자 검증 후 호출 */
+    fun applyListMeta(listTitle: String?, listDescription: String?) {
+        this.listTitle = listTitle
+        this.listDescription = listDescription
+    }
 }

@@ -1,12 +1,16 @@
 'use client';
 
 import Link from 'next/link';
-import { Download, Link2 } from 'lucide-react';
+import { Download, Link2, Pencil, Trash2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { TierBoardReadonly } from '@/components/tier/tier-board-readonly';
+import { TierResultEditMetaModal } from '@/components/tier/tier-result-edit-meta-modal';
+import { TierResultDeleteConfirmDialog } from '@/components/tier/tier-result-delete-confirm-dialog';
 import { getTierResult } from '@/lib/tier-api';
+import { apiFetch } from '@/lib/api-fetch';
+import { useAuthStore } from '@/lib/store/auth-store';
 import { captureTierElementToPng, formatImageCaptureError } from '@/lib/tier-capture-png';
 import type { Tier, TierItem } from '@/lib/store/tier-store';
 
@@ -20,19 +24,72 @@ function parseSnapshot(data: Record<string, unknown>): { tiers: Tier[]; pool: Ti
 
 export function TierResultClientPage() {
   const params = useParams();
+  const router = useRouter();
   const id = typeof params.id === 'string' ? params.id : '';
   const captureRef = useRef<HTMLDivElement>(null);
+  const accessToken = useAuthStore((s) => s.accessToken);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [templateId, setTemplateId] = useState<string | null>(null);
   const [templateTitle, setTemplateTitle] = useState('');
   const [listTitle, setListTitle] = useState<string | null>(null);
   const [listDescription, setListDescription] = useState<string | null>(null);
   const [version, setVersion] = useState(1);
+  const [resultUserId, setResultUserId] = useState<number | null>(null);
   const [tiers, setTiers] = useState<Tier[]>([]);
   const [pool, setPool] = useState<TierItem[]>([]);
   const [downloadBusy, setDownloadBusy] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [me, setMe] = useState<{ id: number; role: string } | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
+  const reloadResult = useCallback(async () => {
+    if (!id) return;
+    const res = await getTierResult(id);
+    const snap = parseSnapshot(res.snapshotData as Record<string, unknown>);
+    if (!snap) {
+      setError('지원하지 않는 스냅샷 형식입니다.');
+      throw new Error('unsupported snapshot');
+    }
+    setError(null);
+    setTemplateId(res.templateId);
+    setTemplateTitle(res.templateTitle);
+    setListTitle(res.listTitle);
+    setListDescription(res.listDescription);
+    setVersion(res.templateVersion);
+    setResultUserId(res.userId ?? null);
+    setTiers(snap.tiers);
+    setPool(snap.pool);
+  }, [id]);
+
+  useEffect(() => {
+    if (!accessToken) {
+      setMe(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await apiFetch('/api/v1/user/me', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!res.ok || cancelled) return;
+        const u = (await res.json()) as { id?: unknown; role?: unknown };
+        const mid = typeof u.id === 'number' ? u.id : Number(u.id);
+        const role = typeof u.role === 'string' ? u.role : '';
+        if (Number.isFinite(mid)) {
+          setMe({ id: mid, role });
+        }
+      } catch {
+        if (!cancelled) setMe(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken]);
 
   useEffect(() => {
     if (!id) {
@@ -43,19 +100,8 @@ export function TierResultClientPage() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await getTierResult(id);
+        await reloadResult();
         if (cancelled) return;
-        const snap = parseSnapshot(res.snapshotData as Record<string, unknown>);
-        if (!snap) {
-          setError('지원하지 않는 스냅샷 형식입니다.');
-          return;
-        }
-        setTemplateTitle(res.templateTitle);
-        setListTitle(res.listTitle);
-        setListDescription(res.listDescription);
-        setVersion(res.templateVersion);
-        setTiers(snap.tiers);
-        setPool(snap.pool);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : '불러오기 실패');
       } finally {
@@ -65,7 +111,18 @@ export function TierResultClientPage() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, reloadResult]);
+
+  const isOwner = Boolean(
+    me && resultUserId != null && me.id === resultUserId,
+  );
+  const canDelete = isOwner || me?.role === 'ADMIN';
+  const showEdit = isOwner && Boolean(accessToken);
+  const showDelete = canDelete && Boolean(accessToken);
+  const remixHref =
+    templateId != null
+      ? `/tier?templateId=${encodeURIComponent(templateId)}&sourceResultId=${encodeURIComponent(id)}`
+      : null;
 
   const copyShareLink = useCallback(async () => {
     if (typeof window === 'undefined' || !id) return;
@@ -131,6 +188,35 @@ export function TierResultClientPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {remixHref && (
+            <Link
+              href={remixHref}
+              className="inline-flex items-center justify-center gap-1.5 text-sm px-3 py-2 rounded-lg font-medium border border-slate-300 dark:border-zinc-600 text-slate-800 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-800/80 transition-colors"
+            >
+              <RefreshCw className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
+              다시 배치하기
+            </Link>
+          )}
+          {showEdit && accessToken && (
+            <button
+              type="button"
+              onClick={() => setEditOpen(true)}
+              className="inline-flex items-center justify-center gap-1.5 text-sm px-3 py-2 rounded-lg font-medium border border-slate-300 dark:border-zinc-600 text-slate-800 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-800/80 transition-colors"
+            >
+              <Pencil className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
+              수정
+            </button>
+          )}
+          {showDelete && accessToken && (
+            <button
+              type="button"
+              onClick={() => setDeleteOpen(true)}
+              className="inline-flex items-center justify-center gap-1.5 text-sm px-3 py-2 rounded-lg font-medium border border-red-300 dark:border-red-900/50 text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+            >
+              <Trash2 className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
+              삭제
+            </button>
+          )}
           <button
             type="button"
             onClick={() => void copyShareLink()}
@@ -185,6 +271,33 @@ export function TierResultClientPage() {
       <p className="text-xs text-slate-400 dark:text-zinc-600 text-center">
         읽기 전용 · 이 페이지 URL을 공유하면 동일한 배치를 볼 수 있습니다.
       </p>
+
+      {showEdit && accessToken && (
+        <TierResultEditMetaModal
+          open={editOpen}
+          onClose={() => setEditOpen(false)}
+          resultId={id}
+          accessToken={accessToken}
+          initialTitle={listTitle ?? ''}
+          initialDescription={listDescription ?? ''}
+          onSaved={() => {
+            void reloadResult().catch(() => toast.error('갱신에 실패했습니다.'));
+            toast.success('저장했어요.');
+          }}
+        />
+      )}
+      {showDelete && accessToken && (
+        <TierResultDeleteConfirmDialog
+          open={deleteOpen}
+          onClose={() => setDeleteOpen(false)}
+          resultId={id}
+          accessToken={accessToken}
+          onDeleted={() => {
+            toast.success('삭제했어요.');
+            router.replace('/tier/my');
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -1,5 +1,8 @@
 package com.pickty.server.domain.tier
 
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
+import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
@@ -28,6 +31,9 @@ interface TierResultRepository : JpaRepository<TierResult, UUID> {
         """,
     )
     fun findByUserIdWithTemplateOrderByCreatedAtDesc(@Param("userId") userId: Long): List<TierResult>
+
+    @EntityGraph(attributePaths = ["template"])
+    fun findAllByOrderByCreatedAtDesc(pageable: Pageable): Page<TierResult>
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE TierResult r SET r.userId = :newId WHERE r.userId = :oldId")

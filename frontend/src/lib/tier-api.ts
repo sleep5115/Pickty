@@ -91,8 +91,21 @@ export interface TierResultSummaryResponse {
   listTitle: string | null;
   listDescription: string | null;
   isPublic: boolean;
+  /** null 이면 익명·미귀속 */
+  userId: number | null;
   createdAt: string;
   thumbnailUrl: string | null;
+}
+
+export interface PageTierResultSummary {
+  content: TierResultSummaryResponse[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+  first: boolean;
+  last: boolean;
+  empty: boolean;
 }
 
 function authHeaders(token: string | null | undefined): HeadersInit {
@@ -120,6 +133,48 @@ export function parseTemplateThumbnailUrl(raw: Record<string, unknown>): string 
     return resolvePicktyUploadsUrl(v[0].trim());
   }
   return null;
+}
+
+function optStringField(row: Record<string, unknown>, camel: string, snake: string): string | null {
+  const a = row[camel];
+  const b = row[snake];
+  if (typeof a === 'string') return a;
+  if (typeof b === 'string') return b;
+  return null;
+}
+
+export function mapTierResultSummaryRow(row: Record<string, unknown>): TierResultSummaryResponse {
+  const uidRaw = row.userId ?? row.user_id;
+  let userId: number | null = null;
+  if (uidRaw != null && uidRaw !== '') {
+    const n = typeof uidRaw === 'number' ? uidRaw : Number(uidRaw);
+    if (Number.isFinite(n)) userId = n;
+  }
+  return {
+    id: row.id != null ? String(row.id) : '',
+    templateId: row.templateId != null ? String(row.templateId) : String(row.template_id ?? ''),
+    templateTitle:
+      typeof row.templateTitle === 'string'
+        ? row.templateTitle
+        : typeof row.template_title === 'string'
+          ? row.template_title
+          : '',
+    templateVersion:
+      typeof row.templateVersion === 'number'
+        ? row.templateVersion
+        : Number(row.template_version) || 0,
+    listTitle: optStringField(row, 'listTitle', 'list_title'),
+    listDescription: optStringField(row, 'listDescription', 'list_description'),
+    isPublic: Boolean(row.isPublic ?? row.is_public),
+    userId,
+    createdAt:
+      typeof row.createdAt === 'string'
+        ? row.createdAt
+        : typeof row.created_at === 'string'
+          ? row.created_at
+          : '',
+    thumbnailUrl: parseResultThumbnailUrl(row),
+  };
 }
 
 export function parseResultThumbnailUrl(raw: Record<string, unknown>): string | null {
@@ -284,13 +339,41 @@ export async function listMyTierResults(accessToken: string | null): Promise<Tie
     throw new Error(t || `내 티어표 목록을 불러오지 못했습니다 (${res.status})`);
   }
   const rows = (await res.json()) as Record<string, unknown>[];
-  return rows.map((row) => {
-    const r = row as unknown as TierResultSummaryResponse;
-    return {
-      ...r,
-      thumbnailUrl: parseResultThumbnailUrl(row),
-    };
+  return rows.map((row) => mapTierResultSummaryRow(row));
+}
+
+export async function listTierResultsFeedPage(
+  page: number,
+  size = 12,
+): Promise<PageTierResultSummary> {
+  const params = new URLSearchParams({
+    page: String(page),
+    size: String(size),
+    sort: 'createdAt,desc',
   });
+  const res = await apiFetch(`/api/v1/tiers/results?${params.toString()}`);
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(t || `피드를 불러오지 못했습니다 (${res.status})`);
+  }
+  const body = (await res.json()) as Record<string, unknown>;
+  const rawContent = body.content;
+  const content = Array.isArray(rawContent)
+    ? rawContent.map((row) =>
+        row && typeof row === 'object' ? mapTierResultSummaryRow(row as Record<string, unknown>) : null,
+      )
+    : [];
+  const filtered = content.filter((x): x is TierResultSummaryResponse => x != null);
+  return {
+    content: filtered,
+    totalElements: Number(body.totalElements ?? body.total_elements) || 0,
+    totalPages: Number(body.totalPages ?? body.total_pages) || 0,
+    size: Number(body.size) || size,
+    number: Number(body.number) || page,
+    first: Boolean(body.first),
+    last: Boolean(body.last),
+    empty: Boolean(body.empty),
+  };
 }
 
 export async function getTierResult(id: string): Promise<TierResultResponse> {
@@ -306,4 +389,44 @@ export async function getTierResult(id: string): Promise<TierResultResponse> {
     snapshotData: rewriteSnapshotUploadedImageUrls(raw.snapshotData),
     thumbnailUrl: parseResultThumbnailUrl(row),
   };
+}
+
+export async function patchTierResultMeta(
+  id: string,
+  body: { title: string | null; description: string | null },
+  accessToken: string | null,
+): Promise<TierResultResponse> {
+  const res = await apiFetch(`/api/v1/tiers/results/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(accessToken),
+    },
+    body: JSON.stringify({
+      title: body.title,
+      description: body.description,
+    }),
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(t || `수정 실패 (${res.status})`);
+  }
+  const row = (await res.json()) as Record<string, unknown>;
+  const raw = row as unknown as TierResultResponse;
+  return {
+    ...raw,
+    snapshotData: rewriteSnapshotUploadedImageUrls(raw.snapshotData),
+    thumbnailUrl: parseResultThumbnailUrl(row),
+  };
+}
+
+export async function deleteTierResult(id: string, accessToken: string | null): Promise<void> {
+  const res = await apiFetch(`/api/v1/tiers/results/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: { ...authHeaders(accessToken) },
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(t || `삭제 실패 (${res.status})`);
+  }
 }
