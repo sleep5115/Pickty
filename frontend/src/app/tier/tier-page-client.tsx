@@ -1,13 +1,19 @@
 'use client';
 
-import { Suspense, startTransition, useEffect, useRef, useState } from 'react';
+import { Suspense, startTransition, useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { toast } from 'sonner';
 import { TierBoard } from '@/components/tier/tier-board';
 import { ImagePreviewModal } from '@/components/tier/image-preview-modal';
 import { useTierStore } from '@/lib/store/tier-store';
 import { useTierPersistHydrated } from '@/lib/hooks/use-tier-persist-hydrated';
 import { usePointerDevice } from '@/hooks/use-pointer-device';
-import { getTemplate, getTierResult, templatePayloadToTierItems } from '@/lib/tier-api';
+import {
+  getTemplate,
+  getTierResult,
+  templateItemsDescription,
+  templatePayloadToTierItems,
+} from '@/lib/tier-api';
 import { parseSnapshotDataToBoard } from '@/lib/tier-snapshot';
 
 function TierPageInner() {
@@ -19,6 +25,9 @@ function TierPageInner() {
   const tierHydrated = useTierPersistHydrated();
 
   const { clearTarget, resetBoard, setPreviewItem } = useTierStore();
+  const templateId = useTierStore((s) => s.templateId);
+  const workspaceTemplateTitle = useTierStore((s) => s.workspaceTemplateTitle);
+  const workspaceTemplateDescription = useTierStore((s) => s.workspaceTemplateDescription);
   const { isPointerFine } = usePointerDevice();
   const [deviceReady, setDeviceReady] = useState(false);
   const isFine = deviceReady ? (isPointerFine ?? true) : true;
@@ -26,6 +35,20 @@ function TierPageInner() {
   const [templateBanner, setTemplateBanner] = useState<string | null>(null);
 
   const dragSelectRef = useRef<HTMLDivElement>(null);
+
+  const copyTemplateShareLink = useCallback(async () => {
+    if (!templateId || typeof window === 'undefined') return;
+    const url = `${window.location.origin}/tier?templateId=${encodeURIComponent(templateId)}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success('클립보드에 복사했어요.');
+    } catch {
+      toast.error('복사에 실패했어요. 주소 표시줄의 URL을 직접 복사해 주세요.');
+    }
+  }, [templateId]);
+
+  const slimOutlineBtn =
+    'text-xs px-2 py-1 rounded border font-medium transition-colors border-slate-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800/80';
 
   useEffect(() => {
     startTransition(() => setDeviceReady(true));
@@ -63,8 +86,19 @@ function TierPageInner() {
             templateId: res.templateId,
             tiers: board.tiers,
             pool: board.pool,
+            workspaceTemplateTitle: res.templateTitle,
+            workspaceTemplateDescription: null,
           });
           setTemplateBanner(null);
+          void getTemplate(res.templateId)
+            .then((detail) => {
+              if (cancelled) return;
+              useTierStore.getState().setWorkspaceTemplateMeta({
+                title: detail.title,
+                description: templateItemsDescription(detail.items),
+              });
+            })
+            .catch(() => {});
         } catch {
           if (!cancelled) {
             setTemplateBanner('티어 결과를 불러오지 못했습니다.');
@@ -102,7 +136,12 @@ function TierPageInner() {
           setTemplateBanner('템플릿에 아이템이 없습니다.');
           return;
         }
-        loadTemplateWorkspace({ templateId: detail.id, pool });
+        loadTemplateWorkspace({
+          templateId: detail.id,
+          pool,
+          workspaceTemplateTitle: detail.title,
+          workspaceTemplateDescription: templateItemsDescription(detail.items),
+        });
         setTemplateBanner(null);
       } catch {
         if (!cancelled) {
@@ -123,34 +162,61 @@ function TierPageInner() {
 
   return (
     <div ref={dragSelectRef} className="flex flex-col select-none bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100">
-      <header className="shrink-0 flex items-center justify-between px-2 py-2 bg-slate-100 dark:bg-zinc-950 border-y border-slate-200 dark:border-zinc-800">
-        <span className="text-sm font-semibold text-slate-700 dark:text-zinc-300">티어표</span>
-
-        <div className="flex items-center gap-2">
-          {templateBanner && (
-            <span className="text-xs text-amber-700 dark:text-amber-400 max-w-[min(280px,45vw)] truncate">
-              {templateBanner}
-            </span>
-          )}
-          <span
-            className={[
-              'text-xs px-2 py-1 rounded border font-medium',
-              isFine
-                ? 'text-blue-600 dark:text-blue-400 border-blue-300 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40'
-                : 'text-green-600 dark:text-green-400 border-green-300 dark:border-green-800 bg-green-50 dark:bg-green-950/40',
-            ].join(' ')}
-          >
-            {isFine ? '🖱 PC 모드' : '👆 터치 모드'}
+      <header className="shrink-0 flex items-center justify-between gap-2 px-2 py-2 bg-slate-100 dark:bg-zinc-950 border-y border-slate-200 dark:border-zinc-800">
+        <span className="text-sm font-semibold text-slate-700 dark:text-zinc-300 shrink-0">템플릿</span>
+        {templateBanner ? (
+          <span className="text-xs text-amber-700 dark:text-amber-400 truncate min-w-0 text-right">
+            {templateBanner}
           </span>
-
-          <button
-            onClick={resetBoard}
-            className="text-sm px-3 py-1 rounded border border-slate-300 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:border-slate-400 dark:hover:border-zinc-500 transition-colors"
-          >
-            초기화
-          </button>
-        </div>
+        ) : null}
       </header>
+
+      <div
+        className="shrink-0 bg-slate-100 dark:bg-zinc-950 border-b border-slate-200 dark:border-zinc-800"
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        {templateId ? (
+          <div className="px-3 sm:px-4 pt-2 pb-1.5 text-left">
+            <h2 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-zinc-100">
+              {workspaceTemplateTitle?.trim() || '템플릿'}
+            </h2>
+            {workspaceTemplateDescription?.trim() ? (
+              <p className="mt-1 text-sm leading-relaxed text-slate-600 dark:text-zinc-400 whitespace-pre-wrap">
+                {workspaceTemplateDescription.trim()}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+        <div
+          className={[
+            'flex items-center justify-between gap-2 px-2 py-1.5',
+            templateId ? 'border-t border-slate-200/70 dark:border-zinc-800/80' : '',
+          ].join(' ')}
+        >
+          <div className="min-w-0 flex items-center">
+            {templateId ? (
+              <button type="button" onClick={() => void copyTemplateShareLink()} className={slimOutlineBtn}>
+                🔗 템플릿 공유
+              </button>
+            ) : null}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <span
+              className={[
+                'text-xs px-2 py-1 rounded border font-medium',
+                isFine
+                  ? 'text-blue-600 dark:text-blue-400 border-blue-300 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40'
+                  : 'text-green-600 dark:text-green-400 border-green-300 dark:border-green-800 bg-green-50 dark:bg-green-950/40',
+              ].join(' ')}
+            >
+              {isFine ? '🖱 PC 모드' : '👆 터치 모드'}
+            </span>
+            <button type="button" onClick={resetBoard} className={slimOutlineBtn}>
+              초기화
+            </button>
+          </div>
+        </div>
+      </div>
 
       <TierBoard dragSelectRef={dragSelectRef} pointerModeReady={deviceReady} />
 

@@ -38,6 +38,12 @@ export interface TemplateSummaryResponse {
   thumbnailUrl: string | null;
 }
 
+/** 템플릿 items JSONB의 `description` 문자열 (없으면 null) */
+export function templateItemsDescription(items: Record<string, unknown>): string | null {
+  const d = items.description;
+  return typeof d === 'string' && d.trim() ? d.trim() : null;
+}
+
 /** 템플릿 JSONB에서 티어 풀 아이템만 추출 (description 등 메타는 무시) */
 export function templatePayloadToTierItems(payload: Record<string, unknown>): TierItem[] {
   const raw = payload.items;

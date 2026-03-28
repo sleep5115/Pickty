@@ -1,0 +1,37 @@
+---
+description: 기록·커밋·배포 용어와 커밋 메시지(한글) 규칙
+alwaysApply: true
+---
+
+# Pickty — 작업 용어 · Git 컨벤션
+
+에이전트·채팅에서 아래 단어가 나오면 **이 의미**로 해석하고 따른다.
+
+## 용어
+
+| 사용자 표현 | 의미 |
+|-------------|------|
+| **기록** | **진행상황 업데이트** — 루트 **`PROGRESS.md`** 를 현재 작업·결정에 맞게 갱신한다. 장문·날짜별 히스토리는 필요 시 **`progress/PROGRESS_YYYYMMDD.md`** 보관본에 정리. |
+| **커밋** | **Pickty** 레포: 브랜치 **`dev`** 에 커밋한다. **pickty-config** 레포: 브랜치 **`main`** 에 커밋한다. (두 레포 모두 로컬에서 각각 커밋.) |
+| **배포** | **Pickty**: **`dev`** 에 커밋 후 **push**, 그 다음 **`main`으로 merge**(머지)하여 배포 반영. **pickty-config**: **`main`** 에 커밋 후 **push**. |
+
+- Pickty에서 `main`은 관례상 직접 push 금지 — `dev` 머지로만 맞춘다(`pickty-project-context.mdc` 브랜치 전략과 동일).
+
+## 커밋 메시지
+
+- **무엇을 했는지는 한글로** 쓴다. (영어만 본문에 두지 않는다.)
+- `type(scope):` 접두사는 유지해도 되고, **콜론 뒤 설명은 한글**이어야 한다.
+
+**나쁜 예**
+
+```text
+feat(frontend): remove tier ad placeholder
+```
+
+**좋은 예**
+
+```text
+feat(frontend): tier 광고 플레이스홀더 제거
+```
+
+- 여러 줄 바디가 있으면 동일하게 **한글** 위주로 작성한다.

@@ -3,7 +3,7 @@
 import { startTransition, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Layers, Newspaper } from 'lucide-react';
+import { LayoutGrid, List } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useTierStore } from '@/lib/store/tier-store';
@@ -12,17 +12,14 @@ import { logoutSession } from '@/lib/auth-session';
 const NAV_LINKS = [
   {
     href: '/templates',
-    label: '티어표',
-    Icon: Layers,
-    isActive: (p: string) =>
-      p.startsWith('/templates') ||
-      p.startsWith('/template') ||
-      (p.startsWith('/tier') && !p.startsWith('/tier/feed')),
+    label: '템플릿',
+    Icon: LayoutGrid,
+    isActive: (p: string) => p.startsWith('/templates') || p.startsWith('/template'),
   },
   {
     href: '/tier/feed',
-    label: '최신 피드',
-    Icon: Newspaper,
+    label: '티어표',
+    Icon: List,
     isActive: (p: string) => p.startsWith('/tier/feed'),
   },
   // 후순위 미구현: 이상형 월드컵
@@ -175,7 +172,7 @@ export function GNB() {
                     onClick={() => setAccountOpen(false)}
                     className={accountLinkClass}
                   >
-                    최신 피드
+                    티어표
                   </Link>
                   <div className="my-1 border-t border-slate-100 dark:border-zinc-800" />
                   <button
@@ -266,7 +263,7 @@ export function GNB() {
                       href="/tier/feed"
                       className="text-sm px-3 py-2.5 rounded-lg text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800/60 transition-colors"
                     >
-                      최신 피드
+                      티어표
                     </Link>
                     <button
                       onClick={handleLogout}

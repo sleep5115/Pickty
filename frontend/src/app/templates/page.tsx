@@ -102,7 +102,7 @@ export default function TemplatesPage() {
             티어 템플릿
           </h1>
           <p className="mt-1 text-sm text-slate-600 dark:text-zinc-400">
-            템플릿을 고르면 바로 순위를 매길 수 있어요.
+            템플릿을 고르면 바로 티어표를 만들어 볼 수 있어요.
           </p>
         </div>
         <Link

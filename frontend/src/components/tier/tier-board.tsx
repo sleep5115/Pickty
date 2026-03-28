@@ -15,8 +15,6 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { Link2 } from 'lucide-react';
-import { toast } from 'sonner';
 import { useTierStore } from '@/lib/store/tier-store';
 import { usePointerDevice } from '@/hooks/use-pointer-device';
 import { useDragSelect } from '@/hooks/use-drag-select';
@@ -49,8 +47,6 @@ export function TierBoard({ dragSelectRef, pointerModeReady = true }: TierBoardP
     clearSelection,
     toggleItemSelection,
   } = useTierStore();
-  const templateId = useTierStore((s) => s.templateId);
-
   const { isPointerFine } = usePointerDevice();
   const isFine = pointerModeReady ? (isPointerFine ?? true) : true;
 
@@ -72,17 +68,6 @@ export function TierBoard({ dragSelectRef, pointerModeReady = true }: TierBoardP
       activationConstraint: { distance: 8 },
     }),
   );
-
-  const copyTemplateShareLink = useCallback(async () => {
-    if (!templateId || typeof window === 'undefined') return;
-    const url = `${window.location.origin}/tier?templateId=${encodeURIComponent(templateId)}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      toast.success('클립보드에 복사했어요.');
-    } catch {
-      toast.error('복사에 실패했어요. 주소 표시줄의 URL을 직접 복사해 주세요.');
-    }
-  }, [templateId]);
 
   const tierIds = tiers.map((t) => t.id);
 
@@ -222,9 +207,8 @@ export function TierBoard({ dragSelectRef, pointerModeReady = true }: TierBoardP
           </button>
         </div>
 
-        {/* 티어 행 영역 */}
+        {/* 티어 행 영역 — 캡처는 티어 행만 (Item Pool 제외), 워터마크는 PNG 다운로드 시에만 삽입 */}
         <div>
-          {/* 캡처 영역 — Item Pool 제외, 티어 행만 포함 */}
           <div ref={captureRef} className="relative bg-white dark:bg-zinc-900">
             <SortableContext items={tierIds} strategy={verticalListSortingStrategy}>
               {tiers.map((tier) => (
@@ -240,40 +224,11 @@ export function TierBoard({ dragSelectRef, pointerModeReady = true }: TierBoardP
                 />
               ))}
             </SortableContext>
-            <div
-              className="pointer-events-none absolute bottom-2 right-2 z-10 select-none"
-              aria-hidden
-            >
-              <span
-                className="text-[10px] sm:text-[11px] font-black tracking-tight bg-linear-to-r from-violet-500 via-fuchsia-500 to-pink-500 bg-clip-text text-transparent opacity-[0.88] drop-shadow-[0_1px_2px_rgba(0,0,0,0.55)]"
-              >
-                pickty.app
-              </span>
-            </div>
           </div>
         </div>
 
-        {/* 공유(템플릿) | 저장(서버) | 다운로드(PNG) — 모달에서 제목·설명 입력 후 분기 */}
+        {/* 저장(서버) | 다운로드(PNG) — 모달에서 제목·설명 입력 후 분기 */}
         <div className="flex justify-end items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-zinc-950 border-t border-slate-200 dark:border-zinc-800">
-          {templateId && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                void copyTemplateShareLink();
-              }}
-              className={[
-                'inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold',
-                'border border-slate-300 dark:border-zinc-600 text-slate-800 dark:text-zinc-200',
-                'transition-all duration-150 ease-out',
-                'hover:bg-slate-50 dark:hover:bg-zinc-800/80',
-                'active:scale-[0.98] active:bg-slate-100 dark:active:bg-zinc-700',
-              ].join(' ')}
-            >
-              <Link2 className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
-              공유
-            </button>
-          )}
           <button
             type="button"
             onClick={(e) => {

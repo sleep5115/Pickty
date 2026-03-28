@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Download, Link2, Pencil, Trash2, RefreshCw } from 'lucide-react';
+import { Download, Link2, MoreHorizontal, Pencil, RefreshCw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -44,6 +44,8 @@ export function TierResultClientPage() {
   const [me, setMe] = useState<{ id: number; role: string } | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
 
   const reloadResult = useCallback(async () => {
     if (!id) return;
@@ -119,10 +121,29 @@ export function TierResultClientPage() {
   const canDelete = isOwner || me?.role === 'ADMIN';
   const showEdit = isOwner && Boolean(accessToken);
   const showDelete = canDelete && Boolean(accessToken);
+  const showOwnerMenu = Boolean(accessToken && (showEdit || showDelete));
   const remixHref =
     templateId != null
       ? `/tier?templateId=${encodeURIComponent(templateId)}&sourceResultId=${encodeURIComponent(id)}`
       : null;
+
+  useEffect(() => {
+    if (!moreMenuOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
+        setMoreMenuOpen(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMoreMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [moreMenuOpen]);
 
   const copyShareLink = useCallback(async () => {
     if (typeof window === 'undefined' || !id) return;
@@ -141,7 +162,7 @@ export function TierResultClientPage() {
     setDownloadError(null);
     setDownloadBusy(true);
     try {
-      const url = await captureTierElementToPng(el, 800);
+      const url = await captureTierElementToPng(el, 800, { includeWatermark: true });
       const a = document.createElement('a');
       a.href = url;
       const base =
@@ -187,7 +208,7 @@ export function TierResultClientPage() {
             템플릿: {templateTitle} · v{version}
           </p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
           {remixHref && (
             <Link
               href={remixHref}
@@ -196,26 +217,6 @@ export function TierResultClientPage() {
               <RefreshCw className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
               다시 배치하기
             </Link>
-          )}
-          {showEdit && accessToken && (
-            <button
-              type="button"
-              onClick={() => setEditOpen(true)}
-              className="inline-flex items-center justify-center gap-1.5 text-sm px-3 py-2 rounded-lg font-medium border border-slate-300 dark:border-zinc-600 text-slate-800 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-800/80 transition-colors"
-            >
-              <Pencil className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
-              수정
-            </button>
-          )}
-          {showDelete && accessToken && (
-            <button
-              type="button"
-              onClick={() => setDeleteOpen(true)}
-              className="inline-flex items-center justify-center gap-1.5 text-sm px-3 py-2 rounded-lg font-medium border border-red-300 dark:border-red-900/50 text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
-            >
-              <Trash2 className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
-              삭제
-            </button>
           )}
           <button
             type="button"
@@ -240,18 +241,60 @@ export function TierResultClientPage() {
             <Download className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
             {downloadBusy ? '이미지 생성 중…' : '다운로드'}
           </button>
-          <Link
-            href="/tier/my"
-            className="text-sm px-3 py-2 rounded-lg border border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
-          >
-            목록
-          </Link>
-          <Link
-            href="/templates"
-            className="text-sm px-3 py-2 rounded-lg border border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
-          >
-            템플릿 고르기
-          </Link>
+          {showOwnerMenu && (
+            <div className="relative shrink-0" ref={moreMenuRef}>
+              <button
+                type="button"
+                onClick={() => setMoreMenuOpen((v) => !v)}
+                aria-expanded={moreMenuOpen}
+                aria-haspopup="menu"
+                aria-label="더 보기"
+                className={[
+                  'inline-flex h-9 w-9 items-center justify-center rounded-lg border transition-colors',
+                  moreMenuOpen
+                    ? 'border-violet-400 dark:border-violet-600 bg-violet-50 dark:bg-violet-950/40 text-slate-900 dark:text-zinc-100'
+                    : 'border-slate-300 dark:border-zinc-600 text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800',
+                ].join(' ')}
+              >
+                <MoreHorizontal className="h-5 w-5" strokeWidth={2} aria-hidden />
+              </button>
+              {moreMenuOpen && (
+                <div
+                  role="menu"
+                  className="absolute right-0 z-50 mt-1 min-w-[10rem] rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 py-1 shadow-lg shadow-black/10 dark:shadow-black/40"
+                >
+                  {showEdit && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800"
+                      onClick={() => {
+                        setMoreMenuOpen(false);
+                        setEditOpen(true);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+                      수정
+                    </button>
+                  )}
+                  {showDelete && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+                      onClick={() => {
+                        setMoreMenuOpen(false);
+                        setDeleteOpen(true);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+                      삭제
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
       {listDescription?.trim() && (

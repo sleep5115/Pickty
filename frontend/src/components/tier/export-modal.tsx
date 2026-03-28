@@ -24,6 +24,8 @@ const BENEFITS = [
   '나만의 템플릿 제작',
 ];
 
+const TIER_EXPORT_CAPTURE_WIDTH = 800;
+
 export function ExportModal({ captureRef, onClose }: ExportModalProps) {
   const router = useRouter();
   const accessToken = useAuthStore((s) => s.accessToken);
@@ -52,8 +54,6 @@ export function ExportModal({ captureRef, onClose }: ExportModalProps) {
     setIsGenerating(true);
     setPreviewUrl(null);
 
-    const CAPTURE_WIDTH = 800;
-
     try {
       // 타겟팅·멀티선택 UI가 캡처에 남지 않도록 먼저 해제 후, 리페인트까지 대기
       const st = useTierStore.getState();
@@ -65,7 +65,7 @@ export function ExportModal({ captureRef, onClose }: ExportModalProps) {
         });
       });
 
-      const url = await captureTierElementToPng(el, CAPTURE_WIDTH);
+      const url = await captureTierElementToPng(el, TIER_EXPORT_CAPTURE_WIDTH);
       setPreviewUrl(url);
     } catch (err) {
       console.error('캡처 실패:', formatImageCaptureError(err), err);
@@ -107,15 +107,31 @@ export function ExportModal({ captureRef, onClose }: ExportModalProps) {
     router.push('/login?returnTo=%2Ftier');
   }, [listTitle, listDescription, router, previewUrl]);
 
-  const handleDownload = () => {
-    if (!previewUrl) return;
-    const a = document.createElement('a');
-    a.href = previewUrl;
-    const base = isLoggedIn ? listTitle.trim().replace(/[/\\?%*:|"<>]/g, '') || 'tier-list' : 'tier-list';
-    a.download = `${base}-${Date.now()}.png`;
-    a.click();
-    // 로그인 상태에서는 다운로드만 하고, 비로그인용 완료·로그인 유도 화면으로 넘기지 않음
-    if (!isLoggedIn) setIsDownloaded(true);
+  const handleDownload = async () => {
+    const el = captureRef.current;
+    if (!el || !previewUrl) return;
+    try {
+      const st = useTierStore.getState();
+      st.clearTarget();
+      st.clearSelection();
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => resolve());
+        });
+      });
+      const url = await captureTierElementToPng(el, TIER_EXPORT_CAPTURE_WIDTH, {
+        includeWatermark: true,
+      });
+      const a = document.createElement('a');
+      a.href = url;
+      const base = isLoggedIn ? listTitle.trim().replace(/[/\\?%*:|"<>]/g, '') || 'tier-list' : 'tier-list';
+      a.download = `${base}-${Date.now()}.png`;
+      a.click();
+      if (!isLoggedIn) setIsDownloaded(true);
+    } catch (err) {
+      console.error('다운로드 캡처 실패:', formatImageCaptureError(err), err);
+      toast.error('다운로드용 이미지를 만들지 못했어요. 잠시 후 다시 시도해 주세요.');
+    }
   };
 
   const handleSave = async () => {
@@ -236,7 +252,7 @@ function GuestDownloadOnlyPanel({
 }: {
   previewUrl: string | null;
   isGenerating: boolean;
-  onDownload: () => void;
+  onDownload: () => void | Promise<void>;
   onRegenerate: () => void;
   onClose: () => void;
   onLoginToSave: () => void | Promise<void>;
@@ -275,7 +291,7 @@ function GuestDownloadOnlyPanel({
         </button>
         <button
           type="button"
-          onClick={onDownload}
+          onClick={() => void onDownload()}
           disabled={!previewUrl}
           className={[
             'w-full py-3 rounded-lg font-semibold text-sm transition-all border border-slate-300 dark:border-zinc-600',
@@ -345,7 +361,7 @@ function LoggedInSaveDownloadPanel({
   isGenerating: boolean;
   saveBusy: boolean;
   saveError: string | null;
-  onDownload: () => void;
+  onDownload: () => void | Promise<void>;
   onSave: () => void | Promise<void>;
   onRegenerate: () => void;
   onClose: () => void;
@@ -402,7 +418,7 @@ function LoggedInSaveDownloadPanel({
         <div className="flex flex-col sm:flex-row gap-2">
           <button
             type="button"
-            onClick={onDownload}
+            onClick={() => void onDownload()}
             disabled={!previewUrl}
             className={[
               'flex-1 py-3 rounded-lg font-semibold text-sm transition-all border-2',

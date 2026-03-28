@@ -18,9 +18,10 @@ alwaysApply: true
 
 - **Cursor는 이 레포 루트 `Pickty/` 폴더만 연다** (`파일` → `폴더 열기` → `Pickty`). 부모 폴더만 열면 `.cursor/rules` 자동 로드·`@` 경로가 꼬일 수 있다.
 - **비공개 설정 레포 `pickty-config`** 는 **Pickty와 같은 부모 아래 형제 폴더**로 둔다. 워크스페이스에 꼭 넣을 필요 없음(시크릿이 채팅·인덱싱에 올라갈 위험 감소). 복사 절차는 아래 **Git 계정 관리** 블록 주석 참고.
-- 개발·에이전트 맥락은 **이 두 파일만** 유지한다 (여기까지 기록하며 개발해 왔음).
+- 개발·에이전트 맥락은 아래를 유지한다.
   1. **`.cursor/rules/pickty-project-context.mdc`** — 전역 규칙·스택·보안·Git·워크플로 (`alwaysApply`)
-  2. **`PROGRESS.md`** (루트) — 진행 요약·최신 메모. **장문 히스토리**는 **`progress/`** 폴더의 `PROGRESS_YYYYMMDD.md` 보관본. 새 채팅/에이전트는 코드 작업 전 **반드시 루트 `PROGRESS.md`를 먼저 읽는다**
+  2. **`.cursor/rules/pickty-workflow-terms.mdc`** — **기록·커밋·배포** 용어, 커밋 메시지 한글 규칙 (`alwaysApply`)
+  3. **`PROGRESS.md`** (루트) — 진행 요약·최신 메모. **장문 히스토리**는 **`progress/`** 폴더의 `PROGRESS_YYYYMMDD.md` 보관본. 새 채팅/에이전트는 코드 작업 전 **반드시 루트 `PROGRESS.md`를 먼저 읽는다**
 
 ### 브랜치 전략
 | 브랜치 | 용도 |
@@ -29,6 +30,10 @@ alwaysApply: true
 | `dev` | 기본 브랜치 — 평소 개발 작업, force push 허용 |
 
 - **로컬·에이전트 작업:** `main` 으로 머지해 배포 반영할 때만 맞추고, **그 외에는 항상 `dev` 체크아웃**으로 유지한다.
+
+### 용어: 기록 · 커밋 · 배포 · 커밋 로그
+
+- 채팅에서 **「기록」** = `PROGRESS.md` 진행상황 갱신, **「커밋」** = Pickty는 `dev` / pickty-config는 `main`에 각각 커밋, **「배포」** = Pickty `dev` push + `main` 머지 + pickty-config `main` push 등 — **전체 정의·커밋 메시지 한글 규칙**은 **`pickty-workflow-terms.mdc`** 를 따른다.
 
 ## 확정 버전 스택
 

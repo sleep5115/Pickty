@@ -60,6 +60,9 @@ const INITIAL_POOL: TierItem[] = [];
 interface TierState {
   /** 서버 템플릿 UUID — 없으면 첫 서버 저장 시 템플릿 생성 */
   templateId: string | null;
+  /** 메이커 상단에 표시 — API 템플릿 제목·설명(플레이 중인 템플릿) */
+  workspaceTemplateTitle: string | null;
+  workspaceTemplateDescription: string | null;
   tiers: Tier[];
   pool: TierItem[];
   selectedItemIds: string[];
@@ -114,13 +117,26 @@ interface TierState {
   setTemplateId: (id: string | null) => void;
 
   /** 서버 템플릿으로 풀만 교체 — 티어 행은 기본 S~E 빈 상태 */
-  loadTemplateWorkspace: (payload: { templateId: string; pool: TierItem[] }) => void;
+  loadTemplateWorkspace: (payload: {
+    templateId: string;
+    pool: TierItem[];
+    workspaceTemplateTitle?: string | null;
+    workspaceTemplateDescription?: string | null;
+  }) => void;
+
+  setWorkspaceTemplateMeta: (meta: { title?: string | null; description?: string | null }) => void;
 
   /**
    * 저장된 티어 결과 스냅샷으로 보드 전체 복원(리믹스).
    * POST 저장 시에는 항상 새 row가 되며 기존 결과를 덮어쓰지 않음.
    */
-  hydrateFromResultSnapshot: (payload: { templateId: string; tiers: Tier[]; pool: TierItem[] }) => void;
+  hydrateFromResultSnapshot: (payload: {
+    templateId: string;
+    tiers: Tier[];
+    pool: TierItem[];
+    workspaceTemplateTitle?: string | null;
+    workspaceTemplateDescription?: string | null;
+  }) => void;
 
   setPreviewItem: (item: PicktyItem | null) => void;
   /** 이미지 확대 중 이전(-1)/다음(+1) — 갤러리는 매번 풀+티어에서 재계산 */
@@ -131,6 +147,8 @@ export const useTierStore = create<TierState>()(
   persist(
     (set) => ({
       templateId: null,
+      workspaceTemplateTitle: null,
+      workspaceTemplateDescription: null,
       tiers: INITIAL_TIERS,
       pool: INITIAL_POOL,
       selectedItemIds: [],
@@ -172,9 +190,26 @@ export const useTierStore = create<TierState>()(
           return { previewItem: gallery[next]! };
         }),
 
-      loadTemplateWorkspace: ({ templateId, pool }) =>
+      setWorkspaceTemplateMeta: (meta) =>
+        set((state) => ({
+          workspaceTemplateTitle:
+            meta.title !== undefined ? meta.title ?? null : state.workspaceTemplateTitle,
+          workspaceTemplateDescription:
+            meta.description !== undefined
+              ? meta.description ?? null
+              : state.workspaceTemplateDescription,
+        })),
+
+      loadTemplateWorkspace: ({
+        templateId,
+        pool,
+        workspaceTemplateTitle,
+        workspaceTemplateDescription,
+      }) =>
         set({
           templateId,
+          workspaceTemplateTitle: workspaceTemplateTitle ?? null,
+          workspaceTemplateDescription: workspaceTemplateDescription ?? null,
           tiers: INITIAL_TIERS.map((t) => ({ ...t, items: [] })),
           pool,
           selectedItemIds: [],
@@ -182,10 +217,18 @@ export const useTierStore = create<TierState>()(
           previewItem: null,
         }),
 
-      hydrateFromResultSnapshot: ({ templateId, tiers, pool }) => {
+      hydrateFromResultSnapshot: ({
+        templateId,
+        tiers,
+        pool,
+        workspaceTemplateTitle,
+        workspaceTemplateDescription,
+      }) => {
         clearTierAutoSaveThumbnailStash();
         set({
           templateId,
+          workspaceTemplateTitle: workspaceTemplateTitle ?? null,
+          workspaceTemplateDescription: workspaceTemplateDescription ?? null,
           tiers: tiers.map((t) => ({
             ...t,
             items: t.items.map((i) => ({ ...i })),

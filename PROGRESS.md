@@ -8,7 +8,7 @@
 ## 워크스페이스 · 문서 (고정)
 
 - Cursor는 `**Pickty/` 레포 루트만** 연 것을 전제로 한다.
-- 맥락 문서: `**.cursor/rules/pickty-project-context.mdc`**(전역) + `**PROGRESS.md**`(진행).
+- 맥락 문서: `**.cursor/rules/pickty-project-context.mdc`**(전역) + `**.cursor/rules/pickty-workflow-terms.mdc`**(기록·커밋·배포 용어·커밋 한글) + `**PROGRESS.md**`(진행).
 - 비공개 설정 형제 폴더 `**pickty-config**` — 복사 절차는 `pickty-project-context.mdc` Git 블록. 실값·비번은 gitignore 파일에만.
 
 
@@ -53,11 +53,11 @@
 | 영역                             | 상태    | 비고                                                                                                                                                                                                                                                                                         |
 | ------------------------------ | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 개발 환경·모노레포·pickty-config       | ✅     |                                                                                                                                                                                                                                                                                            |
-| GNB·테마·기본 라우팅                  | ✅     | 티어 허브 `/templates`, **`/tier/feed`**(최신 피드), 월드컵은 UI 비노출                                                                                                                                                                                                                                                            |
+| GNB·테마·기본 라우팅                  | ✅     | 티어 허브 **`/templates`**(라벨 **「템플릿」**), **`/tier/feed`**(라벨 **「티어표」**), 월드컵은 UI 비노출 · **(2026-03-28)** 명칭 정리                                                                                                                                                                                                                                                            |
 | Auth — 소셜·온보딩·계정·병합·탈퇴         | ✅     | Google·Kakao·Naver, `/signup/profile`, Merge·`MERGED`, `DELETE /me`                                                                                                                                                                                                                        |
 | Auth — 세션 하드닝 **(2026-03-26)** | ✅     | Refresh **HttpOnly** 쿠키, OAuth 후 `**?exchange` → `POST /api/v1/auth/oauth-exchange`**, `**/auth/refresh`·`/auth/logout**`, Access **블랙리스트**, `credentials: 'include'`                                                                                                                      |
 | Tier Maker — 보드 UX             | ✅     | DnD·행 정렬·설정 모달·멀티 선택·캡처·라이트/다크·모바일                                                                                                                                                                                                                                                         |
-| Tier — 템플릿·이미지·결과 API + R2     | ✅     | `POST/GET templates`, `POST /images`→R2, `GET .../images/file/{key}`, 결과 CRUD·`/tier/my`·썸네일·동적 OG·워터마크 · **(2026-03-28)** `PATCH`/`DELETE` 결과 메타·소유자·ADMIN 삭제, `GET /tiers/results` **Pageable** 글로벌 피드, 목록 DTO **`userId`**, 리믹스 `**/tier?…&sourceResultId=`**, **`/tier/feed`** + GNB **최신 피드**                                                                                                                                                                                    |
+| Tier — 템플릿·이미지·결과 API + R2     | ✅     | `POST/GET templates`, `POST /images`→R2, `GET .../images/file/{key}`, 결과 CRUD·`/tier/my`·썸네일·동적 OG·워터마크 · **(2026-03-28)** `PATCH`/`DELETE` 결과 메타·소유자·ADMIN 삭제, `GET /tiers/results` **Pageable** 글로벌 피드, 목록 DTO **`userId`**, 리믹스 `**/tier?…&sourceResultId=`**, **`/tier/feed`** + GNB **「티어표」**                                                                                                                                                                                    |
 | Tier — 비회원 → 로그인/가입 **자동 저장**  | ✅(1차) | `tier-store` **sessionStorage persist** + `tierAutoSaveIntent` · `post-oauth-tier-flow` · 로그인/`auth/callback`/온보딩 후 `**POST /api/v1/tiers/results`** · 미리보기 PNG `**tier-autosave-thumbnail**` 스태시→인증 후 R2 업로드(수동 저장과 동일 보드 썸네일) · `/tier` 템플릿 진입 시 intent+`templateId` 일치하면 **서버 덮어쓰기 생략** |
 | 프론트 업로드 압축                     | ✅(1차) | `browser-image-compression`(WebP·장변 1024 등), 순차 업로드 — **P0 수치 정합·한도 검증**은 여전히 점검 과제                                                                                                                                                                                                        |
 | Ideal Type World Cup           | ⬜     | **최후순위** — 티어 코어가 거의 마무리된 뒤 착수. UI 비노출, 착수 미정. **스트리머 모드보다 뒤.**                                                                                                                                                                                                                                                                    |
@@ -79,13 +79,23 @@
 - **라우팅**: 랜딩 → `**/templates`** → 카드 `**/tier?templateId=**` · 새 밀키트 `**/template/new**`.
 - **업로드·저장**: `**POST /api/v1/images`** → R2 `PutObject` · DB/JSON 메타는 `https://img.pickty.app/{uuid}.ext` 형(설정 `public-url`). 표시는 `**picktyImageDisplaySrc**` / `**GET /api/v1/images/file/{key}**`(CORS `*`).
 - **템플릿 썸네일**: DB `**tier_templates.thumbnail_url`** 단일. 2×2 `**template-thumbnail-composite.ts**`(Canvas). 마이그레이션: `docs/migrations/2026-03-25-p1-tier-template-user.sql`.
-- **티어 결과**: 저장 시 PNG·`**tier_results.thumbnail_url`** · 동적 OG `**/tier/result/[id]**` · 보드 **워터마크 `pickty.app`**.
+- **티어 결과**: 저장 시 PNG·`**tier_results.thumbnail_url`** · 동적 OG `**/tier/result/[id]**` · **`pickty.app`** 워터마크는 **PNG 다운로드 시에만**(`tier-capture-png` `includeWatermark`) — 편집 화면·보내기 모달 **미리보기**·서버 썸네일에는 비포함 **(2026-03-28)**.
 - **내 티어표**: GNB **내 정보** → `**/tier/my`** · 카드에서 **제목/설명 수정**(PATCH)·**삭제**(본인 또는 ADMIN)·**다시 배치(리믹스)**.
 - **글로벌 피드**: `**/tier/feed`** — `GET /api/v1/tiers/results?page&size&sort=createdAt,desc` **무한 스크롤** · 카드 권한: **수정=본인만**, **삭제=본인 또는 ADMIN**, **리믹스=항상**.
 - **비회원 저장→소셜**: export 모달 **「로그인하고 서버에 저장」** → 보드·intent **sessionStorage** · **ACTIVE** 즉시 결과 저장 후 `**/tier/result/[id]`** · **PENDING** 은 온보딩 후 저장·이동 · 비회원 시 **제목·설명 입력 없음**(기본 제목 등) — **메타 수정**은 `/tier/my`·결과 상세·피드 카드에서 가능.
-- **공유·OG**: `generateMetadata` + `fetchTierResultForOpenGraph` / `fetchTemplateForOpenGraph`. **카톡 등 크롤러용 `og:image`** 는 R2 직링크 대신 `**resolvePicktyImageUrlForOpenGraph**` 로 `**https://api.pickty.app/api/v1/images/file/{key}**` 절대 URL 사용(`pickty-image-url.ts`). UI: `**공유**` 라벨 + `**sonner**` 토스트(클립보드) — `tier-board`(템플릿 링크), `tier-result-client-page`, `export-modal` 저장 완료 화면.
+- **공유·OG**: `generateMetadata` + `fetchTierResultForOpenGraph` / `fetchTemplateForOpenGraph`. **카톡 등 크롤러용 `og:image`** 는 R2 직링크 대신 `**resolvePicktyImageUrlForOpenGraph**` 로 `**https://api.pickty.app/api/v1/images/file/{key}**` 절대 URL 사용(`pickty-image-url.ts`). UI: `**sonner**` 토스트(클립보드) — `tier-page-client`(템플릿 링크), `tier-result-client-page`, `export-modal` 저장 완료 화면.
 - **413·순차 업로드**: Tomcat `maxPostSize` + `**TomcatMaxPostSizeCustomizer`**; `**uploadPicktyImages**` 파일별 순차 POST.
 - **Next 16**: 로컬 API URL `next/image` 시 `**dangerouslyAllowLocalIP: true`**.
+
+---
+
+## 티어 메이커 · GNB · 캡처 **(2026-03-28)**
+
+- **GNB**: 첫 탭 **「템플릿」**(`/templates`), 둘째 **「티어표」**(`/tier/feed`). 계정 메뉴 링크 문구 동일. 피드·내 티어표 페이지 제목/링크에서 「최신 피드」→「티어표」.
+- **피드·내 티어표 카드**(`tier-result-card`): 수정·삭제를 **`⋮`** 드롭다운으로 통일(결과 상세와 동일 패턴).
+- **`/tier` 상단**: 스토어 `workspaceTemplateTitle` / `workspaceTemplateDescription` — **템플릿 제목·설명**과 **🔗 템플릿 공유**·PC/터치·초기화를 **티어 테이블 밖**에 배치. 크롬 줄(`zinc-950`)과 한 덩어리로 두어 표 판(`zinc-900`)과 시각 분리.
+- **워터마크**: 라이브 보드·export 미리보기 **비표시**; **이미지 다운로드**(export 모달·`/tier/result` PNG)에만 삽입. 글자 크기 티어 라벨 **`text-2xl` 급**.
+- **에이전트 규칙**: `**.cursor/rules/pickty-workflow-terms.mdc`** — **기록**=`PROGRESS.md` 갱신, **커밋**=Pickty `dev` + pickty-config `main`, **배포**=Pickty `dev` push·`main` 머지 + pickty-config `main` push; **커밋 로그 본문 한글**.
 
 ---
 
@@ -210,13 +220,14 @@
 | `docs/migrations/2026-03-26-users-merged-into-user-id.sql`                             | 병합                                                         |
 | `frontend/src/lib/pickty-image-url.ts`                                                 | `resolvePicktyImageUrlForOpenGraph`, 표시용 URL               |
 | `frontend/src/lib/tier-result-opengraph.ts`, `template-opengraph.ts`                   | OG fetch                                                   |
-| `frontend/src/components/tier/tier-board.tsx`, `export-modal.tsx`                      | 타겟팅·캡처·공유·비회원 자동 저장 CTA                                    |
-| `frontend/src/lib/store/tier-store.ts`                                                 | Zustand + **sessionStorage persist**, `tierAutoSaveIntent` |
+| `frontend/src/components/tier/tier-board.tsx`, `export-modal.tsx`                      | 타겟팅·캡처·비회원 자동 저장 CTA · 다운로드 시에만 워터마크                                    |
+| `frontend/src/lib/tier-capture-png.ts`                                                 | 클론 캡처 · `includeWatermark` · 미리보기/썸네일은 워터마크 off              |
+| `frontend/src/app/tier/tier-page-client.tsx`                                           | 템플릿 메타·공유·툴바 · intent 시 `getTemplate` 생략(덮어쓰기 방지)              |
+| `frontend/src/lib/store/tier-store.ts`                                                 | Zustand + **sessionStorage persist**, `tierAutoSaveIntent`, `workspaceTemplate*` |
 | `frontend/src/lib/post-oauth-tier-flow.ts`, `tier-autosave-thumbnail.ts`               | OAuth/온보딩 후 자동 저장·썸네일 스태시                                  |
 | `frontend/src/lib/hooks/use-tier-persist-hydrated.ts`                                  | 티어 persist 하이드 대기                                          |
-| `frontend/src/app/tier/tier-page-client.tsx`                                           | intent 시 템플릿 API 덮어쓰기 방지                                   |
 | `frontend/src/app/login/page.tsx`, `auth/callback/page.tsx`, `signup/profile/page.tsx` | `resolvePostOAuthTierFlow` 연동                              |
-| `frontend/src/components/layout/gnb.tsx`                                               | 모바일/내 정보 + 타겟 시 1차 클릭 해제 · **최신 피드** 링크                                   |
+| `frontend/src/components/layout/gnb.tsx`                                               | 모바일/내 정보 + 타겟 시 1차 클릭 해제 · **템플릿** / **티어표** 내비                                   |
 | `frontend/src/app/tier/feed/page.tsx`                                                  | 글로벌 피드·무한 스크롤                                                |
 | `frontend/src/components/tier/tier-result-card.tsx`                                    | 내 티어표·피드 공통 카드(수정/삭제/리믹스 권한)                                |
 | `frontend/src/components/tier/tier-result-edit-meta-modal.tsx` 등                      | 결과 메타 PATCH 모달·삭제 확인                                           |

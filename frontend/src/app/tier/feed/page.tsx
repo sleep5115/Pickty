@@ -98,9 +98,7 @@ export default function TierFeedPage() {
   return (
     <div className="w-full py-8 px-1 sm:px-2 max-w-5xl mx-auto flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">
-          최신 피드
-        </h1>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">티어표</h1>
         <p className="mt-1 text-sm text-slate-600 dark:text-zinc-400">
           모두가 만든 티어표를 최신순으로 모아 보여요.
         </p>

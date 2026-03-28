@@ -110,7 +110,7 @@ export default function MyTierResultsPage() {
           href="/tier/feed"
           className="text-sm font-medium text-violet-600 dark:text-violet-400 hover:underline"
         >
-          최신 피드
+          티어표
         </Link>
         <span className="text-slate-300 dark:text-zinc-700">|</span>
         <button

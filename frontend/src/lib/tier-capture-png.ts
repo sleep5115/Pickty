@@ -2,6 +2,44 @@ import { toPng } from 'html-to-image';
 
 const DEFAULT_WIDTH = 800;
 
+/** 티어 라벨(S/A/B…)과 동일 계열 — `text-2xl font-black` */
+function appendPicktyWatermark(root: HTMLElement): void {
+  const computed = window.getComputedStyle(root);
+  if (computed.position === 'static') {
+    root.style.position = 'relative';
+  }
+  const wrap = document.createElement('div');
+  wrap.setAttribute('aria-hidden', 'true');
+  wrap.style.cssText = [
+    'position:absolute',
+    'right:8px',
+    'bottom:8px',
+    'pointer-events:none',
+    'z-index:10',
+  ].join(';');
+  const span = document.createElement('span');
+  span.textContent = 'pickty.app';
+  span.style.cssText = [
+    'display:inline-block',
+    'font-size:1.5rem',
+    'line-height:1.1',
+    'font-weight:900',
+    'letter-spacing:-0.03em',
+    'background:linear-gradient(100deg,#8b5cf6,#d946ef,#ec4899)',
+    '-webkit-background-clip:text',
+    'background-clip:text',
+    'color:transparent',
+    'filter:drop-shadow(0 1px 2px rgba(0,0,0,0.45))',
+  ].join(';');
+  wrap.appendChild(span);
+  root.appendChild(wrap);
+}
+
+export type CaptureTierPngOptions = {
+  /** true일 때만 클론에 워터마크 삽입 (미리보기·썸네일용 캡처는 false) */
+  includeWatermark?: boolean;
+};
+
 export function formatImageCaptureError(err: unknown): string {
   if (err instanceof Error) return err.message || err.name || 'Error';
   if (typeof err === 'string') return err;
@@ -24,7 +62,9 @@ export function formatImageCaptureError(err: unknown): string {
 export async function captureTierElementToPng(
   el: HTMLElement,
   width: number = DEFAULT_WIDTH,
+  options: CaptureTierPngOptions = {},
 ): Promise<string> {
+  const { includeWatermark = false } = options;
   const container = document.createElement('div');
   container.style.cssText = [
     'position: fixed',
@@ -41,6 +81,10 @@ export async function captureTierElementToPng(
   clone.style.minWidth = `${width}px`;
   clone.style.overflow = 'visible';
   container.appendChild(clone);
+
+  if (includeWatermark) {
+    appendPicktyWatermark(clone);
+  }
 
   await new Promise<void>((resolve) =>
     requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
