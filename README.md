@@ -6,25 +6,34 @@
 
 ---
 
-### Tech Stack
+### 🛠 Tech Stack
 
-Frontend
-- Framework: Next.js 16 (App Router), React 19
-- Language: TypeScript 5
-- Styling: Tailwind CSS 4
-- State Management: Zustand
-- Library: dnd-kit, react-hook-form, zod
+#### Backend
 
-Backend
-- Framework: Spring Boot 4.0 (Spring Framework 7)
-- Language: Kotlin 2.2
-- Security: Spring Security (Stateless, JWT, OAuth2)
+![Kotlin](https://img.shields.io/badge/kotlin-%237F52FF.svg?style=flat-square&logo=kotlin&logoColor=white) ![Spring Boot](https://img.shields.io/badge/springboot-%236DB33F.svg?style=flat-square&logo=springboot&logoColor=white) ![Spring Framework](https://img.shields.io/badge/spring%20framework-%236DB33F.svg?style=flat-square&logo=spring&logoColor=white)
 
-Data & Infrastructure
-- Database: PostgreSQL 17
-- Cache & Session: Valkey 9
-- Object Storage: Cloudflare R2 (S3 Compatible API)
-- Deployment: AWS Lightsail (Backend/DB), Vercel (Frontend)
+- **Framework:** Spring Boot 4.0, Spring Framework 7
+- **Language:** Kotlin 2.2
+- **Security:** Spring Security (Stateless, JWT, OAuth2)
+
+#### Frontend
+
+![TypeScript](https://img.shields.io/badge/typescript-%23007ACC.svg?style=flat-square&logo=typescript&logoColor=white) ![Next.js](https://img.shields.io/badge/next.js-000000?style=flat-square&logo=nextdotjs&logoColor=white) ![React](https://img.shields.io/badge/react-%2320232a.svg?style=flat-square&logo=react&logoColor=%2361DAFB) ![Tailwind CSS](https://img.shields.io/badge/tailwindcss-%2338B2AC.svg?style=flat-square&logo=tailwind-css&logoColor=white) ![Zustand](https://img.shields.io/badge/Zustand-433e48?style=flat-square)
+
+- **Framework:** Next.js 16 (App Router), React 19
+- **Language:** TypeScript 5
+- **Styling:** Tailwind CSS 4
+- **State Management:** Zustand
+- **Library:** dnd-kit, react-hook-form, zod
+
+#### Data & Infrastructure
+
+![PostgreSQL](https://img.shields.io/badge/postgresql-%23316192.svg?style=flat-square&logo=postgresql&logoColor=white) ![Valkey](https://img.shields.io/badge/Valkey-%23DC382D.svg?style=flat-square&logo=redis&logoColor=white) ![Cloudflare R2](https://img.shields.io/badge/Cloudflare%20R2-F38020?style=flat-square&logo=cloudflare&logoColor=white) ![AWS Lightsail](https://img.shields.io/badge/AWS%20Lightsail-232F3E?style=flat-square&logo=amazonwebservices&logoColor=white) ![Vercel](https://img.shields.io/badge/vercel-%23000000.svg?style=flat-square&logo=vercel&logoColor=white)
+
+- **Database:** PostgreSQL 17
+- **Cache & Session:** Valkey 9 (Redis)
+- **Object Storage:** Cloudflare R2 (S3 Compatible API)
+- **Deployment:** AWS Lightsail (Backend/DB), Vercel (Frontend)
 
 ---
 
