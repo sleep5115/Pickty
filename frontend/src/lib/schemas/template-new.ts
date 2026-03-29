@@ -6,7 +6,7 @@ const templateItemRowSchema = z.object({
     .string()
     .trim()
     .min(1, { message: '아이템 이름을 입력해 주세요.' })
-    .max(200, { message: '이름은 200자 이하로 입력해 주세요.' }),
+    .max(100, { message: '이름은 100자 이하로 입력해 주세요.' }),
   /** `fromTemplate` 등으로 불러온 기존 이미지 URL — 새 파일이 있으면 업로드로 대체 */
   existingImageUrl: z
     .string()
@@ -22,7 +22,7 @@ export const templateNewFormSchema = z.object({
     .string()
     .trim()
     .min(1, { message: '템플릿 제목을 입력해 주세요.' })
-    .max(500, { message: '제목은 500자 이하로 입력해 주세요.' }),
+    .max(100, { message: '제목은 100자 이하로 입력해 주세요.' }),
   description: z
     .string()
     .max(10000, { message: '설명은 10000자 이하로 입력해 주세요.' })

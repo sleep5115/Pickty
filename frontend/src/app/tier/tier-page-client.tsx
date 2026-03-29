@@ -1,10 +1,16 @@
 'use client';
 
 import { Suspense, startTransition, useCallback, useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
+import { MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { TierBoard } from '@/components/tier/tier-board';
 import { ImagePreviewModal } from '@/components/tier/image-preview-modal';
+import { TemplateDeleteConfirmDialog } from '@/components/template/template-delete-confirm-dialog';
+import { TemplateEditMetaModal } from '@/components/template/template-edit-meta-modal';
+import { apiFetch } from '@/lib/api-fetch';
+import { useAuthPersistHydrated } from '@/lib/hooks/use-auth-persist-hydrated';
+import { useAuthStore } from '@/lib/store/auth-store';
 import { useTierStore } from '@/lib/store/tier-store';
 import { useTierPersistHydrated } from '@/lib/hooks/use-tier-persist-hydrated';
 import { usePointerDevice } from '@/hooks/use-pointer-device';
@@ -17,12 +23,15 @@ import {
 import { parseSnapshotDataToBoard } from '@/lib/tier-snapshot';
 
 function TierPageInner() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const templateIdParam = searchParams.get('templateId');
   const sourceResultIdParam = searchParams.get('sourceResultId');
   const loadTemplateWorkspace = useTierStore((s) => s.loadTemplateWorkspace);
   const hydrateFromResultSnapshot = useTierStore((s) => s.hydrateFromResultSnapshot);
   const tierHydrated = useTierPersistHydrated();
+  const authHydrated = useAuthPersistHydrated();
+  const accessToken = useAuthStore((s) => s.accessToken);
 
   const { clearTarget, resetBoard, setPreviewItem } = useTierStore();
   const templateId = useTierStore((s) => s.templateId);
@@ -33,6 +42,12 @@ function TierPageInner() {
   const isFine = deviceReady ? (isPointerFine ?? true) : true;
 
   const [templateBanner, setTemplateBanner] = useState<string | null>(null);
+  const [templateCreatorId, setTemplateCreatorId] = useState<number | null>(null);
+  const [me, setMe] = useState<{ id: number; role: string } | null>(null);
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
+  const [editMetaOpen, setEditMetaOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const headerMenuRef = useRef<HTMLDivElement>(null);
 
   const dragSelectRef = useRef<HTMLDivElement>(null);
 
@@ -62,12 +77,58 @@ function TierPageInner() {
   }, [clearTarget, setPreviewItem]);
 
   useEffect(() => {
+    if (!authHydrated || !accessToken) {
+      queueMicrotask(() => setMe(null));
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await apiFetch('/api/v1/user/me', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!res.ok || cancelled) return;
+        const u = (await res.json()) as { id?: unknown; role?: unknown };
+        const mid = typeof u.id === 'number' ? u.id : Number(u.id);
+        const role = typeof u.role === 'string' ? u.role : '';
+        if (Number.isFinite(mid)) {
+          setMe({ id: mid, role });
+        }
+      } catch {
+        if (!cancelled) setMe(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authHydrated, accessToken]);
+
+  useEffect(() => {
+    if (!headerMenuOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (headerMenuRef.current && !headerMenuRef.current.contains(e.target as Node)) {
+        setHeaderMenuOpen(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setHeaderMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [headerMenuOpen]);
+
+  useEffect(() => {
     if (!tierHydrated) return;
 
     if (sourceResultIdParam) {
       let cancelled = false;
       startTransition(() => {
         setTemplateBanner('티어표 불러오는 중…');
+        setTemplateCreatorId(null);
       });
       void (async () => {
         try {
@@ -75,11 +136,13 @@ function TierPageInner() {
           if (cancelled) return;
           if (templateIdParam && res.templateId !== templateIdParam) {
             setTemplateBanner('URL의 템플릿과 결과가 일치하지 않습니다.');
+            setTemplateCreatorId(null);
             return;
           }
           const board = parseSnapshotDataToBoard(res.snapshotData as Record<string, unknown>);
           if (!board) {
             setTemplateBanner('지원하지 않는 티어표 데이터입니다.');
+            setTemplateCreatorId(null);
             return;
           }
           hydrateFromResultSnapshot({
@@ -97,11 +160,15 @@ function TierPageInner() {
                 title: detail.title,
                 description: templateItemsDescription(detail.items),
               });
+              setTemplateCreatorId(detail.creatorId ?? null);
             })
-            .catch(() => {});
+            .catch(() => {
+              setTemplateCreatorId(null);
+            });
         } catch {
           if (!cancelled) {
             setTemplateBanner('티어 결과를 불러오지 못했습니다.');
+            setTemplateCreatorId(null);
           }
         }
       })();
@@ -126,7 +193,10 @@ function TierPageInner() {
     }
 
     let cancelled = false;
-    startTransition(() => setTemplateBanner('템플릿 불러오는 중…'));
+    startTransition(() => {
+      setTemplateBanner('템플릿 불러오는 중…');
+      setTemplateCreatorId(null);
+    });
     void (async () => {
       try {
         const detail = await getTemplate(templateIdParam);
@@ -134,6 +204,7 @@ function TierPageInner() {
         const pool = templatePayloadToTierItems(detail.items);
         if (pool.length === 0) {
           setTemplateBanner('템플릿에 아이템이 없습니다.');
+          setTemplateCreatorId(null);
           return;
         }
         loadTemplateWorkspace({
@@ -142,10 +213,12 @@ function TierPageInner() {
           workspaceTemplateTitle: detail.title,
           workspaceTemplateDescription: templateItemsDescription(detail.items),
         });
+        setTemplateCreatorId(detail.creatorId ?? null);
         setTemplateBanner(null);
       } catch {
         if (!cancelled) {
           setTemplateBanner('템플릿을 불러오지 못했습니다. 링크를 확인해 주세요.');
+          setTemplateCreatorId(null);
         }
       }
     })();
@@ -159,6 +232,11 @@ function TierPageInner() {
     hydrateFromResultSnapshot,
     tierHydrated,
   ]);
+
+  const isAdmin = me?.role === 'ADMIN';
+  const isOwner =
+    me != null && templateCreatorId != null && me.id === templateCreatorId;
+  const showTemplateManage = Boolean(accessToken && templateId && (isOwner || isAdmin));
 
   return (
     <div ref={dragSelectRef} className="flex flex-col select-none bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100">
@@ -177,14 +255,68 @@ function TierPageInner() {
       >
         {templateId ? (
           <div className="px-3 sm:px-4 pt-2 pb-1.5 text-left">
-            <h2 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-zinc-100">
-              {workspaceTemplateTitle?.trim() || '템플릿'}
-            </h2>
-            {workspaceTemplateDescription?.trim() ? (
-              <p className="mt-1 text-sm leading-relaxed text-slate-600 dark:text-zinc-400 whitespace-pre-wrap">
-                {workspaceTemplateDescription.trim()}
-              </p>
-            ) : null}
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+              <div className="min-w-0 flex-1">
+                <h2 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-zinc-100">
+                  {workspaceTemplateTitle?.trim() || '템플릿'}
+                </h2>
+                {workspaceTemplateDescription?.trim() ? (
+                  <p className="mt-1 text-sm leading-relaxed text-slate-600 dark:text-zinc-400 whitespace-pre-wrap">
+                    {workspaceTemplateDescription.trim()}
+                  </p>
+                ) : null}
+              </div>
+              {showTemplateManage ? (
+                <div className="relative shrink-0 self-end sm:self-start" ref={headerMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setHeaderMenuOpen((v) => !v)}
+                    aria-expanded={headerMenuOpen}
+                    aria-haspopup="menu"
+                    aria-label="템플릿 더 보기"
+                    className={[
+                      'inline-flex h-8 w-8 items-center justify-center rounded-lg border transition-colors',
+                      headerMenuOpen
+                        ? 'border-violet-400 dark:border-violet-600 bg-violet-50 dark:bg-violet-950/40 text-slate-900 dark:text-zinc-100'
+                        : 'border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800',
+                    ].join(' ')}
+                  >
+                    <MoreVertical className="h-4 w-4" strokeWidth={2} aria-hidden />
+                  </button>
+                  {headerMenuOpen && (
+                    <div
+                      role="menu"
+                      className="absolute right-0 top-full z-[100] mt-1 min-w-[9.5rem] rounded-xl border border-slate-200 bg-white py-1 shadow-lg shadow-black/10 dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-black/40"
+                    >
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                        onClick={() => {
+                          setHeaderMenuOpen(false);
+                          setEditMetaOpen(true);
+                        }}
+                      >
+                        <Pencil className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
+                        수정
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+                        onClick={() => {
+                          setHeaderMenuOpen(false);
+                          setDeleteOpen(true);
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
+                        삭제
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
           </div>
         ) : null}
         <div
@@ -219,6 +351,38 @@ function TierPageInner() {
       </div>
 
       <TierBoard dragSelectRef={dragSelectRef} pointerModeReady={deviceReady} />
+
+      {accessToken && templateId && editMetaOpen && (
+        <TemplateEditMetaModal
+          open
+          onClose={() => setEditMetaOpen(false)}
+          templateId={templateId}
+          accessToken={accessToken}
+          initialTitle={workspaceTemplateTitle?.trim() ?? ''}
+          initialDescription={workspaceTemplateDescription?.trim() ?? ''}
+          onSaved={(u) => {
+            useTierStore.getState().setWorkspaceTemplateMeta({
+              title: u.title,
+              description: u.description ?? null,
+            });
+            toast.success('저장했어요.');
+          }}
+        />
+      )}
+
+      {accessToken && templateId && deleteOpen && (
+        <TemplateDeleteConfirmDialog
+          open
+          onClose={() => setDeleteOpen(false)}
+          templateId={templateId}
+          accessToken={accessToken}
+          onDeleted={() => {
+            setDeleteOpen(false);
+            toast.success('삭제했어요.');
+            router.push('/templates');
+          }}
+        />
+      )}
 
       <ImagePreviewModal />
 

@@ -15,7 +15,7 @@
 | 경로                              | 용도                                                      |
 | ------------------------------- | ------------------------------------------------------- |
 | `progress/PROGRESS_20260327.md` | 2026-03-27 이전 **전량** 진행 로그·체크리스트 보관                     |
-| `progress/PROGRESS_20260329.md` | 2026-03-29 **검증 정합·템플릿 PUT/DELETE·목록 UI** 요약 보관              |
+| `progress/PROGRESS_20260329.md` | 2026-03-29 **검증 정합·템플릿 UGC(소프트삭제·PATCH 메타·파생)·목록 UI** 요약 보관 |
 | `docs/LOCAL-DEV.md`             | 로컬 실행(Windows, JDK 25, 프론트 **3002**, `dev`/`local` 프로필) |
 | `docs/DEPLOYMENT-CHECKLIST.md`  | OAuth·Vercel·CORS·`npm run verify:deploy`               |
 | `deploy/lightsail/README.md`    | Lightsail·compose·시크릿 경로                                |
@@ -58,7 +58,7 @@
 | Auth — 소셜·온보딩·계정·병합·탈퇴         | ✅     | Google·Kakao·Naver, `/signup/profile`, Merge·`MERGED`, `DELETE /me`                                                                                                                                                                                                                        |
 | Auth — 세션 하드닝 **(2026-03-26)** | ✅     | Refresh **HttpOnly** 쿠키, OAuth 후 `**?exchange` → `POST /api/v1/auth/oauth-exchange`**, `**/auth/refresh`·`/auth/logout**`, Access **블랙리스트**, `credentials: 'include'`                                                                                                                      |
 | Tier Maker — 보드 UX             | ✅     | DnD·행 정렬·설정 모달·멀티 선택·캡처·라이트/다크·모바일                                                                                                                                                                                                                                                         |
-| Tier — 템플릿·이미지·결과 API + R2     | ✅     | `POST/GET templates`, **`PUT/DELETE /templates/{id}`** **(2026-03-29)** · 목록 **`creatorId`** · 편집 `**/template/new?editTemplate=`** · `POST /images`→R2, `GET .../images/file/{key}`, 결과 CRUD·`/tier/my`·썸네일·동적 OG·워터마크 · **(2026-03-28)** `PATCH`/`DELETE` 결과 메타·소유자·ADMIN 삭제, `GET /tiers/results` **Pageable** 글로벌 피드, 목록 DTO **`userId`**, 리믹스 `**/tier?…&sourceResultId=`**, **`/tier/feed`** + GNB **「티어표」**                                                                                                                                                                                    |
+| Tier — 템플릿·이미지·결과 API + R2     | ✅     | `POST/GET templates`, **`PATCH/DELETE /templates/{id}`** **(2026-03-29)** — 메타만 PATCH·**소프트 삭제**(`status`/`@ColumnDefault('ACTIVE')`)·목록은 ACTIVE만·단건 GET은 삭제 포함 · **`forkTemplateId`** 파생 · `POST /images`→R2 등 나머지 동일 · **(2026-03-28)** 결과 `PATCH`/`DELETE`·피드·리믹스·**`/tier/feed`**                                                                                                                                                                                    |
 | Tier — 비회원 → 로그인/가입 **자동 저장**  | ✅(1차) | `tier-store` **sessionStorage persist** + `tierAutoSaveIntent` · `post-oauth-tier-flow` · 로그인/`auth/callback`/온보딩 후 `**POST /api/v1/tiers/results`** · 미리보기 PNG `**tier-autosave-thumbnail**` 스태시→인증 후 R2 업로드(수동 저장과 동일 보드 썸네일) · `/tier` 템플릿 진입 시 intent+`templateId` 일치하면 **서버 덮어쓰기 생략** |
 | 프론트 업로드 압축                     | ✅(1차) | `browser-image-compression`(WebP·장변 1024 등), 순차 업로드 — **(2026-03-29)** P0 **검증·에러 메시지·텍스트/JSONB 한도** 프론트·백 동기화·`GlobalExceptionHandler` 반영. **남는 점검**: 압축 목표(~0.5MB) vs 서버 25MB·기획 문구·프록시 한도 **문서화·수치 단일화**                                                                                                                                                                                                        |
 | Ideal Type World Cup           | ⬜     | **최후순위** — 티어 코어가 거의 마무리된 뒤 착수. UI 비노출, 착수 미정. **스트리머 모드보다 뒤.**                                                                                                                                                                                                                                                                    |
@@ -77,7 +77,7 @@
 
 ## 현재 제품 동작 (2026-03 후반 기준)
 
-- **라우팅**: 랜딩 → `**/templates`** → 카드 `**/tier?templateId=**` · 새 밀키트 `**/template/new**` · 템플릿 **수정** `**/template/new?editTemplate={id}`**(`PUT` 저장).
+- **라우팅**: 랜딩 → `**/templates`** → 카드 `**/tier?templateId=**` · 새 밀키트 `**/template/new**` · 템플릿 **제목/설명 수정**은 **모달**(목록·`/tier` 헤더 케밥) + **`PATCH /templates/{id}`** · **파생** `**/template/new?forkTemplateId=`**(`parentTemplateId` 기록).
 - **업로드·저장**: `**POST /api/v1/images`** → R2 `PutObject` · DB/JSON 메타는 `https://img.pickty.app/{uuid}.ext` 형(설정 `public-url`). 표시는 `**picktyImageDisplaySrc**` / `**GET /api/v1/images/file/{key}**`(CORS `*`).
 - **템플릿 썸네일**: DB `**tier_templates.thumbnail_url`** 단일. 2×2 `**template-thumbnail-composite.ts**`(Canvas). 마이그레이션: `docs/migrations/2026-03-25-p1-tier-template-user.sql`.
 - **티어 결과**: 저장 시 PNG·`**tier_results.thumbnail_url`** · 동적 OG `**/tier/result/[id]**` · **`pickty.app`** 워터마크는 **PNG 다운로드 시에만**(`tier-capture-png` `includeWatermark`) — 편집 화면·보내기 모달 **미리보기**·서버 썸네일에는 비포함 **(2026-03-28)**.
@@ -94,16 +94,18 @@
 
 - **GNB**: 첫 탭 **「템플릿」**(`/templates`), 둘째 **「티어표」**(`/tier/feed`). 계정 메뉴 링크 문구 동일. 피드·내 티어표 페이지 제목/링크에서 「최신 피드」→「티어표」.
 - **피드·내 티어표 카드**(`tier-result-card`): 수정·삭제를 **세로 점 3개(⋮, `MoreVertical`)** 드롭다운으로 통일(결과 상세와 동일 패턴). **(2026-03-29)** 카드 `overflow-hidden` 제거·메뉴 `z-[100]` 로 클립 방지.
-- **`/tier` 상단**: 스토어 `workspaceTemplateTitle` / `workspaceTemplateDescription` — **템플릿 제목·설명**과 **🔗 템플릿 공유**·PC/터치·초기화를 **티어 테이블 밖**에 배치. 크롬 줄(`zinc-950`)과 한 덩어리로 두어 표 판(`zinc-900`)과 시각 분리.
+- **`/tier` 상단**: 스토어 `workspaceTemplateTitle` / `workspaceTemplateDescription` — **템플릿 제목·설명**·(권한 시) **케밥**·**🔗 템플릿 공유**·PC/터치·초기화. **파생(새 템플릿 만들기)** 링크는 **`tier-board`**의 **저장\|다운로드** 줄 **왼쪽** **(2026-03-29)**. 크롬 줄(`zinc-950`)과 한 덩어리로 표 판(`zinc-900`)과 시각 분리.
 - **워터마크**: 라이브 보드·export 미리보기 **비표시**; **이미지 다운로드**(export 모달·`/tier/result` PNG)에만 삽입. 글자 크기 티어 라벨 **`text-2xl` 급**.
 - **에이전트 규칙**: `**.cursor/rules/pickty-workflow-terms.mdc`** — **기록**=`PROGRESS.md` 갱신, **커밋**=Pickty `dev` + pickty-config `main`, **배포**=Pickty `dev` push·`main` 머지 + pickty-config `main` push; **커밋 로그 본문 한글**.
 
 ---
 
-## 검증·템플릿 수정/삭제·목록 UI **(2026-03-29)**
+## 템플릿 UGC·검증·목록 UI **(2026-03-29)**
 
-- **백엔드**: `GlobalExceptionHandler`·`PicktyValidationException` — 검증 실패 시 UTF-8 `text/plain` 400. PATCH 티어 결과 메타는 `JsonNode` 병합 + `validateProperty`·한글 `@Size`. 템플릿 생성 시 JSONB용 중첩 DTO 검증. **`PUT /api/v1/templates/{id}`**(작성자)·**`DELETE .../{id}`**(작성자 또는 ADMIN, 결과·파생 있으면 409). 목록에 **`creatorId`**.
-- **프론트**: `/templates` 카드 **케밥**(수정→`?editTemplate=`·삭제 확인), 제목 1줄·아이템 수·메뉴 **한 줄** 푸터. `PICKTY_IMAGE_ACCEPT`·`export-modal` 한도. 티어 카드/결과 상세 **`MoreVertical`**·overflow·z-index.
+- **백엔드**: 템플릿 **`TemplateStatus`**, 목록 **`ACTIVE`만**, **`DELETE` 소프트**(409·하드 삭제 폐기), **`PATCH .../templates/{id}`** — `UpdateTemplateMetaRequest`(제목·설명만, 아이템 불변). **`GET /templates/{id}`** 는 삭제된 템플릿도 반환(결과·OG 정합). `SecurityConfig` **PATCH** 허용. 제목·설명·아이템명 등 길이 **100 / 10000** 계열 정합. DB: **`@ColumnDefault('ACTIVE')`** + 수동 스크립트 **`docs/migrations/2026-03-29-tier-templates-status-default.sql`**.
+- **프론트**: `template-edit-meta-modal` · `/templates` 케밥→모달 · `/tier` 헤더 케밥·**「이 템플릿을 바탕으로 새 템플릿 만들기」**는 **`tier-board`** 저장\|다운로드 줄 **왼쪽** · 삭제 확인 문구(소프트) · `export-modal` 등 **maxLength·한도 100/10000** 정리.
+- **`/templates` 카드**: 설명 영역 **두 줄 분량 고정 높이**·푸터 **`h-11`** 로 줄 높이 고정.
+- **다음 작업(예정)**: 위 **파생(복제) 버튼**의 **카피·시각·문구 등 디테일** 손보기.
 - **보관**: `**progress/PROGRESS_20260329.md**`.
 
 ---

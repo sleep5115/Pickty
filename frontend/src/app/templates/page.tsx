@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import { TemplateEditMetaModal } from '@/components/template/template-edit-meta-modal';
 import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
 import { apiFetch } from '@/lib/api-fetch';
 import { useAuthStore } from '@/lib/store/auth-store';
@@ -17,21 +18,23 @@ function TemplateCard({
   currentUserId,
   isAdmin,
   accessToken,
+  onEdit,
   onDelete,
 }: {
   row: TemplateSummaryResponse;
   currentUserId: number | null;
   isAdmin: boolean;
   accessToken: string | null;
+  onEdit: (t: TemplateSummaryResponse) => void;
   onDelete: (t: TemplateSummaryResponse) => void;
 }) {
-  const router = useRouter();
   const { id, title, description, thumbnailUrl, itemCount, creatorId } = row;
+  const descTrimmed = description?.trim() ? description.trim() : null;
   const itemLine = `아이템 ${itemCount}개`;
   const hasThumb = Boolean(thumbnailUrl);
   const isOwner =
     currentUserId != null && creatorId != null && currentUserId === creatorId;
-  const showEdit = Boolean(accessToken && isOwner);
+  const showEdit = Boolean(accessToken && (isOwner || isAdmin));
   const showDelete = Boolean(accessToken && (isOwner || isAdmin));
   const showMenu = Boolean(accessToken && (showEdit || showDelete));
 
@@ -88,21 +91,27 @@ function TemplateCard({
             </div>
           )}
         </div>
-        <div className="min-w-0 space-y-1 px-3 py-2.5">
+        <div className="min-w-0 px-3 py-2.5">
           <span className="line-clamp-1 min-w-0 font-semibold text-slate-900 transition-colors group-hover:text-violet-700 dark:text-zinc-100 dark:group-hover:text-violet-300">
             {title}
           </span>
-          {description ? (
-            <p className="line-clamp-2 text-sm leading-snug text-slate-600 dark:text-zinc-400">{description}</p>
-          ) : (
-            <p className="line-clamp-2 text-sm leading-snug text-slate-500 dark:text-zinc-500">설명 없음</p>
-          )}
+          <div className="mt-1 min-h-[calc(2*0.875rem*1.375)] text-sm leading-snug">
+            <p
+              className={
+                descTrimmed
+                  ? 'line-clamp-2 text-slate-600 dark:text-zinc-400'
+                  : 'line-clamp-2 text-slate-500 dark:text-zinc-500'
+              }
+            >
+              {descTrimmed ?? '설명 없음'}
+            </p>
+          </div>
         </div>
       </Link>
-      <div className="flex items-center justify-between gap-2 border-t border-slate-100 px-3 py-2 dark:border-zinc-800/80 rounded-b-xl">
-        <span className="min-w-0 truncate text-xs text-slate-500 dark:text-zinc-500">{itemLine}</span>
+      <div className="flex h-11 shrink-0 items-center justify-between gap-2 border-t border-slate-100 px-3 dark:border-zinc-800/80 rounded-b-xl">
+        <span className="min-w-0 truncate text-xs leading-none text-slate-500 dark:text-zinc-500">{itemLine}</span>
         {showMenu ? (
-          <div className="relative shrink-0" ref={menuRef}>
+          <div className="relative flex shrink-0 items-center justify-center" ref={menuRef}>
             <button
               type="button"
               onClick={() => setMenuOpen((v) => !v)}
@@ -130,7 +139,7 @@ function TemplateCard({
                     className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
                     onClick={() => {
                       setMenuOpen(false);
-                      router.push(`/template/new?editTemplate=${encodeURIComponent(id)}`);
+                      onEdit(row);
                     }}
                   >
                     <Pencil className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
@@ -169,6 +178,7 @@ export default function TemplatesPage() {
   const [error, setError] = useState<string | null>(null);
   const [me, setMe] = useState<{ id: number; role: string } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<TemplateSummaryResponse | null>(null);
+  const [editMetaTarget, setEditMetaTarget] = useState<TemplateSummaryResponse | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -278,6 +288,13 @@ export default function TemplatesPage() {
                 currentUserId={me?.id ?? null}
                 isAdmin={me?.role === 'ADMIN'}
                 accessToken={accessToken}
+                onEdit={(target) => {
+                  if (!accessToken) {
+                    router.push('/login?returnTo=/templates');
+                    return;
+                  }
+                  setEditMetaTarget(target);
+                }}
                 onDelete={(target) => {
                   if (!accessToken) {
                     router.push('/login?returnTo=/templates');
@@ -290,6 +307,27 @@ export default function TemplatesPage() {
           </ul>
         )}
       </section>
+
+      {accessToken && editMetaTarget && (
+        <TemplateEditMetaModal
+          open
+          onClose={() => setEditMetaTarget(null)}
+          templateId={editMetaTarget.id}
+          accessToken={accessToken}
+          initialTitle={editMetaTarget.title}
+          initialDescription={editMetaTarget.description ?? ''}
+          onSaved={(u) => {
+            setRows((prev) =>
+              prev.map((r) =>
+                r.id === u.id
+                  ? { ...r, title: u.title, description: u.description, version: u.version }
+                  : r,
+              ),
+            );
+            toast.success('저장했어요.');
+          }}
+        />
+      )}
 
       {accessToken && deleteTarget && (
         <TemplateDeleteConfirmDialog

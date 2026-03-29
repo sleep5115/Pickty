@@ -2,23 +2,22 @@
 
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
-import { patchTierResultMeta, type TierResultResponse } from '@/lib/tier-api';
+import { patchTemplateMeta, type TemplateMetaPatchResponse } from '@/lib/tier-api';
 
 type Props = {
   open: boolean;
   onClose: () => void;
-  resultId: string;
+  templateId: string;
   accessToken: string;
   initialTitle: string;
   initialDescription: string;
-  /** PATCH 응답 전달 — 목록 갱신에 활용 가능 */
-  onSaved: (updated: TierResultResponse) => void;
+  onSaved: (updated: TemplateMetaPatchResponse) => void;
 };
 
-export function TierResultEditMetaModal({
+export function TemplateEditMetaModal({
   open,
   onClose,
-  resultId,
+  templateId,
   accessToken,
   initialTitle,
   initialDescription,
@@ -39,16 +38,18 @@ export function TierResultEditMetaModal({
   if (!open) return null;
 
   const handleSave = () => {
+    const t = title.trim();
+    if (!t) {
+      setErr('템플릿 제목을 입력해 주세요.');
+      return;
+    }
     setBusy(true);
     setErr(null);
     void (async () => {
       try {
-        const updated = await patchTierResultMeta(
-          resultId,
-          {
-            title: title.trim() || null,
-            description: description.trim() || null,
-          },
+        const updated = await patchTemplateMeta(
+          templateId,
+          { title: t, description: description.trim() || null },
           accessToken,
         );
         onSaved(updated);
@@ -73,12 +74,12 @@ export function TierResultEditMetaModal({
         className="w-full max-w-md rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-xl"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="tier-result-edit-title"
+        aria-labelledby="template-edit-meta-title"
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-slate-200 dark:border-zinc-800">
-          <h2 id="tier-result-edit-title" className="text-sm font-semibold text-slate-900 dark:text-zinc-100">
-            티어표 정보 수정
+          <h2 id="template-edit-meta-title" className="text-sm font-semibold text-slate-900 dark:text-zinc-100">
+            템플릿 정보 수정
           </h2>
           <button
             type="button"

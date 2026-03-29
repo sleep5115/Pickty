@@ -27,7 +27,7 @@ const BENEFITS = [
 const TIER_EXPORT_CAPTURE_WIDTH = 800;
 
 /** 백엔드 `CreateTierResultRequest` / `UpdateTierResultMetaRequest` 와 동일 */
-const LIST_TITLE_MAX_LEN = 500;
+const LIST_TITLE_MAX_LEN = 100;
 const LIST_DESCRIPTION_MAX_LEN = 10000;
 
 export function ExportModal({ captureRef, onClose }: ExportModalProps) {
@@ -143,10 +143,6 @@ export function ExportModal({ captureRef, onClose }: ExportModalProps) {
     const title = listTitle.trim();
     if (!title) {
       setSaveError('티어표 제목을 입력해 주세요.');
-      return;
-    }
-    if (title.length > LIST_TITLE_MAX_LEN || listDescription.length > LIST_DESCRIPTION_MAX_LEN) {
-      setSaveError('제목은 500자 이하, 설명은 10000자 이하로 입력해 주세요.');
       return;
     }
     if (!previewUrl) {
@@ -374,7 +370,7 @@ function LoggedInSaveDownloadPanel({
   onRegenerate: () => void;
   onClose: () => void;
 }) {
-  const titleWarn = listTitle.length >= 450;
+  const titleWarn = listTitle.length >= Math.max(0, LIST_TITLE_MAX_LEN - 10);
   const titleAtMax = listTitle.length >= LIST_TITLE_MAX_LEN;
   const descWarn = listDescription.length >= 9000;
   const descAtMax = listDescription.length >= LIST_DESCRIPTION_MAX_LEN;

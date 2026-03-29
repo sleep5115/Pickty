@@ -12,12 +12,7 @@ import { apiFetch } from '@/lib/api-fetch';
 import { uploadPicktyImages } from '@/lib/image-upload-api';
 import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
 import { captureTemplateThumbnail2x2 } from '@/lib/template-thumbnail-composite';
-import {
-  createTemplate,
-  getTemplate,
-  templatePayloadToTierItems,
-  updateTemplate,
-} from '@/lib/tier-api';
+import { createTemplate, getTemplate, templatePayloadToTierItems } from '@/lib/tier-api';
 import {
   stripFilenameToDefaultName,
   templateNewFormSchema,
@@ -41,9 +36,8 @@ function NewTemplatePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const fromTemplateId = searchParams.get('fromTemplate');
-  const editTemplateId = searchParams.get('editTemplate');
-  const templateSourceId = editTemplateId ?? fromTemplateId;
-  const isEditMode = Boolean(editTemplateId);
+  const forkTemplateId = searchParams.get('forkTemplateId');
+  const templateSourceId = forkTemplateId ?? fromTemplateId;
   const hydrated = useAuthPersistHydrated();
   const accessToken = useAuthStore((s) => s.accessToken);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -345,16 +339,15 @@ function NewTemplatePageInner() {
     }
 
     try {
+      const forkParent = searchParams.get('forkTemplateId');
       const payload = {
         title: values.title.trim(),
-        parentTemplateId: null,
+        parentTemplateId: forkParent?.trim() || null,
         version: 1,
         items: itemsEnvelope,
         thumbnailUrl: finalThumbnailUrl ?? null,
       };
-      const created = isEditMode && editTemplateId
-        ? await updateTemplate(editTemplateId, payload, accessToken)
-        : await createTemplate(payload, accessToken);
+      const created = await createTemplate(payload, accessToken);
       if (
         finalThumbnailUrl &&
         created.thumbnailFieldInResponse &&
@@ -473,19 +466,20 @@ function NewTemplatePageInner() {
       <div className="w-full py-8 px-1 sm:px-2">
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">
-          {isEditMode ? '템플릿 수정' : fromTemplateId ? '템플릿 다시 만들기' : '새 템플릿 만들기'}
+          {forkTemplateId ? '새 템플릿 만들기 (복제)' : fromTemplateId ? '템플릿 다시 만들기' : '새 템플릿 만들기'}
         </h1>
         <p className="mt-1 text-sm text-slate-600 dark:text-zinc-400">
           이미지를 올려 티어표에 넣을 아이템을 만듭니다. 이름은 파일명을 기준으로 채워지며 바꿀 수 있어요.
         </p>
-        {fromTemplateId && !isEditMode && (
+        {(fromTemplateId || forkTemplateId) && (
           <p className="mt-2 text-xs text-violet-600 dark:text-violet-400">
             기존 템플릿을 불러왔습니다. 저장하면 <strong>새 템플릿</strong>으로 등록됩니다.
-          </p>
-        )}
-        {isEditMode && (
-          <p className="mt-2 text-xs text-violet-600 dark:text-violet-400">
-            이 템플릿을 수정 중입니다. 저장하면 같은 템플릿이 갱신됩니다.
+            {forkTemplateId ? (
+              <>
+                {' '}
+                (<strong>파생</strong>으로 원본과의 연결이 기록됩니다.)
+              </>
+            ) : null}
           </p>
         )}
       </div>
@@ -521,6 +515,7 @@ function NewTemplatePageInner() {
             id="template-title"
             type="text"
             autoComplete="off"
+            maxLength={100}
             placeholder="예: 내 최애 캐릭터 티어"
             className="w-full rounded-lg border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-violet-500/40 focus:border-violet-500 dark:focus:border-violet-500 transition-colors"
             {...form.register('title')}
@@ -540,6 +535,7 @@ function NewTemplatePageInner() {
           <textarea
             id="template-desc"
             rows={3}
+            maxLength={10000}
             placeholder="이 템플릿에 대한 짧은 설명"
             className="w-full rounded-lg border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-violet-500/40 focus:border-violet-500 dark:focus:border-violet-500 transition-colors resize-y min-h-[4.5rem]"
             {...form.register('description')}
@@ -752,6 +748,7 @@ function NewTemplatePageInner() {
                       <input
                         type="text"
                         aria-label={`아이템 ${index + 1} 이름`}
+                        maxLength={100}
                         className="w-full rounded-md border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 py-1.5 text-xs text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
                         {...form.register(`items.${index}.name`)}
                       />

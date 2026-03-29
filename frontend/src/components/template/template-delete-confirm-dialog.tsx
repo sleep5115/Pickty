@@ -71,7 +71,7 @@ export function TemplateDeleteConfirmDialog({
         </div>
         <div className="p-4">
           <p className="text-sm text-slate-600 dark:text-zinc-400">
-            이 템플릿을 삭제할까요? 티어표에 사용 중이거나 파생된 템플릿이 있으면 삭제할 수 없습니다.
+            이 템플릿을 정말 삭제 하시겠습니까?
           </p>
           {err && (
             <p className="mt-2 text-xs text-red-600 dark:text-red-400" role="alert">

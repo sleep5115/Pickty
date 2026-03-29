@@ -27,6 +27,14 @@ export interface TemplateDetailResponse {
   items: Record<string, unknown>;
   /** 단일 썸네일 URL */
   thumbnailUrl?: string | null;
+  creatorId?: number | null;
+}
+
+export interface TemplateMetaPatchResponse {
+  id: string;
+  title: string;
+  version: number;
+  description: string | null;
 }
 
 export interface TemplateSummaryResponse {
@@ -254,9 +262,13 @@ export async function getTemplate(id: string): Promise<TemplateDetailResponse> {
   }
   const row = (await res.json()) as Record<string, unknown>;
   const base = row as unknown as TemplateDetailResponse;
+  const cr = row.creatorId ?? row.creator_id;
+  const creatorIdNum =
+    cr === null || cr === undefined || cr === '' ? NaN : Number(cr);
   return {
     ...base,
     thumbnailUrl: parseTemplateThumbnailUrl(row),
+    creatorId: Number.isFinite(creatorIdNum) ? creatorIdNum : null,
   };
 }
 
@@ -301,22 +313,20 @@ export async function createTemplate(
   return mapTemplateCreateResponse(row);
 }
 
-export async function updateTemplate(
+export async function patchTemplateMeta(
   id: string,
-  body: CreateTemplatePayload,
+  body: { title: string; description: string | null },
   accessToken: string | null,
-): Promise<TemplateResponse> {
+): Promise<TemplateMetaPatchResponse> {
   const res = await apiFetch(`/api/v1/templates/${encodeURIComponent(id)}`, {
-    method: 'PUT',
+    method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
       ...authHeaders(accessToken),
     },
     body: JSON.stringify({
       title: body.title,
-      items: body.items,
-      parentTemplateId: body.parentTemplateId ?? null,
-      thumbnailUrl: body.thumbnailUrl ?? null,
+      description: body.description,
     }),
   });
   if (!res.ok) {
@@ -324,7 +334,13 @@ export async function updateTemplate(
     throw new Error(t || `템플릿 수정 실패 (${res.status})`);
   }
   const row = (await res.json()) as Record<string, unknown>;
-  return mapTemplateCreateResponse(row);
+  const desc = row.description;
+  return {
+    id: String(row.id ?? ''),
+    title: typeof row.title === 'string' ? row.title : '',
+    version: typeof row.version === 'number' ? row.version : Number(row.version) || 0,
+    description: typeof desc === 'string' ? desc : null,
+  };
 }
 
 export async function deleteTemplate(id: string, accessToken: string | null): Promise<void> {

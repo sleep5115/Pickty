@@ -3,6 +3,8 @@ package com.pickty.server.domain.tier
 import com.pickty.server.global.common.BaseTimeEntity
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
 import jakarta.persistence.FetchType
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
@@ -10,6 +12,7 @@ import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
+import org.hibernate.annotations.ColumnDefault
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
 import java.util.UUID
@@ -34,7 +37,7 @@ class TierTemplate(
     var id: UUID? = null
         protected set
 
-    @Column(nullable = false, length = 500)
+    @Column(nullable = false, length = 100)
     var title: String = title
         protected set
 
@@ -60,15 +63,30 @@ class TierTemplate(
     @Column(name = "thumbnail_url", length = 2048)
     var thumbnailUrl: String? = null
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    @ColumnDefault("'ACTIVE'")
+    var status: TemplateStatus = TemplateStatus.ACTIVE
+
     fun updateItems(newItems: Map<String, Any?>) {
         this.items = newItems
     }
 
-    /** 제목·JSONB·썸네일 일괄 갱신(저장 수정) — 버전만 1 증가 */
-    fun replaceContent(newTitle: String, newItems: Map<String, Any?>, newThumbnailUrl: String?) {
+    /** 제목 + JSONB `description` 키만 갱신(아이템 배열 불변) */
+    fun applyTemplateMeta(newTitle: String, newDescription: String?) {
         title = newTitle
-        items = newItems
-        thumbnailUrl = newThumbnailUrl
+        val m = items.toMutableMap()
+        val d = newDescription?.trim()?.takeIf { it.isNotEmpty() }
+        if (d == null) {
+            m.remove("description")
+        } else {
+            m["description"] = d
+        }
+        items = m
         version = version + 1
+    }
+
+    fun markDeleted() {
+        status = TemplateStatus.DELETED
     }
 }

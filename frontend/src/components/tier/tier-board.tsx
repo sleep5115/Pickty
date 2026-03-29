@@ -1,6 +1,8 @@
 'use client';
 
+import Link from 'next/link';
 import { RefObject, useCallback, useRef, useState } from 'react';
+import { GitBranch } from 'lucide-react';
 import {
   DndContext,
   DragEndEvent,
@@ -15,6 +17,7 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
+import { useAuthStore } from '@/lib/store/auth-store';
 import { useTierStore } from '@/lib/store/tier-store';
 import { usePointerDevice } from '@/hooks/use-pointer-device';
 import { useDragSelect } from '@/hooks/use-drag-select';
@@ -47,6 +50,8 @@ export function TierBoard({ dragSelectRef, pointerModeReady = true }: TierBoardP
     clearSelection,
     toggleItemSelection,
   } = useTierStore();
+  const templateId = useTierStore((s) => s.templateId);
+  const accessToken = useAuthStore((s) => s.accessToken);
   const { isPointerFine } = usePointerDevice();
   const isFine = pointerModeReady ? (isPointerFine ?? true) : true;
 
@@ -227,8 +232,26 @@ export function TierBoard({ dragSelectRef, pointerModeReady = true }: TierBoardP
           </div>
         </div>
 
-        {/* 저장(서버) | 다운로드(PNG) — 모달에서 제목·설명 입력 후 분기 */}
-        <div className="flex justify-end items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-zinc-950 border-t border-slate-200 dark:border-zinc-800">
+        {/* 파생(왼쪽) · 저장(서버) | 다운로드(PNG) — 모달에서 제목·설명 입력 후 분기 */}
+        <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-zinc-950 border-t border-slate-200 dark:border-zinc-800">
+          <div className="min-w-0 flex-1 flex items-center">
+            {templateId ? (
+              <Link
+                href={
+                  accessToken
+                    ? `/template/new?forkTemplateId=${encodeURIComponent(templateId)}`
+                    : `/login?returnTo=${encodeURIComponent(`/template/new?forkTemplateId=${templateId}`)}`
+                }
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-lg border border-violet-400/70 bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-900 shadow-sm transition-colors hover:bg-violet-100 dark:border-violet-700 dark:bg-violet-950/45 dark:text-violet-100 dark:hover:bg-violet-950/75"
+              >
+                <GitBranch className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
+                <span className="min-w-0 text-left leading-snug line-clamp-2">
+                  이 템플릿을 바탕으로 새 템플릿 만들기
+                </span>
+              </Link>
+            ) : null}
+          </div>
           <button
             type="button"
             onClick={(e) => {
@@ -241,7 +264,7 @@ export function TierBoard({ dragSelectRef, pointerModeReady = true }: TierBoardP
               setIsExportOpen(true);
             }}
             className={[
-              'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold',
+              'flex shrink-0 items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold',
               'bg-violet-600 hover:bg-violet-500 text-white',
               'transition-all shadow-lg shadow-violet-900/30',
               targetTierId === null ? 'active:scale-95' : '',

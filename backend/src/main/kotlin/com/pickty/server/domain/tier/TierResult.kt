@@ -61,7 +61,7 @@ class TierResult(
         protected set
 
     /** 유저가 붙인 티어표 제목 (TierMaker의 Title of Tier List) */
-    @Column(name = "list_title", length = 500)
+    @Column(name = "list_title", length = 100)
     var listTitle: String? = listTitleInit
         protected set
 

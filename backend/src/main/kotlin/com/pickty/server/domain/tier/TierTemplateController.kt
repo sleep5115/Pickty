@@ -1,18 +1,20 @@
 package com.pickty.server.domain.tier
 
 import com.pickty.server.domain.tier.dto.CreateTemplateRequest
+import com.pickty.server.domain.tier.dto.PatchTemplateMetaResponse
 import com.pickty.server.domain.tier.dto.TemplateDetailResponse
 import com.pickty.server.domain.tier.dto.TemplateResponse
 import com.pickty.server.domain.tier.dto.TemplateSummaryResponse
+import com.pickty.server.domain.tier.dto.UpdateTemplateMetaRequest
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
@@ -42,14 +44,14 @@ class TierTemplateController(
         return ResponseEntity.status(HttpStatus.CREATED).body(created)
     }
 
-    @PutMapping("/{id}")
-    fun update(
+    @PatchMapping("/{id}")
+    fun patchMeta(
         @PathVariable id: UUID,
-        @Valid @RequestBody body: CreateTemplateRequest,
+        @Valid @RequestBody body: UpdateTemplateMetaRequest,
         authentication: Authentication?,
-    ): ResponseEntity<TemplateResponse> {
+    ): ResponseEntity<PatchTemplateMetaResponse> {
         val userId = resolveUserIdOrThrow(authentication)
-        val updated = tierTemplateService.update(id, body, userId)
+        val updated = tierTemplateService.patchTemplateMeta(id, body, userId, isAdmin(authentication))
         return ResponseEntity.ok(updated)
     }
 

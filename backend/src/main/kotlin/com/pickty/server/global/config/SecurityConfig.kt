@@ -79,7 +79,7 @@ class SecurityConfig(
                     .requestMatchers(HttpMethod.DELETE, "/api/v1/user/**").authenticated()
                     // 티어 템플릿·결과 생성은 로그인 필수 (비로그인 임시 저장 미제공)
                     .requestMatchers(HttpMethod.POST, "/api/v1/templates").authenticated()
-                    .requestMatchers(HttpMethod.PUT, "/api/v1/templates/**").authenticated()
+                    .requestMatchers(HttpMethod.PATCH, "/api/v1/templates/**").authenticated()
                     .requestMatchers(HttpMethod.DELETE, "/api/v1/templates/**").authenticated()
                     .requestMatchers(HttpMethod.POST, "/api/v1/images").authenticated()
                     .requestMatchers(HttpMethod.POST, "/api/v1/tiers/results").authenticated()
