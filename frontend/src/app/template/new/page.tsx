@@ -12,12 +12,18 @@ import { apiFetch } from '@/lib/api-fetch';
 import { uploadPicktyImages } from '@/lib/image-upload-api';
 import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
 import { captureTemplateThumbnail2x2 } from '@/lib/template-thumbnail-composite';
-import { createTemplate, getTemplate, templatePayloadToTierItems } from '@/lib/tier-api';
+import {
+  createTemplate,
+  getTemplate,
+  templatePayloadToTierItems,
+  updateTemplate,
+} from '@/lib/tier-api';
 import {
   stripFilenameToDefaultName,
   templateNewFormSchema,
   type TemplateNewFormValues,
 } from '@/lib/schemas/template-new';
+import { PICKTY_IMAGE_ACCEPT } from '@/lib/pickty-image-accept';
 
 type FileEntry = { file: File; previewUrl: string };
 
@@ -35,6 +41,9 @@ function NewTemplatePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const fromTemplateId = searchParams.get('fromTemplate');
+  const editTemplateId = searchParams.get('editTemplate');
+  const templateSourceId = editTemplateId ?? fromTemplateId;
+  const isEditMode = Boolean(editTemplateId);
   const hydrated = useAuthPersistHydrated();
   const accessToken = useAuthStore((s) => s.accessToken);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -149,16 +158,16 @@ function NewTemplatePageInner() {
   }, [hydrated, accessToken]);
 
   useEffect(() => {
-    if (!hydrated || !accessToken || !fromTemplateId) {
+    if (!hydrated || !accessToken || !templateSourceId) {
       setForkLoadError(null);
-      if (!fromTemplateId) setPersistedListThumbnailUrl(null);
+      if (!templateSourceId) setPersistedListThumbnailUrl(null);
       return;
     }
     let cancelled = false;
     setForkLoadError(null);
     void (async () => {
       try {
-        const d = await getTemplate(fromTemplateId);
+        const d = await getTemplate(templateSourceId);
         if (cancelled) return;
         const pool = templatePayloadToTierItems(d.items);
         if (pool.length === 0) {
@@ -193,7 +202,7 @@ function NewTemplatePageInner() {
     return () => {
       cancelled = true;
     };
-  }, [hydrated, accessToken, fromTemplateId, form]);
+  }, [hydrated, accessToken, templateSourceId, form]);
 
   const ingestFiles = useCallback(
     (list: FileList | File[]) => {
@@ -336,16 +345,16 @@ function NewTemplatePageInner() {
     }
 
     try {
-      const created = await createTemplate(
-        {
-          title: values.title.trim(),
-          parentTemplateId: null,
-          version: 1,
-          items: itemsEnvelope,
-          thumbnailUrl: finalThumbnailUrl ?? null,
-        },
-        accessToken,
-      );
+      const payload = {
+        title: values.title.trim(),
+        parentTemplateId: null,
+        version: 1,
+        items: itemsEnvelope,
+        thumbnailUrl: finalThumbnailUrl ?? null,
+      };
+      const created = isEditMode && editTemplateId
+        ? await updateTemplate(editTemplateId, payload, accessToken)
+        : await createTemplate(payload, accessToken);
       if (
         finalThumbnailUrl &&
         created.thumbnailFieldInResponse &&
@@ -464,14 +473,19 @@ function NewTemplatePageInner() {
       <div className="w-full py-8 px-1 sm:px-2">
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">
-          {fromTemplateId ? '템플릿 다시 만들기' : '새 템플릿 만들기'}
+          {isEditMode ? '템플릿 수정' : fromTemplateId ? '템플릿 다시 만들기' : '새 템플릿 만들기'}
         </h1>
         <p className="mt-1 text-sm text-slate-600 dark:text-zinc-400">
           이미지를 올려 티어표에 넣을 아이템을 만듭니다. 이름은 파일명을 기준으로 채워지며 바꿀 수 있어요.
         </p>
-        {fromTemplateId && (
+        {fromTemplateId && !isEditMode && (
           <p className="mt-2 text-xs text-violet-600 dark:text-violet-400">
             기존 템플릿을 불러왔습니다. 저장하면 <strong>새 템플릿</strong>으로 등록됩니다.
+          </p>
+        )}
+        {isEditMode && (
+          <p className="mt-2 text-xs text-violet-600 dark:text-violet-400">
+            이 템플릿을 수정 중입니다. 저장하면 같은 템플릿이 갱신됩니다.
           </p>
         )}
       </div>
@@ -549,7 +563,7 @@ function NewTemplatePageInner() {
               <input
                 ref={customThumbInputRef}
                 type="file"
-                accept="image/*"
+                accept={PICKTY_IMAGE_ACCEPT}
                 className="sr-only"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
@@ -640,7 +654,7 @@ function NewTemplatePageInner() {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept={PICKTY_IMAGE_ACCEPT}
               multiple
               className="sr-only"
               onChange={onInputChange}

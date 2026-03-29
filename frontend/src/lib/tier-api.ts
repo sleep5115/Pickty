@@ -36,6 +36,8 @@ export interface TemplateSummaryResponse {
   itemCount: number;
   description: string | null;
   thumbnailUrl: string | null;
+  /** 작성자 id — 없으면 null */
+  creatorId: number | null;
 }
 
 /** 템플릿 items JSONB의 `description` 문자열 (없으면 null) */
@@ -212,6 +214,9 @@ function mapTemplateSummaryRow(row: Record<string, unknown>): TemplateSummaryRes
     typeof itemCountRaw === 'number' ? itemCountRaw : Number(itemCountRaw) || 0;
   const desc = row.description;
   const description = typeof desc === 'string' ? desc : null;
+  const cr = row.creatorId ?? row.creator_id;
+  const creatorIdNum =
+    cr === null || cr === undefined || cr === '' ? NaN : Number(cr);
   return {
     id,
     title,
@@ -219,6 +224,7 @@ function mapTemplateSummaryRow(row: Record<string, unknown>): TemplateSummaryRes
     itemCount,
     description,
     thumbnailUrl: parseTemplateThumbnailUrl(row),
+    creatorId: Number.isFinite(creatorIdNum) ? creatorIdNum : null,
   };
 }
 
@@ -293,6 +299,43 @@ export async function createTemplate(
   }
   const row = (await res.json()) as Record<string, unknown>;
   return mapTemplateCreateResponse(row);
+}
+
+export async function updateTemplate(
+  id: string,
+  body: CreateTemplatePayload,
+  accessToken: string | null,
+): Promise<TemplateResponse> {
+  const res = await apiFetch(`/api/v1/templates/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(accessToken),
+    },
+    body: JSON.stringify({
+      title: body.title,
+      items: body.items,
+      parentTemplateId: body.parentTemplateId ?? null,
+      thumbnailUrl: body.thumbnailUrl ?? null,
+    }),
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(t || `템플릿 수정 실패 (${res.status})`);
+  }
+  const row = (await res.json()) as Record<string, unknown>;
+  return mapTemplateCreateResponse(row);
+}
+
+export async function deleteTemplate(id: string, accessToken: string | null): Promise<void> {
+  const res = await apiFetch(`/api/v1/templates/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: { ...authHeaders(accessToken) },
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(t || `템플릿 삭제 실패 (${res.status})`);
+  }
 }
 
 export async function createTierResult(

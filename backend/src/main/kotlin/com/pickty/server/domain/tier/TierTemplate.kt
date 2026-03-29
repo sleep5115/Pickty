@@ -63,4 +63,12 @@ class TierTemplate(
     fun updateItems(newItems: Map<String, Any?>) {
         this.items = newItems
     }
+
+    /** 제목·JSONB·썸네일 일괄 갱신(저장 수정) — 버전만 1 증가 */
+    fun replaceContent(newTitle: String, newItems: Map<String, Any?>, newThumbnailUrl: String?) {
+        title = newTitle
+        items = newItems
+        thumbnailUrl = newThumbnailUrl
+        version = version + 1
+    }
 }

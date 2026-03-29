@@ -26,6 +26,10 @@ const BENEFITS = [
 
 const TIER_EXPORT_CAPTURE_WIDTH = 800;
 
+/** 백엔드 `CreateTierResultRequest` / `UpdateTierResultMetaRequest` 와 동일 */
+const LIST_TITLE_MAX_LEN = 500;
+const LIST_DESCRIPTION_MAX_LEN = 10000;
+
 export function ExportModal({ captureRef, onClose }: ExportModalProps) {
   const router = useRouter();
   const accessToken = useAuthStore((s) => s.accessToken);
@@ -139,6 +143,10 @@ export function ExportModal({ captureRef, onClose }: ExportModalProps) {
     const title = listTitle.trim();
     if (!title) {
       setSaveError('티어표 제목을 입력해 주세요.');
+      return;
+    }
+    if (title.length > LIST_TITLE_MAX_LEN || listDescription.length > LIST_DESCRIPTION_MAX_LEN) {
+      setSaveError('제목은 500자 이하, 설명은 10000자 이하로 입력해 주세요.');
       return;
     }
     if (!previewUrl) {
@@ -366,6 +374,23 @@ function LoggedInSaveDownloadPanel({
   onRegenerate: () => void;
   onClose: () => void;
 }) {
+  const titleWarn = listTitle.length >= 450;
+  const titleAtMax = listTitle.length >= LIST_TITLE_MAX_LEN;
+  const descWarn = listDescription.length >= 9000;
+  const descAtMax = listDescription.length >= LIST_DESCRIPTION_MAX_LEN;
+
+  const titleInputRing = titleAtMax
+    ? 'ring-1 ring-amber-500 dark:ring-amber-500/90'
+    : titleWarn
+      ? 'ring-1 ring-amber-400/70 dark:ring-amber-500/50'
+      : '';
+
+  const descInputRing = descAtMax
+    ? 'ring-1 ring-amber-500 dark:ring-amber-500/90'
+    : descWarn
+      ? 'ring-1 ring-amber-400/70 dark:ring-amber-500/50'
+      : '';
+
   return (
     <>
       <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-slate-100 dark:border-zinc-800 shrink-0">
@@ -390,10 +415,33 @@ function LoggedInSaveDownloadPanel({
           <input
             id="tier-list-title"
             value={listTitle}
+            maxLength={LIST_TITLE_MAX_LEN}
             onChange={(e) => setListTitle(e.target.value)}
             placeholder="티어표 제목"
-            className="w-full px-3 py-2.5 rounded-lg bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-sm text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+            aria-invalid={titleAtMax}
+            className={[
+              'w-full px-3 py-2.5 rounded-lg bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-sm text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-violet-500/40',
+              titleInputRing,
+            ].join(' ')}
           />
+          <div className="flex justify-between items-center mt-1 gap-2">
+            <span
+              className={
+                titleAtMax
+                  ? 'text-xs text-amber-600 dark:text-amber-400'
+                  : titleWarn
+                    ? 'text-xs text-amber-700/90 dark:text-amber-500/90'
+                    : 'text-xs text-slate-500 dark:text-zinc-500'
+              }
+            >
+              {titleAtMax ? '제한 길이에 도달했습니다.' : titleWarn ? '곧 글자 수 제한에 도달합니다.' : ''}
+            </span>
+            <span
+              className={`text-xs tabular-nums ${titleAtMax || titleWarn ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500 dark:text-zinc-500'}`}
+            >
+              {listTitle.length}/{LIST_TITLE_MAX_LEN}
+            </span>
+          </div>
         </div>
         <div>
           <label htmlFor="tier-list-desc" className="sr-only">
@@ -402,11 +450,34 @@ function LoggedInSaveDownloadPanel({
           <textarea
             id="tier-list-desc"
             value={listDescription}
+            maxLength={LIST_DESCRIPTION_MAX_LEN}
             onChange={(e) => setListDescription(e.target.value)}
             placeholder="설명을 추가하세요…"
             rows={3}
-            className="w-full px-3 py-2.5 rounded-lg bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-sm text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 resize-y min-h-[80px] focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+            aria-invalid={descAtMax}
+            className={[
+              'w-full px-3 py-2.5 rounded-lg bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-sm text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 resize-y min-h-[80px] focus:outline-none focus:ring-2 focus:ring-violet-500/40',
+              descInputRing,
+            ].join(' ')}
           />
+          <div className="flex justify-between items-center mt-1 gap-2">
+            <span
+              className={
+                descAtMax
+                  ? 'text-xs text-amber-600 dark:text-amber-400'
+                  : descWarn
+                    ? 'text-xs text-amber-700/90 dark:text-amber-500/90'
+                    : 'text-xs text-slate-500 dark:text-zinc-500'
+              }
+            >
+              {descAtMax ? '제한 길이에 도달했습니다.' : descWarn ? '곧 글자 수 제한에 도달합니다.' : ''}
+            </span>
+            <span
+              className={`text-xs tabular-nums ${descAtMax || descWarn ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500 dark:text-zinc-500'}`}
+            >
+              {listDescription.length}/{LIST_DESCRIPTION_MAX_LEN}
+            </span>
+          </div>
         </div>
 
         {saveError && (

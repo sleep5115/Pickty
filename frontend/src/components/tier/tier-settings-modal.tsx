@@ -10,6 +10,7 @@ import {
   tierHasBackgroundImage,
 } from '@/lib/tier-label-surface';
 import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
+import { PICKTY_IMAGE_ACCEPT } from '@/lib/pickty-image-accept';
 
 /** 한글/CJK 포함 시 최대 3자, 영어·숫자만이면 최대 5자 */
 function isWithinLabelLimit(s: string): boolean {
@@ -212,7 +213,7 @@ export function TierSettingsModal({ tier, onClose }: TierSettingsModalProps) {
               <input
                 ref={bgFileRef}
                 type="file"
-                accept="image/*"
+                accept={PICKTY_IMAGE_ACCEPT}
                 className="hidden"
                 disabled={uploadBusy || !accessToken}
                 onChange={handleBackgroundFile}

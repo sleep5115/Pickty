@@ -4,6 +4,9 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.pickty.server.domain.tier.dto.CreateTierResultRequest
 import com.pickty.server.domain.tier.dto.TierResultResponse
 import com.pickty.server.domain.tier.dto.TierResultSummaryResponse
+import com.pickty.server.domain.tier.dto.UpdateTierResultMetaRequest
+import com.pickty.server.global.exception.PicktyValidationException
+import jakarta.validation.Validator
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.http.HttpStatus
@@ -18,6 +21,7 @@ class TierResultService(
     private val tierResultRepository: TierResultRepository,
     private val tierTemplateRepository: TierTemplateRepository,
     private val tierResultCacheService: TierResultCacheService,
+    private val validator: Validator,
 ) {
 
     @Transactional
@@ -83,6 +87,9 @@ class TierResultService(
 
     @Transactional
     fun patchMetadata(id: UUID, userId: Long, body: JsonNode): TierResultResponse {
+        assertPatchMetaKeysAllowed(body)
+        validatePatchMetaLengths(body)
+
         val entity = tierResultRepository.findByIdWithTemplate(id)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "tier result not found")
         if (entity.userId != userId) {
@@ -102,6 +109,34 @@ class TierResultService(
         val rid = entity.id ?: throw IllegalStateException("result id null")
         tierResultCacheService.evict(rid)
         return toResponse(entity)
+    }
+
+    private fun assertPatchMetaKeysAllowed(body: JsonNode) {
+        val allowed = setOf("title", "description")
+        val it = body.fieldNames()
+        while (it.hasNext()) {
+            val key = it.next()
+            if (key !in allowed) {
+                throw PicktyValidationException(listOf("허용되지 않은 필드입니다: $key"))
+            }
+        }
+    }
+
+    private fun validatePatchMetaLengths(body: JsonNode) {
+        val messages = mutableListOf<String>()
+        if (body.has("title")) {
+            val v = if (body.get("title").isNull) null else body.get("title").asText()
+            val probe = UpdateTierResultMetaRequest(title = v, description = null)
+            validator.validateProperty(probe, "title").forEach { messages.add(it.message) }
+        }
+        if (body.has("description")) {
+            val v = if (body.get("description").isNull) null else body.get("description").asText()
+            val probe = UpdateTierResultMetaRequest(title = null, description = v)
+            validator.validateProperty(probe, "description").forEach { messages.add(it.message) }
+        }
+        if (messages.isNotEmpty()) {
+            throw PicktyValidationException(messages.distinct())
+        }
     }
 
     @Transactional

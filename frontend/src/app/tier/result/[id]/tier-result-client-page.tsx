@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Download, Link2, MoreHorizontal, Pencil, RefreshCw, Trash2 } from 'lucide-react';
+import { Download, Link2, MoreVertical, Pencil, RefreshCw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -256,12 +256,12 @@ export function TierResultClientPage() {
                     : 'border-slate-300 dark:border-zinc-600 text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800',
                 ].join(' ')}
               >
-                <MoreHorizontal className="h-5 w-5" strokeWidth={2} aria-hidden />
+                <MoreVertical className="h-5 w-5" strokeWidth={2} aria-hidden />
               </button>
               {moreMenuOpen && (
                 <div
                   role="menu"
-                  className="absolute right-0 z-50 mt-1 min-w-[10rem] rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 py-1 shadow-lg shadow-black/10 dark:shadow-black/40"
+                  className="absolute right-0 z-[100] mt-1 min-w-[10rem] rounded-xl border border-slate-200 bg-white py-1 shadow-lg shadow-black/10 dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-black/40"
                 >
                   {showEdit && (
                     <button

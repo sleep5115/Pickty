@@ -1,17 +1,40 @@
 package com.pickty.server.domain.tier.dto
 
+import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.NotEmpty
 import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Size
 import java.util.UUID
 
+/** 템플릿 JSONB(items) — 프론트 Zod와 동일한 길이 제한 */
+data class TemplateItemPayload(
+    @field:NotBlank(message = "아이템 id는 필수입니다.")
+    @field:Size(max = 500, message = "아이템 id는 500자 이하로 입력해 주세요.")
+    val id: String,
+    @field:NotBlank(message = "아이템 이름을 입력해 주세요.")
+    @field:Size(max = 200, message = "이름은 200자 이하로 입력해 주세요.")
+    val name: String,
+    @field:Size(max = 2048, message = "이미지 URL은 2048자 이하로 입력해 주세요.")
+    val imageUrl: String? = null,
+)
+
+data class TemplateItemsPayload(
+    @field:Size(max = 10000, message = "설명은 10000자 이하로 입력해 주세요.")
+    val description: String? = null,
+    @field:NotEmpty(message = "아이템을 1개 이상 추가해 주세요.")
+    @field:Valid
+    val items: List<TemplateItemPayload>,
+)
+
 data class CreateTemplateRequest(
-    @field:NotBlank @field:Size(max = 500) val title: String,
-    /** JSONB에 그대로 저장. 권장: `{ "items": [ { "id", "name", "imageUrl?" } ] }` */
-    @field:NotNull val items: Map<String, Any?>,
+    @field:NotBlank(message = "템플릿 제목을 입력해 주세요.")
+    @field:Size(max = 500, message = "제목은 500자 이하로 입력해 주세요.")
+    val title: String,
+    @field:NotNull @field:Valid val items: TemplateItemsPayload,
     val parentTemplateId: UUID? = null,
-    /** 목록·OG용 단일 썸네일 URL (https) — 없으면 null */
-    @field:Size(max = 2048) val thumbnailUrl: String? = null,
+    @field:Size(max = 2048, message = "썸네일 URL은 2048자 이하로 입력해 주세요.")
+    val thumbnailUrl: String? = null,
 )
 
 data class TemplateResponse(
@@ -43,15 +66,28 @@ data class TemplateSummaryResponse(
     val description: String?,
     /** 단일 썸네일 — 없으면 null (프론트 플레이스홀더) */
     val thumbnailUrl: String?,
+    /** 작성자 — null 이면 구 데이터·익명 */
+    val creatorId: Long?,
 )
 
 data class CreateTierResultRequest(
     @field:NotNull val templateId: UUID,
     @field:NotNull val snapshotData: Map<String, Any?>,
     val isPublic: Boolean = false,
-    @field:Size(max = 500) val listTitle: String? = null,
-    @field:Size(max = 10000) val listDescription: String? = null,
-    @field:Size(max = 2048) val thumbnailUrl: String? = null,
+    @field:Size(max = 500, message = "제목은 500자 이하로 입력해 주세요.") val listTitle: String? = null,
+    @field:Size(max = 10000, message = "설명은 10000자 이하로 입력해 주세요.") val listDescription: String? = null,
+    @field:Size(max = 2048, message = "썸네일 URL은 2048자 이하로 입력해 주세요.") val thumbnailUrl: String? = null,
+)
+
+/**
+ * PATCH 메타 병합 시 [jakarta.validation.Validator.validateProperty] 용 프로브.
+ * (JsonNode 병합과 함께 사용 — 필드별 @Size 메시지 유지)
+ */
+data class UpdateTierResultMetaRequest(
+    @field:Size(max = 500, message = "제목은 500자 이하로 입력해 주세요.")
+    val title: String? = null,
+    @field:Size(max = 10000, message = "설명은 10000자 이하로 입력해 주세요.")
+    val description: String? = null,
 )
 
 data class TierResultResponse(

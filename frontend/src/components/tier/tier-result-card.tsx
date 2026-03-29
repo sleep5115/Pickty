@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { MoreHorizontal, Pencil, RefreshCw, Trash2 } from 'lucide-react';
+import { MoreVertical, Pencil, RefreshCw, Trash2 } from 'lucide-react';
 import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
 import type { TierResultSummaryResponse } from '@/lib/tier-api';
 
@@ -68,13 +68,13 @@ export function TierResultCard({
   }, [menuOpen]);
 
   return (
-    <li className="flex flex-col rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm h-full">
+    <li className="flex h-full flex-col rounded-xl border border-slate-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
       <Link
         href={`/tier/result/${encodeURIComponent(r.id)}`}
-        className="group flex flex-col flex-1 min-h-0 hover:border-violet-400 dark:hover:border-violet-600 transition-colors"
+        className="group flex min-h-0 flex-1 flex-col transition-colors hover:border-violet-400 dark:hover:border-violet-600"
       >
         <div
-          className="relative w-full shrink-0 overflow-hidden border-b border-slate-100 bg-slate-100 dark:border-zinc-800 dark:bg-zinc-950"
+          className="relative w-full shrink-0 overflow-hidden rounded-t-xl border-b border-slate-100 bg-slate-100 dark:border-zinc-800 dark:bg-zinc-950"
           style={{ aspectRatio: '16 / 10', minHeight: '140px' }}
         >
           {r.thumbnailUrl ? (
@@ -97,7 +97,9 @@ export function TierResultCard({
             </div>
           )}
         </div>
-        <div className="p-4 flex flex-col gap-1 flex-1 min-w-0">
+        <div
+          className={`flex min-h-0 min-w-0 flex-1 flex-col gap-1 p-4 ${!showOwnerMenu ? 'rounded-b-xl' : ''}`}
+        >
           <span className="font-semibold text-slate-900 dark:text-zinc-100 group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors line-clamp-2">
             {r.listTitle?.trim() || '제목 없음'}
           </span>
@@ -110,7 +112,7 @@ export function TierResultCard({
           </span>
         </div>
       </Link>
-      <div className="flex flex-wrap items-center gap-2 px-4 pb-4 pt-0 border-t border-transparent">
+      <div className="flex flex-wrap items-center gap-2 rounded-b-xl border-t border-transparent px-4 pb-4 pt-0">
         <Link
           href={`/tier?templateId=${encodeURIComponent(r.templateId)}&sourceResultId=${encodeURIComponent(r.id)}`}
           className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800"
@@ -133,12 +135,12 @@ export function TierResultCard({
                   : 'border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800',
               ].join(' ')}
             >
-              <MoreHorizontal className="h-4 w-4" strokeWidth={2} aria-hidden />
+              <MoreVertical className="h-4 w-4" strokeWidth={2} aria-hidden />
             </button>
             {menuOpen && (
               <div
                 role="menu"
-                className="absolute right-0 z-50 mt-1 min-w-[9.5rem] rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 py-1 shadow-lg shadow-black/10 dark:shadow-black/40"
+                className="absolute right-0 z-[100] mt-1 min-w-[9.5rem] rounded-xl border border-slate-200 bg-white py-1 shadow-lg shadow-black/10 dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-black/40"
               >
                 {showEdit && (
                   <button

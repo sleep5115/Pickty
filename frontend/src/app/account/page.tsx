@@ -12,6 +12,7 @@ import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
 import { uploadPicktyImages } from '@/lib/image-upload-api';
 import { onboardingSchema, type OnboardingFormValues } from '@/lib/schemas/auth';
 import { PUBLIC_API_BASE_URL } from '@/lib/public-site-config';
+import { PICKTY_IMAGE_ACCEPT } from '@/lib/pickty-image-accept';
 
 interface UserInfo {
   id: number;
@@ -103,7 +104,6 @@ const BIRTH_YEAR_OPTIONS = (() => {
   return list;
 })();
 
-const ACCEPT_IMAGE = 'image/jpeg,image/png,image/webp,image/gif';
 
 function pickImageFile(list: FileList | File[] | null): File | null {
   if (!list || list.length === 0) return null;
@@ -338,7 +338,7 @@ function ProfileEditModal({ open, onClose, accessToken, user, onSaved, onUnautho
             <input
               ref={fileInputRef}
               type="file"
-              accept={ACCEPT_IMAGE}
+              accept={PICKTY_IMAGE_ACCEPT}
               className="sr-only"
               onChange={(e) => {
                 applyFile(pickImageFile(e.target.files));

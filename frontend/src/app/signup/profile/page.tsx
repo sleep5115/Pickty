@@ -13,6 +13,7 @@ import { uploadPicktyImages } from '@/lib/image-upload-api';
 import { generateRandomPlayfulNickname } from '@/lib/nickname-playful';
 import { runPersistedTierAutoSave } from '@/lib/post-oauth-tier-flow';
 import { toast } from 'sonner';
+import { PICKTY_IMAGE_ACCEPT } from '@/lib/pickty-image-accept';
 
 const BIRTH_YEAR_OPTIONS = (() => {
   const y = new Date().getFullYear();
@@ -20,8 +21,6 @@ const BIRTH_YEAR_OPTIONS = (() => {
   for (let i = y; i >= 1900; i--) list.push(i);
   return list;
 })();
-
-const ACCEPT_IMAGE = 'image/jpeg,image/png,image/webp,image/gif';
 
 function pickImageFile(list: FileList | File[] | null): File | null {
   if (!list || list.length === 0) return null;
@@ -281,7 +280,7 @@ export default function OnboardingProfilePage() {
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept={ACCEPT_IMAGE}
+                    accept={PICKTY_IMAGE_ACCEPT}
                     className="sr-only"
                     onChange={(e) => {
                       const file = pickImageFile(e.target.files);
