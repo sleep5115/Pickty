@@ -121,12 +121,14 @@ export function TemplateLikeButton({
       aria-pressed={liked}
       title={locked ? '티어 만들기 화면에서만 좋아요할 수 있어요' : undefined}
       className={[
-        'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors disabled:cursor-default',
+        'inline-flex items-center gap-1.5 border-0 bg-transparent px-0 py-0.5 text-xs font-medium tabular-nums transition-colors disabled:cursor-default rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500/35 focus-visible:ring-offset-1 focus-visible:ring-offset-white dark:focus-visible:ring-offset-zinc-900',
         liked
-          ? 'border-pink-500 bg-pink-50 text-pink-800 dark:border-pink-600 dark:bg-pink-950/40 dark:text-pink-200'
-          : 'border-slate-200 text-slate-600 dark:border-zinc-600 dark:text-zinc-300',
+          ? 'text-pink-600 dark:text-pink-400'
+          : 'text-slate-600 dark:text-zinc-400',
         !locked && !busy && templateId
-          ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800'
+          ? liked
+            ? 'cursor-pointer hover:opacity-90'
+            : 'cursor-pointer hover:text-pink-600 dark:hover:text-pink-400'
           : '',
         busy ? 'opacity-60' : '',
         className,
@@ -137,7 +139,7 @@ export function TemplateLikeButton({
         strokeWidth={2}
         aria-hidden
       />
-      <span className="tabular-nums">{likeCount}</span>
+      <span>{likeCount}</span>
     </button>
   );
 }

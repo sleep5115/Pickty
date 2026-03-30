@@ -171,9 +171,11 @@ export function ResultVoteButtons({
 
   const locked = !surfaceInteractive;
   const isLg = size === 'lg';
-  const rowGap = isLg ? 'gap-3' : 'gap-2';
-  const btnPad = isLg ? 'gap-2 rounded-xl border-2 px-5 py-3 text-base font-semibold' : 'gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium';
-  const iconUp = isLg ? 'h-6 w-6' : 'h-3.5 w-3.5';
+  const rowGap = isLg ? 'gap-5' : 'gap-3';
+  const btnBase = isLg
+    ? 'inline-flex items-center gap-2 border-0 bg-transparent px-0 py-0.5 text-base font-semibold tabular-nums rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/40 focus-visible:ring-offset-1 focus-visible:ring-offset-white dark:focus-visible:ring-zinc-500/40 dark:focus-visible:ring-offset-zinc-900'
+    : 'inline-flex items-center gap-1 border-0 bg-transparent px-0 py-0.5 text-xs font-medium tabular-nums rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/40 focus-visible:ring-offset-1 focus-visible:ring-offset-white dark:focus-visible:ring-zinc-500/40 dark:focus-visible:ring-offset-zinc-900';
+  const iconUp = isLg ? 'h-7 w-7' : 'h-3.5 w-3.5';
   const iconStroke = isLg ? 2.25 : 2;
 
   return (
@@ -190,19 +192,21 @@ export function ResultVoteButtons({
         aria-pressed={selection === 'UPVOTE'}
         onClick={(e) => void handleVote('UPVOTE', e)}
         className={[
-          'inline-flex items-center transition-colors disabled:cursor-default',
-          btnPad,
+          btnBase,
+          'transition-colors disabled:cursor-default',
           selection === 'UPVOTE'
-            ? 'border-red-500 bg-red-50 text-red-800 dark:border-red-600 dark:bg-red-950/40 dark:text-red-200'
-            : 'border-slate-200 text-slate-600 dark:border-zinc-600 dark:text-zinc-300',
+            ? 'text-red-600 dark:text-red-400'
+            : 'text-slate-600 dark:text-zinc-400',
           !locked && busy === null && resultId
-            ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800'
+            ? selection === 'UPVOTE'
+              ? 'cursor-pointer hover:opacity-90'
+              : 'cursor-pointer hover:text-red-600 dark:hover:text-red-400'
             : '',
           busy === 'UP' ? 'opacity-60' : '',
         ].join(' ')}
       >
         <ThumbsUp className={[iconUp, 'shrink-0'].join(' ')} strokeWidth={iconStroke} aria-hidden />
-        <span className="tabular-nums min-w-[1.25em] text-center">{upCount}</span>
+        <span className="min-w-[1.25em] text-center">{upCount}</span>
       </button>
       <button
         type="button"
@@ -210,19 +214,21 @@ export function ResultVoteButtons({
         aria-pressed={selection === 'DOWNVOTE'}
         onClick={(e) => void handleVote('DOWNVOTE', e)}
         className={[
-          'inline-flex items-center transition-colors disabled:cursor-default',
-          btnPad,
+          btnBase,
+          'transition-colors disabled:cursor-default',
           selection === 'DOWNVOTE'
-            ? 'border-blue-500 bg-blue-50 text-blue-800 dark:border-blue-600 dark:bg-blue-950/40 dark:text-blue-200'
-            : 'border-slate-200 text-slate-600 dark:border-zinc-600 dark:text-zinc-300',
+            ? 'text-blue-600 dark:text-blue-400'
+            : 'text-slate-600 dark:text-zinc-400',
           !locked && busy === null && resultId
-            ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800'
+            ? selection === 'DOWNVOTE'
+              ? 'cursor-pointer hover:opacity-90'
+              : 'cursor-pointer hover:text-blue-600 dark:hover:text-blue-400'
             : '',
           busy === 'DOWN' ? 'opacity-60' : '',
         ].join(' ')}
       >
         <ThumbsDown className={[iconUp, 'shrink-0'].join(' ')} strokeWidth={iconStroke} aria-hidden />
-        <span className="tabular-nums min-w-[1.25em] text-center">{downCount}</span>
+        <span className="min-w-[1.25em] text-center">{downCount}</span>
       </button>
     </div>
   );
