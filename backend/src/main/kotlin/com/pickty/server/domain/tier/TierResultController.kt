@@ -50,12 +50,16 @@ class TierResultController(
     fun listAll(
         @PageableDefault(size = 12, sort = ["createdAt"], direction = Sort.Direction.DESC)
         pageable: Pageable,
+        authentication: Authentication?,
     ): ResponseEntity<Page<TierResultSummaryResponse>> =
-        ResponseEntity.ok(tierResultService.listAll(pageable))
+        ResponseEntity.ok(tierResultService.listAll(pageable, resolveUserId(authentication)))
 
     @GetMapping("/{id}")
-    fun getOne(@PathVariable id: UUID): ResponseEntity<TierResultResponse> =
-        ResponseEntity.ok(tierResultService.getById(id))
+    fun getOne(
+        @PathVariable id: UUID,
+        authentication: Authentication?,
+    ): ResponseEntity<TierResultResponse> =
+        ResponseEntity.ok(tierResultService.getById(id, resolveUserId(authentication)))
 
     @PatchMapping("/{id}")
     fun patch(

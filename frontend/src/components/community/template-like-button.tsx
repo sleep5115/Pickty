@@ -3,11 +3,17 @@
 import { Heart } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { toggleReaction } from '@/lib/api/community-api';
+import { toggleReaction, type CommunityReactionType } from '@/lib/api/community-api';
+import { useAuthStore } from '@/lib/store/auth-store';
+import { getStoredReaction, setStoredReaction } from '@/lib/store/reaction-store';
 
 type Props = {
   templateId: string;
   initialLikeCount: number;
+  /** 로그인 시 API `myReaction` — 비회원이면 무시하고 localStorage 사용 */
+  initialMyReaction?: CommunityReactionType | null;
+  /** 토글 성공 후 부모가 `myReaction` 등을 동기화할 때 */
+  onMyReactionResolved?: (reaction: CommunityReactionType | null) => void;
   className?: string;
   onLikeCountChange?: (next: number) => void;
 };
@@ -15,9 +21,14 @@ type Props = {
 export function TemplateLikeButton({
   templateId,
   initialLikeCount,
+  initialMyReaction = null,
+  onMyReactionResolved,
   className = '',
   onLikeCountChange,
 }: Props) {
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const isMember = Boolean(accessToken);
+
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(initialLikeCount);
   const [busy, setBusy] = useState(false);
@@ -25,6 +36,15 @@ export function TemplateLikeButton({
   useEffect(() => {
     setLikeCount(initialLikeCount);
   }, [initialLikeCount]);
+
+  useEffect(() => {
+    if (!templateId) return;
+    if (isMember) {
+      setLiked(initialMyReaction === 'LIKE');
+      return;
+    }
+    setLiked(getStoredReaction(templateId) === 'LIKE');
+  }, [isMember, initialMyReaction, templateId]);
 
   const applyCount = useCallback(
     (next: number) => {
@@ -53,6 +73,19 @@ export function TemplateLikeButton({
           setLiked(prevLiked);
           applyCount(prevCount);
           toast.error('좋아요 상태가 맞지 않아요. 잠시 후 다시 시도해 주세요.');
+        } else if (!isMember) {
+          if (serverLiked && r.reactionType === 'LIKE') {
+            setStoredReaction(templateId, 'LIKE');
+          } else {
+            setStoredReaction(templateId, null);
+          }
+        } else {
+          setStoredReaction(templateId, null);
+        }
+        if (isMember) {
+          onMyReactionResolved?.(
+            serverLiked && r.reactionType === 'LIKE' ? 'LIKE' : null,
+          );
         }
       } catch (err) {
         setLiked(prevLiked);
@@ -62,7 +95,7 @@ export function TemplateLikeButton({
         setBusy(false);
       }
     },
-    [templateId, busy, liked, likeCount, applyCount],
+    [templateId, busy, liked, likeCount, applyCount, isMember, onMyReactionResolved],
   );
 
   return (
@@ -89,3 +122,6 @@ export function TemplateLikeButton({
     </button>
   );
 }
+
+/** 별칭 — 좋아요 단일 반응 버튼 */
+export { TemplateLikeButton as ReactionButton };

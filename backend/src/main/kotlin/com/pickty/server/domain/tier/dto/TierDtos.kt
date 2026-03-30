@@ -1,5 +1,6 @@
 package com.pickty.server.domain.tier.dto
 
+import com.pickty.server.domain.community.ReactionType
 import com.pickty.server.domain.tier.ResultStatus
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
@@ -60,6 +61,8 @@ data class TemplateDetailResponse(
     val creatorId: Long?,
     val likeCount: Long = 0,
     val commentCount: Long = 0,
+    /** 로그인 사용자 본인 반응 — 비로그인·없음이면 null */
+    val myReaction: ReactionType? = null,
 )
 
 /** 템플릿 제목·설명만 수정 (JSONB `items` 배열 불변) */
@@ -92,6 +95,7 @@ data class TemplateSummaryResponse(
     val creatorId: Long?,
     val likeCount: Long = 0,
     val commentCount: Long = 0,
+    val myReaction: ReactionType? = null,
 )
 
 data class CreateTierResultRequest(
@@ -130,6 +134,7 @@ data class TierResultResponse(
     val upCount: Long = 0,
     val downCount: Long = 0,
     val commentCount: Long = 0,
+    val myReaction: ReactionType? = null,
 )
 
 /** 목록 카드용 — 스냅샷 JSON 제외 (글로벌 피드·내 티어표 공통) */
@@ -149,4 +154,5 @@ data class TierResultSummaryResponse(
     val upCount: Long = 0,
     val downCount: Long = 0,
     val commentCount: Long = 0,
+    val myReaction: ReactionType? = null,
 )

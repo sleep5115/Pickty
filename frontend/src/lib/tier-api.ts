@@ -1,3 +1,4 @@
+import type { CommunityReactionType } from '@/lib/api/community-api';
 import { apiFetch } from '@/lib/api-fetch';
 import { resolvePicktyUploadsUrl } from '@/lib/pickty-image-url';
 import type { TierItem } from '@/lib/store/tier-store';
@@ -30,6 +31,7 @@ export interface TemplateDetailResponse {
   creatorId?: number | null;
   likeCount?: number;
   commentCount?: number;
+  myReaction?: CommunityReactionType | null;
 }
 
 export interface TemplateMetaPatchResponse {
@@ -50,6 +52,7 @@ export interface TemplateSummaryResponse {
   creatorId: number | null;
   likeCount?: number;
   commentCount?: number;
+  myReaction?: CommunityReactionType | null;
 }
 
 /** 템플릿 items JSONB의 `description` 문자열 (없으면 null) */
@@ -108,6 +111,7 @@ export interface TierResultResponse {
   upCount?: number;
   downCount?: number;
   commentCount?: number;
+  myReaction?: CommunityReactionType | null;
 }
 
 export interface TierResultSummaryResponse {
@@ -126,6 +130,7 @@ export interface TierResultSummaryResponse {
   upCount?: number;
   downCount?: number;
   commentCount?: number;
+  myReaction?: CommunityReactionType | null;
 }
 
 export interface PageTierResultSummary {
@@ -181,6 +186,12 @@ function optLongField(row: Record<string, unknown>, camel: string, snake: string
   return Number.isFinite(n) ? n : 0;
 }
 
+function parseMyReaction(row: Record<string, unknown>): CommunityReactionType | null {
+  const v = row.myReaction ?? row.my_reaction;
+  if (v === 'LIKE' || v === 'UPVOTE' || v === 'DOWNVOTE') return v;
+  return null;
+}
+
 export function parseTierResultStatus(row: Record<string, unknown>): TierResultStatus {
   const v = row.resultStatus ?? row.result_status;
   if (v === 'DELETED') return 'DELETED';
@@ -222,6 +233,7 @@ export function mapTierResultSummaryRow(row: Record<string, unknown>): TierResul
     upCount: optLongField(row, 'upCount', 'up_count'),
     downCount: optLongField(row, 'downCount', 'down_count'),
     commentCount: optLongField(row, 'commentCount', 'comment_count'),
+    myReaction: parseMyReaction(row),
   };
 }
 
@@ -267,11 +279,14 @@ function mapTemplateSummaryRow(row: Record<string, unknown>): TemplateSummaryRes
     creatorId: Number.isFinite(creatorIdNum) ? creatorIdNum : null,
     likeCount: optLongField(row, 'likeCount', 'like_count'),
     commentCount: optLongField(row, 'commentCount', 'comment_count'),
+    myReaction: parseMyReaction(row),
   };
 }
 
-export async function listTemplates(): Promise<TemplateSummaryResponse[]> {
-  const res = await apiFetch('/api/v1/templates');
+export async function listTemplates(accessToken: string | null = null): Promise<TemplateSummaryResponse[]> {
+  const res = await apiFetch('/api/v1/templates', {
+    headers: { ...authHeaders(accessToken) },
+  });
   if (!res.ok) {
     const t = await res.text();
     throw new Error(t || `템플릿 목록을 불러오지 못했습니다 (${res.status})`);
@@ -288,8 +303,10 @@ export async function listTemplates(): Promise<TemplateSummaryResponse[]> {
   });
 }
 
-export async function getTemplate(id: string): Promise<TemplateDetailResponse> {
-  const res = await apiFetch(`/api/v1/templates/${encodeURIComponent(id)}`);
+export async function getTemplate(id: string, accessToken: string | null = null): Promise<TemplateDetailResponse> {
+  const res = await apiFetch(`/api/v1/templates/${encodeURIComponent(id)}`, {
+    headers: { ...authHeaders(accessToken) },
+  });
   if (!res.ok) {
     const t = await res.text();
     throw new Error(t || `템플릿을 불러오지 못했습니다 (${res.status})`);
@@ -305,6 +322,7 @@ export async function getTemplate(id: string): Promise<TemplateDetailResponse> {
     creatorId: Number.isFinite(creatorIdNum) ? creatorIdNum : null,
     likeCount: optLongField(row, 'likeCount', 'like_count'),
     commentCount: optLongField(row, 'commentCount', 'comment_count'),
+    myReaction: parseMyReaction(row),
   };
 }
 
@@ -426,6 +444,10 @@ export async function createTierResult(
     ...raw,
     resultStatus: parseTierResultStatus(row),
     thumbnailUrl: parseResultThumbnailUrl(row),
+    upCount: optLongField(row, 'upCount', 'up_count'),
+    downCount: optLongField(row, 'downCount', 'down_count'),
+    commentCount: optLongField(row, 'commentCount', 'comment_count'),
+    myReaction: parseMyReaction(row),
   };
 }
 
@@ -447,13 +469,16 @@ export async function listMyTierResults(accessToken: string | null): Promise<Tie
 export async function listTierResultsFeedPage(
   page: number,
   size = 12,
+  accessToken: string | null = null,
 ): Promise<PageTierResultSummary> {
   const params = new URLSearchParams({
     page: String(page),
     size: String(size),
     sort: 'createdAt,desc',
   });
-  const res = await apiFetch(`/api/v1/tiers/results?${params.toString()}`);
+  const res = await apiFetch(`/api/v1/tiers/results?${params.toString()}`, {
+    headers: { ...authHeaders(accessToken) },
+  });
   if (!res.ok) {
     const t = await res.text();
     throw new Error(t || `피드를 불러오지 못했습니다 (${res.status})`);
@@ -478,8 +503,10 @@ export async function listTierResultsFeedPage(
   };
 }
 
-export async function getTierResult(id: string): Promise<TierResultResponse> {
-  const res = await apiFetch(`/api/v1/tiers/results/${id}`);
+export async function getTierResult(id: string, accessToken: string | null = null): Promise<TierResultResponse> {
+  const res = await apiFetch(`/api/v1/tiers/results/${encodeURIComponent(id)}`, {
+    headers: { ...authHeaders(accessToken) },
+  });
   if (!res.ok) {
     const t = await res.text();
     throw new Error(t || `결과를 불러오지 못했습니다 (${res.status})`);
@@ -494,6 +521,7 @@ export async function getTierResult(id: string): Promise<TierResultResponse> {
     upCount: optLongField(row, 'upCount', 'up_count'),
     downCount: optLongField(row, 'downCount', 'down_count'),
     commentCount: optLongField(row, 'commentCount', 'comment_count'),
+    myReaction: parseMyReaction(row),
   };
 }
 
@@ -524,6 +552,10 @@ export async function patchTierResultMeta(
     resultStatus: parseTierResultStatus(row),
     snapshotData: rewriteSnapshotUploadedImageUrls(raw.snapshotData),
     thumbnailUrl: parseResultThumbnailUrl(row),
+    upCount: optLongField(row, 'upCount', 'up_count'),
+    downCount: optLongField(row, 'downCount', 'down_count'),
+    commentCount: optLongField(row, 'commentCount', 'comment_count'),
+    myReaction: parseMyReaction(row),
   };
 }
 

@@ -1,5 +1,7 @@
 package com.pickty.server.domain.tier
 
+import com.pickty.server.domain.community.CommunityMyReactionService
+import com.pickty.server.domain.community.ReactionTargetType
 import com.pickty.server.domain.tier.dto.CreateTemplateRequest
 import com.pickty.server.domain.tier.dto.PatchTemplateMetaResponse
 import com.pickty.server.domain.tier.dto.TemplateItemsPayload
@@ -17,10 +19,14 @@ import java.util.UUID
 @Service
 class TierTemplateService(
     private val tierTemplateRepository: TierTemplateRepository,
+    private val communityMyReactionService: CommunityMyReactionService,
 ) {
 
-    fun listSummaries(): List<TemplateSummaryResponse> =
-        tierTemplateRepository.findAllByTemplateStatusOrderByCreatedAtDesc(TemplateStatus.ACTIVE).map { e ->
+    fun listSummaries(viewerUserId: Long?): List<TemplateSummaryResponse> {
+        val rows = tierTemplateRepository.findAllByTemplateStatusOrderByCreatedAtDesc(TemplateStatus.ACTIVE)
+        val ids = rows.mapNotNull { it.id }
+        val reactions = communityMyReactionService.mapByTargetIds(ReactionTargetType.TIER_TEMPLATE, ids, viewerUserId)
+        return rows.map { e ->
             val id = e.id ?: throw IllegalStateException("template id missing")
             val items = e.items
             val itemCount = countItemsInPayload(items)
@@ -35,14 +41,17 @@ class TierTemplateService(
                 creatorId = e.creatorId,
                 likeCount = e.likeCount,
                 commentCount = e.commentCount,
+                myReaction = reactions[id],
             )
         }
+    }
 
-    fun getById(id: UUID): TemplateDetailResponse {
+    fun getById(id: UUID, viewerUserId: Long?): TemplateDetailResponse {
         val e = tierTemplateRepository.findById(id)
             .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "template not found") }
+        val tid = e.id ?: throw IllegalStateException("template id missing")
         return TemplateDetailResponse(
-            id = e.id ?: throw IllegalStateException("template id missing"),
+            id = tid,
             title = e.title,
             version = e.version,
             parentTemplateId = e.parent?.id,
@@ -51,6 +60,7 @@ class TierTemplateService(
             creatorId = e.creatorId,
             likeCount = e.likeCount,
             commentCount = e.commentCount,
+            myReaction = communityMyReactionService.single(ReactionTargetType.TIER_TEMPLATE, tid, viewerUserId),
         )
     }
 

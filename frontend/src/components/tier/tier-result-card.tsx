@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { MoreVertical, Pencil, RefreshCw, Trash2 } from 'lucide-react';
 import { ResultVoteButtons } from '@/components/community/result-vote-buttons';
 import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
+import type { CommunityReactionType } from '@/lib/api/community-api';
 import type { TierResultSummaryResponse } from '@/lib/tier-api';
 
 export function formatTierResultSavedAt(isoLocal: string): string {
@@ -29,6 +30,7 @@ export type TierResultCardProps = {
   onEdit: (r: TierResultSummaryResponse) => void;
   onDelete: (r: TierResultSummaryResponse) => void;
   onVoteCountsChange?: (resultId: string, upCount: number, downCount: number) => void;
+  onResultMyReactionResolved?: (resultId: string, reaction: CommunityReactionType | null) => void;
 };
 
 /**
@@ -42,6 +44,7 @@ export function TierResultCard({
   onEdit,
   onDelete,
   onVoteCountsChange,
+  onResultMyReactionResolved,
 }: TierResultCardProps) {
   const isDeleted = r.resultStatus === 'DELETED';
   const isOwner =
@@ -130,6 +133,8 @@ export function TierResultCard({
             resultId={r.id}
             initialUpCount={r.upCount ?? 0}
             initialDownCount={r.downCount ?? 0}
+            initialMyReaction={r.myReaction ?? null}
+            onMyReactionResolved={(reaction) => onResultMyReactionResolved?.(r.id, reaction)}
             onCountsChange={(up, down) => onVoteCountsChange?.(r.id, up, down)}
           />
         )}

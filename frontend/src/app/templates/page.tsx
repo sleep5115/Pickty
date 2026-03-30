@@ -10,6 +10,7 @@ import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
 import { apiFetch } from '@/lib/api-fetch';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useAuthPersistHydrated } from '@/lib/hooks/use-auth-persist-hydrated';
+import type { CommunityReactionType } from '@/lib/api/community-api';
 import { listTemplates, type TemplateSummaryResponse } from '@/lib/tier-api';
 import { TemplateDeleteConfirmDialog } from '@/components/template/template-delete-confirm-dialog';
 import { TemplateLikeButton } from '@/components/community/template-like-button';
@@ -22,6 +23,7 @@ function TemplateCard({
   onEdit,
   onDelete,
   onLikeCountChange,
+  onMyReactionResolved,
 }: {
   row: TemplateSummaryResponse;
   currentUserId: number | null;
@@ -30,6 +32,7 @@ function TemplateCard({
   onEdit: (t: TemplateSummaryResponse) => void;
   onDelete: (t: TemplateSummaryResponse) => void;
   onLikeCountChange: (templateId: string, likeCount: number) => void;
+  onMyReactionResolved?: (templateId: string, reaction: CommunityReactionType | null) => void;
 }) {
   const { id, title, description, thumbnailUrl, itemCount, creatorId } = row;
   const descTrimmed = description?.trim() ? description.trim() : null;
@@ -117,6 +120,10 @@ function TemplateCard({
           <TemplateLikeButton
             templateId={id}
             initialLikeCount={row.likeCount ?? 0}
+            initialMyReaction={row.myReaction ?? null}
+            onMyReactionResolved={(reaction) => {
+              onMyReactionResolved?.(id, reaction);
+            }}
             onLikeCountChange={(n) => onLikeCountChange(id, n)}
             className="shrink-0"
           />
@@ -195,14 +202,14 @@ export default function TemplatesPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await listTemplates();
+      const data = await listTemplates(accessToken ?? null);
       setRows(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : '목록을 불러오지 못했습니다.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [accessToken]);
 
   useEffect(() => {
     void load();
@@ -299,6 +306,11 @@ export default function TemplatesPage() {
                 currentUserId={me?.id ?? null}
                 isAdmin={me?.role === 'ADMIN'}
                 accessToken={accessToken}
+                onMyReactionResolved={(templateId, reaction) => {
+                  setRows((prev) =>
+                    prev.map((r) => (r.id === templateId ? { ...r, myReaction: reaction } : r)),
+                  );
+                }}
                 onLikeCountChange={(templateId, likeCount) => {
                   setRows((prev) =>
                     prev.map((r) => (r.id === templateId ? { ...r, likeCount } : r)),

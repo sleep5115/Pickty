@@ -61,7 +61,7 @@ export default function TierFeedPage() {
     else setLoadingMore(true);
     setError(null);
     try {
-      const data = await listTierResultsFeedPage(pageIndex, 12);
+      const data = await listTierResultsFeedPage(pageIndex, 12, accessToken ?? null);
       setItems((prev) => (append ? [...prev, ...data.content] : data.content));
       setHasMore(!data.last);
       nextPageRef.current = pageIndex + 1;
@@ -72,7 +72,7 @@ export default function TierFeedPage() {
       setInitialLoading(false);
       setLoadingMore(false);
     }
-  }, []);
+  }, [accessToken]);
 
   useEffect(() => {
     nextPageRef.current = 0;
@@ -167,6 +167,13 @@ export default function TierFeedPage() {
                   setItems((prev) =>
                     prev.map((row) =>
                       row.id === resultId ? { ...row, upCount, downCount } : row,
+                    ),
+                  );
+                }}
+                onResultMyReactionResolved={(resultId, reaction) => {
+                  setItems((prev) =>
+                    prev.map((row) =>
+                      row.id === resultId ? { ...row, myReaction: reaction } : row,
                     ),
                   );
                 }}

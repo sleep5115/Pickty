@@ -10,6 +10,7 @@ import { TierResultEditMetaModal } from '@/components/tier/tier-result-edit-meta
 import { CommentSection } from '@/components/community/comment-section';
 import { ResultVoteButtons } from '@/components/community/result-vote-buttons';
 import { TierResultDeleteConfirmDialog } from '@/components/tier/tier-result-delete-confirm-dialog';
+import type { CommunityReactionType } from '@/lib/api/community-api';
 import { getTierResult, type TierResultStatus } from '@/lib/tier-api';
 import { apiFetch } from '@/lib/api-fetch';
 import { useAuthStore } from '@/lib/store/auth-store';
@@ -51,10 +52,11 @@ export function TierResultClientPage() {
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const [upCount, setUpCount] = useState(0);
   const [downCount, setDownCount] = useState(0);
+  const [resultMyReaction, setResultMyReaction] = useState<CommunityReactionType | null>(null);
 
   const reloadResult = useCallback(async () => {
     if (!id) return;
-    const res = await getTierResult(id);
+    const res = await getTierResult(id, accessToken ?? null);
     const snap = parseSnapshot(res.snapshotData as Record<string, unknown>);
     if (!snap) {
       setError('지원하지 않는 스냅샷 형식입니다.');
@@ -70,9 +72,10 @@ export function TierResultClientPage() {
     setResultStatus(res.resultStatus ?? 'ACTIVE');
     setUpCount(res.upCount ?? 0);
     setDownCount(res.downCount ?? 0);
+    setResultMyReaction(res.myReaction ?? null);
     setTiers(snap.tiers);
     setPool(snap.pool);
-  }, [id]);
+  }, [id, accessToken]);
 
   useEffect(() => {
     if (!accessToken) {
@@ -323,6 +326,8 @@ export function TierResultClientPage() {
           resultId={id}
           initialUpCount={upCount}
           initialDownCount={downCount}
+          initialMyReaction={resultMyReaction}
+          onMyReactionResolved={setResultMyReaction}
           onCountsChange={(up, down) => {
             setUpCount(up);
             setDownCount(down);

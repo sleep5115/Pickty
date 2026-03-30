@@ -161,7 +161,7 @@ function NewTemplatePageInner() {
     setForkLoadError(null);
     void (async () => {
       try {
-        const d = await getTemplate(forkTemplateIdTrimmed);
+        const d = await getTemplate(forkTemplateIdTrimmed, accessToken ?? null);
         if (cancelled) return;
         const pool = templatePayloadToTierItems(d.items);
         if (pool.length === 0) {

@@ -16,6 +16,7 @@ import { useAuthStore } from '@/lib/store/auth-store';
 import { useTierStore } from '@/lib/store/tier-store';
 import { useTierPersistHydrated } from '@/lib/hooks/use-tier-persist-hydrated';
 import { usePointerDevice } from '@/hooks/use-pointer-device';
+import type { CommunityReactionType } from '@/lib/api/community-api';
 import {
   getTemplate,
   getTierResult,
@@ -46,6 +47,7 @@ function TierPageInner() {
   const [templateBanner, setTemplateBanner] = useState<string | null>(null);
   const [templateCreatorId, setTemplateCreatorId] = useState<number | null>(null);
   const [templateLikeCount, setTemplateLikeCount] = useState(0);
+  const [templateMyReaction, setTemplateMyReaction] = useState<CommunityReactionType | null>(null);
   const [me, setMe] = useState<{ id: number; role: string } | null>(null);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [editMetaOpen, setEditMetaOpen] = useState(false);
@@ -124,6 +126,22 @@ function TierPageInner() {
     };
   }, [headerMenuOpen]);
 
+  /** 로그인/토큰 변경 시 서버 `myReaction`·카운트만 동기화 (워크스페이스 로드 effect와 분리) */
+  useEffect(() => {
+    if (!tierHydrated) return;
+    const tid = templateIdParam ?? templateId;
+    if (!tid) return;
+    let cancelled = false;
+    void getTemplate(tid, accessToken ?? null).then((d) => {
+      if (cancelled) return;
+      setTemplateMyReaction(d.myReaction ?? null);
+      setTemplateLikeCount(d.likeCount ?? 0);
+    }).catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [tierHydrated, accessToken, templateIdParam, templateId]);
+
   useEffect(() => {
     if (!tierHydrated) return;
 
@@ -135,7 +153,7 @@ function TierPageInner() {
       });
       void (async () => {
         try {
-          const res = await getTierResult(sourceResultIdParam);
+          const res = await getTierResult(sourceResultIdParam, useAuthStore.getState().accessToken ?? null);
           if (cancelled) return;
           if (templateIdParam && res.templateId !== templateIdParam) {
             setTemplateBanner('URL의 템플릿과 결과가 일치하지 않습니다.');
@@ -156,7 +174,7 @@ function TierPageInner() {
             workspaceTemplateDescription: null,
           });
           setTemplateBanner(null);
-          void getTemplate(res.templateId)
+          void getTemplate(res.templateId, useAuthStore.getState().accessToken ?? null)
             .then((detail) => {
               if (cancelled) return;
               useTierStore.getState().setWorkspaceTemplateMeta({
@@ -165,6 +183,7 @@ function TierPageInner() {
               });
               setTemplateCreatorId(detail.creatorId ?? null);
               setTemplateLikeCount(detail.likeCount ?? 0);
+              setTemplateMyReaction(detail.myReaction ?? null);
             })
             .catch(() => {
               setTemplateCreatorId(null);
@@ -204,7 +223,10 @@ function TierPageInner() {
     });
     void (async () => {
       try {
-        const detail = await getTemplate(templateIdParam);
+        const detail = await getTemplate(
+          templateIdParam,
+          useAuthStore.getState().accessToken ?? null,
+        );
         if (cancelled) return;
         const pool = templatePayloadToTierItems(detail.items);
         if (pool.length === 0) {
@@ -220,6 +242,7 @@ function TierPageInner() {
         });
         setTemplateCreatorId(detail.creatorId ?? null);
         setTemplateLikeCount(detail.likeCount ?? 0);
+        setTemplateMyReaction(detail.myReaction ?? null);
         setTemplateBanner(null);
       } catch {
         if (!cancelled) {
@@ -271,6 +294,8 @@ function TierPageInner() {
                   <TemplateLikeButton
                     templateId={templateId}
                     initialLikeCount={templateLikeCount}
+                    initialMyReaction={templateMyReaction}
+                    onMyReactionResolved={setTemplateMyReaction}
                     onLikeCountChange={setTemplateLikeCount}
                   />
                 </div>

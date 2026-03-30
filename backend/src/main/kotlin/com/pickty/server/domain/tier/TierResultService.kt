@@ -1,6 +1,9 @@
 package com.pickty.server.domain.tier
 
 import com.fasterxml.jackson.databind.JsonNode
+import com.pickty.server.domain.community.CommunityMyReactionService
+import com.pickty.server.domain.community.ReactionTargetType
+import com.pickty.server.domain.community.ReactionType
 import com.pickty.server.domain.tier.dto.CreateTierResultRequest
 import com.pickty.server.domain.tier.dto.TierResultResponse
 import com.pickty.server.domain.tier.dto.TierResultSummaryResponse
@@ -21,6 +24,7 @@ class TierResultService(
     private val tierResultRepository: TierResultRepository,
     private val tierTemplateRepository: TierTemplateRepository,
     private val tierResultCacheService: TierResultCacheService,
+    private val communityMyReactionService: CommunityMyReactionService,
     private val validator: Validator,
 ) {
 
@@ -47,21 +51,33 @@ class TierResultService(
         val saved = tierResultRepository.save(entity)
         val id = saved.id ?: throw IllegalStateException("result id missing after save")
         tierResultCacheService.evict(id)
-        return toResponse(saved)
+        val base = toResponse(saved)
+        return base.copy(
+            myReaction = communityMyReactionService.single(ReactionTargetType.TIER_RESULT, id, userId),
+        )
     }
 
     @Transactional(readOnly = true)
-    fun listMine(userId: Long): List<TierResultSummaryResponse> =
-        tierResultRepository
+    fun listMine(userId: Long): List<TierResultSummaryResponse> {
+        val rows = tierResultRepository
             .findByUserIdAndResultStatusWithTemplateOrderByCreatedAtDesc(userId, ResultStatus.ACTIVE)
-            .map { toSummaryResponse(it) }
+        val ids = rows.mapNotNull { it.id }
+        val reactions = communityMyReactionService.mapByTargetIds(ReactionTargetType.TIER_RESULT, ids, userId)
+        return rows.map { toSummaryResponse(it, reactions[it.id]) }
+    }
 
     @Transactional(readOnly = true)
-    fun listAll(pageable: Pageable): Page<TierResultSummaryResponse> =
-        tierResultRepository.findAllByResultStatusOrderByCreatedAtDesc(ResultStatus.ACTIVE, pageable)
-            .map { toSummaryResponse(it) }
+    fun listAll(pageable: Pageable, viewerUserId: Long?): Page<TierResultSummaryResponse> {
+        val page = tierResultRepository.findAllByResultStatusOrderByCreatedAtDesc(ResultStatus.ACTIVE, pageable)
+        val ids = page.content.mapNotNull { it.id }
+        val reactions = communityMyReactionService.mapByTargetIds(ReactionTargetType.TIER_RESULT, ids, viewerUserId)
+        return page.map { toSummaryResponse(it, reactions[it.id]) }
+    }
 
-    private fun toSummaryResponse(e: TierResult): TierResultSummaryResponse {
+    private fun toSummaryResponse(
+        e: TierResult,
+        myReaction: ReactionType? = null,
+    ): TierResultSummaryResponse {
         val fmt = DateTimeFormatter.ISO_LOCAL_DATE_TIME
         val rid = e.id ?: throw IllegalStateException("result id null")
         val tpl = e.template
@@ -82,17 +98,25 @@ class TierResultService(
             upCount = e.upCount,
             downCount = e.downCount,
             commentCount = e.commentCount,
+            myReaction = myReaction,
         )
     }
 
     @Transactional(readOnly = true)
-    fun getById(id: UUID): TierResultResponse {
-        tierResultCacheService.getCached(id)?.let { return it }
-        val entity = tierResultRepository.findByIdWithTemplate(id)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "tier result not found")
-        val dto = toResponse(entity)
-        tierResultCacheService.put(id, dto)
-        return dto
+    fun getById(id: UUID, viewerUserId: Long?): TierResultResponse {
+        val cached = tierResultCacheService.getCached(id)
+        val base = if (cached != null) {
+            cached.copy(myReaction = null)
+        } else {
+            val entity = tierResultRepository.findByIdWithTemplate(id)
+                ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "tier result not found")
+            val dto = toResponse(entity)
+            tierResultCacheService.put(id, dto)
+            dto
+        }
+        return base.copy(
+            myReaction = communityMyReactionService.single(ReactionTargetType.TIER_RESULT, id, viewerUserId),
+        )
     }
 
     @Transactional
@@ -121,7 +145,10 @@ class TierResultService(
         entity.applyListMeta(title, description)
         val rid = entity.id ?: throw IllegalStateException("result id null")
         tierResultCacheService.evict(rid)
-        return toResponse(entity)
+        val base = toResponse(entity)
+        return base.copy(
+            myReaction = communityMyReactionService.single(ReactionTargetType.TIER_RESULT, rid, userId),
+        )
     }
 
     private fun assertPatchMetaKeysAllowed(body: JsonNode) {

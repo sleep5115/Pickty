@@ -10,6 +10,12 @@ interface ReactionRepository : JpaRepository<Reaction, UUID> {
         userId: Long,
     ): Reaction?
 
+    fun findByTargetTypeAndTargetIdInAndUserId(
+        targetType: ReactionTargetType,
+        targetIds: Collection<UUID>,
+        userId: Long,
+    ): List<Reaction>
+
     fun findByTargetTypeAndTargetIdAndGuestIpHash(
         targetType: ReactionTargetType,
         targetId: UUID,

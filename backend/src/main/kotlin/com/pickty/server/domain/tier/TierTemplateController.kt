@@ -27,12 +27,12 @@ class TierTemplateController(
 ) {
 
     @GetMapping
-    fun list(): List<TemplateSummaryResponse> =
-        tierTemplateService.listSummaries()
+    fun list(authentication: Authentication?): List<TemplateSummaryResponse> =
+        tierTemplateService.listSummaries(resolveUserId(authentication))
 
     @GetMapping("/{id}")
-    fun getById(@PathVariable id: UUID): TemplateDetailResponse =
-        tierTemplateService.getById(id)
+    fun getById(@PathVariable id: UUID, authentication: Authentication?): TemplateDetailResponse =
+        tierTemplateService.getById(id, resolveUserId(authentication))
 
     @PostMapping
     fun create(

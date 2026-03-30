@@ -4,6 +4,8 @@ import { ThumbsDown, ThumbsUp } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { toggleReaction, type CommunityReactionType } from '@/lib/api/community-api';
+import { useAuthStore } from '@/lib/store/auth-store';
+import { getStoredReaction, setStoredReaction } from '@/lib/store/reaction-store';
 
 export type VoteSelection = 'UPVOTE' | 'DOWNVOTE' | null;
 
@@ -11,6 +13,8 @@ type Props = {
   resultId: string;
   initialUpCount: number;
   initialDownCount: number;
+  initialMyReaction?: CommunityReactionType | null;
+  onMyReactionResolved?: (reaction: CommunityReactionType | null) => void;
   className?: string;
   onCountsChange?: (up: number, down: number) => void;
 };
@@ -43,9 +47,14 @@ export function ResultVoteButtons({
   resultId,
   initialUpCount,
   initialDownCount,
+  initialMyReaction = null,
+  onMyReactionResolved,
   className = '',
   onCountsChange,
 }: Props) {
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const isMember = Boolean(accessToken);
+
   const [selection, setSelection] = useState<VoteSelection>(null);
   const [upCount, setUpCount] = useState(initialUpCount);
   const [downCount, setDownCount] = useState(initialDownCount);
@@ -55,6 +64,22 @@ export function ResultVoteButtons({
     setUpCount(initialUpCount);
     setDownCount(initialDownCount);
   }, [initialUpCount, initialDownCount, resultId]);
+
+  useEffect(() => {
+    if (!resultId) return;
+    if (isMember) {
+      const sel: VoteSelection =
+        initialMyReaction === 'UPVOTE'
+          ? 'UPVOTE'
+          : initialMyReaction === 'DOWNVOTE'
+            ? 'DOWNVOTE'
+            : null;
+      setSelection(sel);
+      return;
+    }
+    const stored = getStoredReaction(resultId);
+    setSelection(selectionFromServer(stored === 'UPVOTE' || stored === 'DOWNVOTE', stored));
+  }, [isMember, initialMyReaction, resultId]);
 
   const applyCounts = useCallback(
     (up: number, down: number) => {
@@ -86,6 +111,21 @@ export function ResultVoteButtons({
           setSelection(prevSel);
           applyCounts(prevUp, prevDown);
           toast.error('투표 상태가 맞지 않아요. 잠시 후 다시 시도해 주세요.');
+        } else if (!isMember) {
+          if (serverSel === 'UPVOTE') setStoredReaction(resultId, 'UPVOTE');
+          else if (serverSel === 'DOWNVOTE') setStoredReaction(resultId, 'DOWNVOTE');
+          else setStoredReaction(resultId, null);
+        } else {
+          setStoredReaction(resultId, null);
+        }
+        if (isMember) {
+          onMyReactionResolved?.(
+            serverSel === 'UPVOTE'
+              ? 'UPVOTE'
+              : serverSel === 'DOWNVOTE'
+                ? 'DOWNVOTE'
+                : null,
+          );
         }
       } catch (err) {
         setSelection(prevSel);
@@ -95,7 +135,7 @@ export function ResultVoteButtons({
         setBusy(null);
       }
     },
-    [resultId, busy, selection, upCount, downCount, applyCounts],
+    [resultId, busy, selection, upCount, downCount, applyCounts, isMember, onMyReactionResolved],
   );
 
   return (
