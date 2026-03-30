@@ -228,27 +228,31 @@ export function ResultVoteButtons({
         className={[
           btnBase,
           'transition-colors disabled:cursor-default',
-          selection === 'DOWNVOTE'
-            ? 'text-blue-600 dark:text-blue-400'
-            : 'text-slate-600 dark:text-zinc-400',
+          selection === 'DOWNVOTE' ? '' : 'text-slate-600 dark:text-zinc-400',
           !locked && busy === null && resultId
             ? selection === 'DOWNVOTE'
               ? 'cursor-pointer hover:opacity-90'
-              : 'cursor-pointer hover:text-blue-600 dark:hover:text-blue-400'
+              : 'cursor-pointer hover:text-[#2563eb] dark:hover:text-[#60a5fa]'
             : '',
           busy === 'DOWN' ? 'opacity-60' : '',
         ].join(' ')}
       >
-        <ThumbsDown
+        <span
           className={[
-            iconUp,
-            'shrink-0',
-            selection === 'DOWNVOTE' ? 'text-blue-600 dark:text-blue-400' : '',
+            'inline-flex items-center gap-1',
+            selection === 'DOWNVOTE'
+              ? 'text-[#2563eb] dark:text-[#60a5fa]'
+              : 'text-inherit',
           ].join(' ')}
-          strokeWidth={iconStroke}
-          aria-hidden
-        />
-        <span className="min-w-[1.25em] text-center">{downCount}</span>
+        >
+          <ThumbsDown
+            className={[iconUp, 'shrink-0'].join(' ')}
+            strokeWidth={iconStroke}
+            stroke="currentColor"
+            aria-hidden
+          />
+          <span className="min-w-[1.25em] text-center tabular-nums">{downCount}</span>
+        </span>
       </button>
     </div>
   );
