@@ -35,9 +35,7 @@ function newClientId(): string {
 function NewTemplatePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const fromTemplateId = searchParams.get('fromTemplate');
-  const forkTemplateId = searchParams.get('forkTemplateId');
-  const templateSourceId = forkTemplateId ?? fromTemplateId;
+  const forkTemplateIdTrimmed = searchParams.get('forkTemplateId')?.trim() ?? '';
   const hydrated = useAuthPersistHydrated();
   const accessToken = useAuthStore((s) => s.accessToken);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -56,6 +54,7 @@ function NewTemplatePageInner() {
   const userEditedThumbsRef = useRef(false);
   const prevItemIdsKeyRef = useRef('');
   const [persistedListThumbnailUrl, setPersistedListThumbnailUrl] = useState<string | null>(null);
+  const [keepOriginalThumb, setKeepOriginalThumb] = useState(false);
   const [forkLoadError, setForkLoadError] = useState<string | null>(null);
 
   const form = useForm<TemplateNewFormValues>({
@@ -152,16 +151,16 @@ function NewTemplatePageInner() {
   }, [hydrated, accessToken]);
 
   useEffect(() => {
-    if (!hydrated || !accessToken || !templateSourceId) {
+    if (!hydrated || !accessToken || !forkTemplateIdTrimmed) {
       setForkLoadError(null);
-      if (!templateSourceId) setPersistedListThumbnailUrl(null);
+      if (!forkTemplateIdTrimmed) setPersistedListThumbnailUrl(null);
       return;
     }
     let cancelled = false;
     setForkLoadError(null);
     void (async () => {
       try {
-        const d = await getTemplate(templateSourceId);
+        const d = await getTemplate(forkTemplateIdTrimmed);
         if (cancelled) return;
         const pool = templatePayloadToTierItems(d.items);
         if (pool.length === 0) {
@@ -184,6 +183,7 @@ function NewTemplatePageInner() {
         });
         setFileMap({});
         setCustomThumbFile(null);
+        setKeepOriginalThumb(false);
         setPersistedListThumbnailUrl(d.thumbnailUrl ?? null);
         userEditedThumbsRef.current = false;
         prevItemIdsKeyRef.current = rows.map((r) => r.clientId).join('\0');
@@ -196,7 +196,7 @@ function NewTemplatePageInner() {
     return () => {
       cancelled = true;
     };
-  }, [hydrated, accessToken, templateSourceId, form]);
+  }, [hydrated, accessToken, forkTemplateIdTrimmed, form]);
 
   const ingestFiles = useCallback(
     (list: FileList | File[]) => {
@@ -242,13 +242,17 @@ function NewTemplatePageInner() {
         ? values.thumbnailClientIds
         : (form.getValues('thumbnailClientIds') ?? []);
 
-    if (!customThumbFile) {
+    const persistedThumbTrimmed = persistedListThumbnailUrl?.trim() ?? '';
+    const useOriginalForkThumb =
+      Boolean(forkTemplateIdTrimmed) && keepOriginalThumb && Boolean(persistedThumbTrimmed);
+
+    if (!useOriginalForkThumb && !customThumbFile) {
       if (values.items.length < 4) {
-        setSubmitError('썸네일을 올리지 않으면 아이템이 4개 이상 있어야 합니다.');
+        setSubmitError('썸네일을 등록하지 않았어요. 썸네일을 자동으로 만들기 위해 아이템을 4개 선택(체크)해 주세요.');
         return;
       }
       if (primaryThumbIds.length !== 4) {
-        setSubmitError('4개를 선택(체크)해 주세요.');
+        setSubmitError('썸네일을 등록하지 않았어요. 썸네일을 자동으로 만들기 위해 아이템을 4개 선택(체크)해 주세요.');
         return;
       }
     }
@@ -300,10 +304,13 @@ function NewTemplatePageInner() {
       .map((r) => r.clientId)
       .filter((id) => thumbClientIds.includes(id));
 
-    const intendedAutoThumb = !customThumbFile && thumbClientIds.length === 4;
+    const intendedAutoThumb =
+      !useOriginalForkThumb && !customThumbFile && thumbClientIds.length === 4;
 
     let finalThumbnailUrl: string | null = null;
-    if (customThumbFile) {
+    if (useOriginalForkThumb) {
+      finalThumbnailUrl = persistedThumbTrimmed;
+    } else if (customThumbFile) {
       try {
         const customUrls = await uploadPicktyImages([customThumbFile], accessToken);
         finalThumbnailUrl = customUrls[0] ?? null;
@@ -333,16 +340,10 @@ function NewTemplatePageInner() {
       }
     }
 
-    if (intendedAutoThumb && !finalThumbnailUrl) {
-      setSubmitError('썸네일을 올리지 않았다면 이미지 4개를 선택해 주세요.');
-      return;
-    }
-
     try {
-      const forkParent = searchParams.get('forkTemplateId');
       const payload = {
         title: values.title.trim(),
-        parentTemplateId: forkParent?.trim() || null,
+        parentTemplateId: forkTemplateIdTrimmed || null,
         version: 1,
         items: itemsEnvelope,
         thumbnailUrl: finalThumbnailUrl ?? null,
@@ -438,6 +439,9 @@ function NewTemplatePageInner() {
   }
 
   const submitting = form.formState.isSubmitting;
+  const showForkOriginalThumbOption =
+    Boolean(forkTemplateIdTrimmed) && Boolean(persistedListThumbnailUrl?.trim());
+  const thumbPickerActive = !customThumbFile && !keepOriginalThumb;
 
   return (
     <>
@@ -466,20 +470,15 @@ function NewTemplatePageInner() {
       <div className="w-full py-8 px-1 sm:px-2">
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">
-          {forkTemplateId ? '새 템플릿 만들기 (복제)' : fromTemplateId ? '템플릿 다시 만들기' : '새 템플릿 만들기'}
+          {forkTemplateIdTrimmed ? '템플릿을 받아와서 새로 만들기' : '새 템플릿 만들기'}
         </h1>
         <p className="mt-1 text-sm text-slate-600 dark:text-zinc-400">
           이미지를 올려 티어표에 넣을 아이템을 만듭니다. 이름은 파일명을 기준으로 채워지며 바꿀 수 있어요.
         </p>
-        {(fromTemplateId || forkTemplateId) && (
-          <p className="mt-2 text-xs text-violet-600 dark:text-violet-400">
-            기존 템플릿을 불러왔습니다. 저장하면 <strong>새 템플릿</strong>으로 등록됩니다.
-            {forkTemplateId ? (
-              <>
-                {' '}
-                (<strong>파생</strong>으로 원본과의 연결이 기록됩니다.)
-              </>
-            ) : null}
+        {forkTemplateIdTrimmed && (
+          <p className="mt-2 text-xs text-violet-600 dark:text-violet-400 leading-relaxed">
+            기존 템플릿의 아이템을 그대로 불러왔어요. 빠진 항목을 추가하거나 필요 없는 건 지워서 나만의 템플릿으로
+            만들어 보세요.
           </p>
         )}
       </div>
@@ -552,34 +551,71 @@ function NewTemplatePageInner() {
             <span className="text-sm font-medium text-slate-800 dark:text-zinc-200">
               썸네일 등록하기 <span className="text-slate-400 dark:text-zinc-600 font-normal">(선택)</span>
             </span>
-            <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
-              따로 올리지 않으면, 아래 업로드 아이템 중 4개를 고르시면 자동으로 만들어 드려요.
-            </p>
-            <div className="flex flex-wrap items-center gap-3">
+            {showForkOriginalThumbOption && (
+              <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white/80 dark:bg-zinc-950/40 px-3 py-2.5 text-sm text-slate-800 dark:text-zinc-200">
+                <input
+                  type="checkbox"
+                  checked={keepOriginalThumb}
+                  onChange={(e) => {
+                    const on = e.target.checked;
+                    setKeepOriginalThumb(on);
+                    if (on) setCustomThumbFile(null);
+                  }}
+                  className="mt-0.5 rounded border-slate-400 text-violet-600 focus:ring-violet-500/40"
+                />
+                <span>기존 템플릿 썸네일 그대로 사용하기</span>
+              </label>
+            )}
+            {keepOriginalThumb && showForkOriginalThumbOption ? (
+              <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                불러온 썸네일을 그대로 씁니다. 새로 올리거나 아이템으로 자동으로 만들려면 위 체크를 해제해 주세요.
+              </p>
+            ) : showForkOriginalThumbOption ? (
+              <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                새 썸네일을 올리거나, 아래 아이템 중 4개를 골라 자동으로 만들 수 있어요.
+              </p>
+            ) : (
+              <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                따로 올리지 않으면, 아래 업로드 아이템 중 4개를 고르시면 자동으로 만들어 드려요.
+              </p>
+            )}
+            <div
+              className={[
+                'flex flex-wrap items-center gap-3',
+                keepOriginalThumb && showForkOriginalThumbOption ? 'pointer-events-none opacity-50' : '',
+              ].join(' ')}
+              aria-hidden={keepOriginalThumb && showForkOriginalThumbOption}
+            >
               <input
                 ref={customThumbInputRef}
                 type="file"
                 accept={PICKTY_IMAGE_ACCEPT}
                 className="sr-only"
+                disabled={keepOriginalThumb && showForkOriginalThumbOption}
                 onChange={(e) => {
                   const f = e.target.files?.[0];
                   setCustomThumbFile(f ?? null);
-                  if (f) setPersistedListThumbnailUrl(null);
+                  if (f) {
+                    setPersistedListThumbnailUrl(null);
+                    setKeepOriginalThumb(false);
+                  }
                   e.target.value = '';
                 }}
               />
               <button
                 type="button"
+                disabled={keepOriginalThumb && showForkOriginalThumbOption}
                 onClick={() => customThumbInputRef.current?.click()}
-                className="text-xs font-medium rounded-lg border border-slate-300 dark:border-zinc-600 px-3 py-2 text-slate-700 dark:text-zinc-300 hover:bg-white dark:hover:bg-zinc-800 transition-colors"
+                className="text-xs font-medium rounded-lg border border-slate-300 dark:border-zinc-600 px-3 py-2 text-slate-700 dark:text-zinc-300 hover:bg-white dark:hover:bg-zinc-800 transition-colors disabled:pointer-events-none disabled:opacity-50"
               >
                 이미지 선택
               </button>
               {customThumbFile && (
                 <button
                   type="button"
+                  disabled={keepOriginalThumb && showForkOriginalThumbOption}
                   onClick={() => setCustomThumbFile(null)}
-                  className="text-xs text-red-600 dark:text-red-400 hover:underline"
+                  className="text-xs text-red-600 dark:text-red-400 hover:underline disabled:pointer-events-none disabled:opacity-50"
                 >
                   썸네일 제거
                 </button>
@@ -607,9 +643,14 @@ function NewTemplatePageInner() {
                     className="h-full w-full object-cover"
                   />
                 </div>
-                <p className="text-xs text-slate-500 dark:text-zinc-500">
-                  저장 시 새로 올리거나 자동 생성하면 이 이미지를 덮어씁니다.
-                </p>
+                {showForkOriginalThumbOption && keepOriginalThumb ? (
+                  <p className="text-xs text-slate-500 dark:text-zinc-500">이대로 저장 시 이 썸네일이 그대로 쓰여요.</p>
+                ) : null}
+                {showForkOriginalThumbOption && !keepOriginalThumb ? (
+                  <p className="text-xs text-slate-500 dark:text-zinc-500">
+                    이 썸네일을 사용하시려면, 위의 [기존 템플릿 썸네일 그대로 사용하기] 를 체크해주세요.
+                  </p>
+                ) : null}
               </div>
             )}
           </div>
@@ -675,10 +716,11 @@ function NewTemplatePageInner() {
 
         {fields.length > 0 && (
           <div className="space-y-2">
-            {!customThumbFile && (
+            {thumbPickerActive && (
               <p className="text-sm text-slate-600 dark:text-zinc-400">
-                썸네일을 등록하지 않았다면, <span className="font-medium text-slate-800 dark:text-zinc-200">4개</span>를
-                아래에서 선택(체크)해 주세요.
+                썸네일 이미지를 따로 올리지 않았다면, 아래 목록에서 썸네일로 묶어줄 아이템 {' '}
+                <span className="font-medium text-slate-800 dark:text-zinc-200">4개</span>를 {' '}
+                선택(체크)해 주세요.
               </p>
             )}
             <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
@@ -717,7 +759,7 @@ function NewTemplatePageInner() {
                     <div className="p-2 flex flex-col gap-2 flex-1">
                       <input type="hidden" {...form.register(`items.${index}.clientId`)} />
                       <input type="hidden" {...form.register(`items.${index}.existingImageUrl`)} />
-                      {!customThumbFile && (
+                      {thumbPickerActive && (
                         <label className="flex items-center gap-2 text-xs text-slate-700 dark:text-zinc-300 cursor-pointer select-none">
                           <input
                             type="checkbox"

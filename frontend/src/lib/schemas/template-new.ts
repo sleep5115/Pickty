@@ -7,7 +7,7 @@ const templateItemRowSchema = z.object({
     .trim()
     .min(1, { message: '아이템 이름을 입력해 주세요.' })
     .max(100, { message: '이름은 100자 이하로 입력해 주세요.' }),
-  /** `fromTemplate` 등으로 불러온 기존 이미지 URL — 새 파일이 있으면 업로드로 대체 */
+  /** `forkTemplateId`로 불러온 기존 이미지 URL — 새 파일이 있으면 업로드로 대체 */
   existingImageUrl: z
     .string()
     .optional()
