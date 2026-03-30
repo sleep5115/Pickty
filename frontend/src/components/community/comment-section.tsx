@@ -264,13 +264,13 @@ export function CommentSection({
         {!isLoggedIn && (
           <div className="grid gap-2 sm:grid-cols-2">
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-zinc-400">닉네임 (선택)</label>
+              <label className="block text-xs font-medium text-slate-600 dark:text-zinc-400">닉네임</label>
               <input
                 type="text"
                 value={guestNick}
                 onChange={(e) => setGuestNick(e.target.value)}
                 maxLength={64}
-                placeholder="비우면 익명"
+                placeholder="익명"
                 className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
               />
             </div>

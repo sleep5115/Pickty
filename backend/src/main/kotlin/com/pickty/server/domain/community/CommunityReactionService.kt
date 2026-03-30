@@ -33,15 +33,11 @@ class CommunityReactionService(
         validateTargetAndReactionKind(request.targetType, request.reactionType)
         assertTargetActive(request.targetType, request.targetId)
 
-        val guestHash = if (userId == null) {
-            val ip = ClientIpResolver.resolve(httpRequest)
-            if (ip == "unknown") {
-                throw ResponseStatusException(HttpStatus.BAD_REQUEST, "클라이언트 IP 를 확인할 수 없습니다.")
-            }
-            Sha256Hex.hash(ip)
-        } else {
-            null
+        val ip = ClientIpResolver.resolve(httpRequest)
+        if (ip == "unknown") {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "클라이언트 IP 를 확인할 수 없습니다.")
         }
+        val guestHash = Sha256Hex.hash(ip)
 
         val existing =
             if (userId != null) {
@@ -51,20 +47,33 @@ class CommunityReactionService(
                     userId,
                 )
             } else {
-                reactionRepository.findByTargetTypeAndTargetIdAndGuestIpHash(
+                val guestRow = reactionRepository.findByTargetTypeAndTargetIdAndGuestIpHashAndUserIdIsNull(
                     request.targetType,
                     request.targetId,
-                    guestHash!!,
+                    guestHash,
                 )
+                guestRow ?: run {
+                    val memberAtIp = reactionRepository.findFirstByTargetTypeAndTargetIdAndGuestIpHashAndUserIdIsNotNull(
+                        request.targetType,
+                        request.targetId,
+                        guestHash,
+                    )
+                    if (memberAtIp != null) {
+                        throw ResponseStatusException(
+                            HttpStatus.CONFLICT,
+                            "이 단말·IP에서 이미 회원 계정으로 반응했습니다. 로그인한 상태에서 변경해 주세요.",
+                        )
+                    }
+                    null
+                }
             }
+
+        if (existing != null && existing.userId != null) {
+            existing.ensureGuestIpHashIfMember(guestHash)
+        }
 
         when {
             existing == null -> {
-                val hasUser = userId != null
-                val hasGuest = guestHash != null
-                if (hasUser == hasGuest) {
-                    throw ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "반응 작성자 식별이 올바르지 않습니다.")
-                }
                 reactionRepository.save(
                     Reaction(
                         targetType = request.targetType,

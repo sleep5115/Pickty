@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { RefObject, useCallback, useRef, useState } from 'react';
+import { RefObject, ReactNode, useCallback, useRef, useState } from 'react';
 import { GitBranch } from 'lucide-react';
 import {
   DndContext,
@@ -34,9 +34,11 @@ interface TierBoardProps {
    * 티어 페이지에서 deviceReady와 함께 쓰면 안내 문구·드래그 선택 동작이 어긋나지 않음
    */
   pointerModeReady?: boolean;
+  /** 저장·다운로드 버튼 왼쪽에 붙는 슬롯 (예: 템플릿 좋아요) */
+  templateLikeSlot?: ReactNode;
 }
 
-export function TierBoard({ dragSelectRef, pointerModeReady = true }: TierBoardProps) {
+export function TierBoard({ dragSelectRef, pointerModeReady = true, templateLikeSlot }: TierBoardProps) {
   const {
     tiers,
     pool,
@@ -230,6 +232,31 @@ export function TierBoard({ dragSelectRef, pointerModeReady = true }: TierBoardP
               ))}
             </SortableContext>
           </div>
+          <p
+            className="px-3 py-2 text-center text-xs text-slate-500 dark:text-zinc-600 border-t border-slate-200 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-950/50"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {isFine ? (
+              <>
+                <span className="text-slate-600 dark:text-zinc-500">타겟팅:</span> 라벨 클릭 → 아이템 클릭
+                &nbsp;|&nbsp;
+                <span className="text-slate-600 dark:text-zinc-500">범위 선택:</span> 빈 공간 드래그
+                &nbsp;|&nbsp;
+                <span className="text-slate-600 dark:text-zinc-500">Ctrl+클릭:</span> 개별 추가 선택
+                &nbsp;|&nbsp;
+                <span className="text-slate-600 dark:text-zinc-500">Alt+클릭:</span> 이미지 확대 / 확대 중엔 닫기
+                &nbsp;|&nbsp;
+                <span className="text-slate-600 dark:text-zinc-500">확대:</span> ←→ 이전·다음
+                &nbsp;|&nbsp;
+                선택 후 드래그로 일괄 이동
+              </>
+            ) : (
+              <>
+                티어 라벨을 터치하여 활성화 → 아이템을 터치하면 이동 &nbsp;|&nbsp; 빈 공간 터치로 해제
+                &nbsp;|&nbsp; 이미지 확대는 카드의 돋보기 · 확대 중 좌우 스와이프로 이전·다음
+              </>
+            )}
+          </p>
         </div>
 
         {/* 파생(왼쪽) · 저장(서버) | 다운로드(PNG) — 모달에서 제목·설명 입력 후 분기 */}
@@ -252,30 +279,33 @@ export function TierBoard({ dragSelectRef, pointerModeReady = true }: TierBoardP
               </Link>
             ) : null}
           </div>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (targetTierId !== null) {
-                clearTarget();
-                clearSelection();
-                return;
-              }
-              setIsExportOpen(true);
-            }}
-            className={[
-              'flex shrink-0 items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold',
-              'bg-violet-600 hover:bg-violet-500 text-white',
-              'transition-all shadow-lg shadow-violet-900/30',
-              targetTierId === null ? 'active:scale-95' : '',
-            ].join(' ')}
-          >
-            <FloppyDiskIcon />
-            저장
-            <span className="opacity-30 font-thin mx-0.5">|</span>
-            다운로드
-            <DownloadBoxIcon />
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            {templateLikeSlot}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (targetTierId !== null) {
+                  clearTarget();
+                  clearSelection();
+                  return;
+                }
+                setIsExportOpen(true);
+              }}
+              className={[
+                'flex shrink-0 items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold',
+                'bg-violet-600 hover:bg-violet-500 text-white',
+                'transition-all shadow-lg shadow-violet-900/30',
+                targetTierId === null ? 'active:scale-95' : '',
+              ].join(' ')}
+            >
+              <FloppyDiskIcon />
+              저장
+              <span className="opacity-30 font-thin mx-0.5">|</span>
+              다운로드
+              <DownloadBoxIcon />
+            </button>
+          </div>
         </div>
 
         {/* 미분류 아이템 풀 */}

@@ -6,16 +6,17 @@ import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { TemplateCard } from '@/components/template/template-card';
 import { TemplateEditMetaModal } from '@/components/template/template-edit-meta-modal';
+import { TemplateDeleteConfirmDialog } from '@/components/template/template-delete-confirm-dialog';
 import { apiFetch } from '@/lib/api-fetch';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useAuthPersistHydrated } from '@/lib/hooks/use-auth-persist-hydrated';
-import { listTemplates, type TemplateSummaryResponse } from '@/lib/tier-api';
-import { TemplateDeleteConfirmDialog } from '@/components/template/template-delete-confirm-dialog';
+import { listMyTemplates, type TemplateSummaryResponse } from '@/lib/tier-api';
 
-export default function TemplatesPage() {
+export default function MyTemplatesPage() {
   const router = useRouter();
   const hydrated = useAuthPersistHydrated();
   const accessToken = useAuthStore((s) => s.accessToken);
+  const clearAuth = useAuthStore((s) => s.clearAuth);
   const [rows, setRows] = useState<TemplateSummaryResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,21 +25,34 @@ export default function TemplatesPage() {
   const [editMetaTarget, setEditMetaTarget] = useState<TemplateSummaryResponse | null>(null);
 
   const load = useCallback(async () => {
+    if (!accessToken) return;
     setLoading(true);
     setError(null);
     try {
-      const data = await listTemplates(accessToken ?? null);
+      const data = await listMyTemplates(accessToken);
       setRows(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : '목록을 불러오지 못했습니다.');
+      const msg = e instanceof Error ? e.message : '목록을 불러오지 못했습니다.';
+      if (msg.includes('401')) {
+        clearAuth();
+        router.replace('/login?returnTo=/templates/mine');
+        return;
+      }
+      setError(msg);
     } finally {
       setLoading(false);
     }
-  }, [accessToken]);
+  }, [accessToken, clearAuth, router]);
 
   useEffect(() => {
+    if (!hydrated) return;
+    if (!accessToken) {
+      setLoading(false);
+      router.replace('/login?returnTo=/templates/mine');
+      return;
+    }
     void load();
-  }, [load]);
+  }, [hydrated, accessToken, load, router]);
 
   useEffect(() => {
     if (!hydrated || !accessToken) {
@@ -67,39 +81,60 @@ export default function TemplatesPage() {
     };
   }, [hydrated, accessToken]);
 
+  if (!hydrated || !accessToken) {
+    return (
+      <div className="flex flex-1 items-center justify-center py-20">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" />
+      </div>
+    );
+  }
+
   return (
     <div className="flex w-full flex-col gap-8 px-1 py-8 sm:px-2">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">
-            티어 템플릿
-          </h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">내 템플릿</h1>
           <p className="mt-1 text-sm text-slate-600 dark:text-zinc-400">
-            템플릿을 고르면 바로 티어표를 만들어 볼 수 있어요.
+            내가 만든 템플릿만 모아 보여요. 티어표를 만들거나 제목·설명을 수정할 수 있어요.
           </p>
         </div>
         <Link
-          href={accessToken ? '/template/new' : '/login?returnTo=/template/new'}
+          href="/template/new"
           className="inline-flex shrink-0 items-center justify-center rounded-xl bg-violet-600 px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-violet-500/25 transition-colors hover:bg-violet-500 dark:bg-violet-600 dark:shadow-violet-900/30 dark:hover:bg-violet-500"
         >
           새 템플릿 만들기
         </Link>
       </div>
 
-      <section aria-labelledby="templates-real-heading">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 id="templates-real-heading" className="text-sm font-semibold text-slate-800 dark:text-zinc-200">
-            등록된 템플릿
-          </h2>
-          <button
-            type="button"
-            onClick={() => void load()}
-            disabled={loading}
-            className="text-xs font-medium text-violet-600 hover:underline disabled:opacity-50 dark:text-violet-400"
-          >
-            새로고침
-          </button>
-        </div>
+      <div className="flex flex-wrap gap-3 text-sm">
+        <Link
+          href="/templates"
+          className="font-medium text-violet-600 hover:underline dark:text-violet-400"
+        >
+          전체 템플릿
+        </Link>
+        <span className="text-slate-300 dark:text-zinc-700">|</span>
+        <Link
+          href="/tier/my"
+          className="font-medium text-violet-600 hover:underline dark:text-violet-400"
+        >
+          내 티어표
+        </Link>
+        <span className="text-slate-300 dark:text-zinc-700">|</span>
+        <button
+          type="button"
+          onClick={() => void load()}
+          disabled={loading}
+          className="font-medium text-violet-600 hover:underline disabled:opacity-50 dark:text-violet-400"
+        >
+          새로고침
+        </button>
+      </div>
+
+      <section aria-labelledby="my-templates-heading">
+        <h2 id="my-templates-heading" className="sr-only">
+          내가 만든 템플릿 목록
+        </h2>
 
         {loading && (
           <div className="flex justify-center py-16">
@@ -117,9 +152,17 @@ export default function TemplatesPage() {
         )}
 
         {!loading && !error && rows.length === 0 && (
-          <p className="py-6 text-sm text-slate-600 dark:text-zinc-400">
-            아직 등록된 템플릿이 없습니다. 상단의 <strong>새 템플릿 만들기</strong>로 첫 티어표를 만들어 보세요.
-          </p>
+          <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-5 py-8 text-center dark:border-zinc-800 dark:bg-zinc-900/60">
+            <p className="text-sm text-slate-600 dark:text-zinc-400">
+              아직 만든 템플릿이 없어요. <strong>새 템플릿 만들기</strong>로 첫 템플릿을 만들어 보세요.
+            </p>
+            <Link
+              href="/template/new"
+              className="mt-4 inline-flex text-sm font-semibold text-violet-600 hover:underline dark:text-violet-400"
+            >
+              새 템플릿 만들기 →
+            </Link>
+          </div>
         )}
 
         {!loading && !error && rows.length > 0 && (
@@ -141,27 +184,15 @@ export default function TemplatesPage() {
                     prev.map((r) => (r.id === templateId ? { ...r, likeCount } : r)),
                   );
                 }}
-                onEdit={(target) => {
-                  if (!accessToken) {
-                    router.push('/login?returnTo=/templates');
-                    return;
-                  }
-                  setEditMetaTarget(target);
-                }}
-                onDelete={(target) => {
-                  if (!accessToken) {
-                    router.push('/login?returnTo=/templates');
-                    return;
-                  }
-                  setDeleteTarget(target);
-                }}
+                onEdit={(target) => setEditMetaTarget(target)}
+                onDelete={(target) => setDeleteTarget(target)}
               />
             ))}
           </ul>
         )}
       </section>
 
-      {accessToken && editMetaTarget && (
+      {editMetaTarget && (
         <TemplateEditMetaModal
           open
           onClose={() => setEditMetaTarget(null)}
@@ -182,7 +213,7 @@ export default function TemplatesPage() {
         />
       )}
 
-      {accessToken && deleteTarget && (
+      {deleteTarget && (
         <TemplateDeleteConfirmDialog
           open
           onClose={() => setDeleteTarget(null)}

@@ -16,7 +16,9 @@ import java.util.UUID
  * 다형성 반응. [targetId] 는 [targetType] 이 가리키는 엔티티의 PK 이나,
  * DB FK 는 걸지 않음 — 서비스에서 대상 존재·소프트삭제·권한을 검증한다.
  *
- * DB 유니크: 회원 `(target_type, target_id, user_id)`, 비회원 `(target_type, target_id, guest_ip_hash)` (부분 인덱스).
+ * DB 유니크: 회원 `(target_type, target_id, user_id)`;
+ * 비회원 `(target_type, target_id, guest_ip_hash)` 는 `user_id IS NULL` 인 행에만 부분 유니크.
+ * 회원 행에도 동일 IP 해시를 저장할 수 있어, 비회원 조회 시 로그인 반응과 매칭해 꼼수 중복을 막는다.
  */
 @Entity
 @Table(
@@ -64,5 +66,12 @@ class Reaction(
     /** 추천 ↔ 비추천 전환 시 서비스에서 호출 (setter 는 protected) */
     fun changeReactionType(to: ReactionType) {
         reactionType = to
+    }
+
+    /** 레거시 회원 row 에 IP 해시가 없을 때만 채움 (하이브리드 중복 방지) */
+    fun ensureGuestIpHashIfMember(hash: String) {
+        if (userId != null && guestIpHash == null) {
+            guestIpHash = hash
+        }
     }
 }

@@ -43,6 +43,23 @@ function selectionFromServer(
   return null;
 }
 
+/** 토글 직전 스냅샷과 서버가 알려준 최종 선택으로 카운트를 맞춤 (API가 집계를 안 줄 때) */
+function countsForServerSelection(
+  prevSel: VoteSelection,
+  prevUp: number,
+  prevDown: number,
+  serverSel: VoteSelection,
+): { up: number; down: number } {
+  const dUp =
+    (serverSel === 'UPVOTE' ? 1 : 0) - (prevSel === 'UPVOTE' ? 1 : 0);
+  const dDown =
+    (serverSel === 'DOWNVOTE' ? 1 : 0) - (prevSel === 'DOWNVOTE' ? 1 : 0);
+  return {
+    up: Math.max(0, prevUp + dUp),
+    down: Math.max(0, prevDown + dDown),
+  };
+}
+
 export function ResultVoteButtons({
   resultId,
   initialUpCount,
@@ -107,11 +124,10 @@ export function ResultVoteButtons({
       try {
         const r = await toggleReaction('TIER_RESULT', resultId, click);
         const serverSel = selectionFromServer(r.active, r.reactionType);
-        if (serverSel !== nextSel) {
-          setSelection(prevSel);
-          applyCounts(prevUp, prevDown);
-          toast.error('투표 상태가 맞지 않아요. 잠시 후 다시 시도해 주세요.');
-        } else if (!isMember) {
+        setSelection(serverSel);
+        const { up, down } = countsForServerSelection(prevSel, prevUp, prevDown, serverSel);
+        applyCounts(up, down);
+        if (!isMember) {
           if (serverSel === 'UPVOTE') setStoredReaction(resultId, 'UPVOTE');
           else if (serverSel === 'DOWNVOTE') setStoredReaction(resultId, 'DOWNVOTE');
           else setStoredReaction(resultId, null);
@@ -153,7 +169,7 @@ export function ResultVoteButtons({
         className={[
           'inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors',
           selection === 'UPVOTE'
-            ? 'border-emerald-500 bg-emerald-50 text-emerald-800 dark:border-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-200'
+            ? 'border-red-500 bg-red-50 text-red-800 dark:border-red-600 dark:bg-red-950/40 dark:text-red-200'
             : 'border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800',
           busy === 'UP' ? 'opacity-60' : '',
         ].join(' ')}
@@ -169,7 +185,7 @@ export function ResultVoteButtons({
         className={[
           'inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors',
           selection === 'DOWNVOTE'
-            ? 'border-amber-500 bg-amber-50 text-amber-900 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-100'
+            ? 'border-blue-500 bg-blue-50 text-blue-800 dark:border-blue-600 dark:bg-blue-950/40 dark:text-blue-200'
             : 'border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800',
           busy === 'DOWN' ? 'opacity-60' : '',
         ].join(' ')}

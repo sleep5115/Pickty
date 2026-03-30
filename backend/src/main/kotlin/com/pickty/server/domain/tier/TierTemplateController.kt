@@ -30,6 +30,12 @@ class TierTemplateController(
     fun list(authentication: Authentication?): List<TemplateSummaryResponse> =
         tierTemplateService.listSummaries(resolveUserId(authentication))
 
+    @GetMapping("/mine")
+    fun listMine(authentication: Authentication?): List<TemplateSummaryResponse> {
+        val userId = resolveUserIdOrThrow(authentication)
+        return tierTemplateService.listMySummaries(userId, userId)
+    }
+
     @GetMapping("/{id}")
     fun getById(@PathVariable id: UUID, authentication: Authentication?): TemplateDetailResponse =
         tierTemplateService.getById(id, resolveUserId(authentication))

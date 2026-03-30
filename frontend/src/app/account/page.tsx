@@ -1037,11 +1037,14 @@ export default function AccountPage() {
               회원 탈퇴
             </h2>
             <p className="text-sm text-slate-700 dark:text-zinc-200 leading-relaxed">
-              정말 탈퇴하시겠습니까?<br />
-              계정 정보는 즉시 파기되며, 복구가 불가능합니다.
+              정말 탈퇴하시겠습니까?
             </p>
-            <p className="text-xs text-slate-400 dark:text-zinc-500 leading-relaxed">
-              ※ 활동 내역은 자동 삭제되지 않으므로, 삭제를 원하실 경우 탈퇴 전 직접 삭제해 주세요.
+            <p className="text-sm text-slate-700 dark:text-zinc-200 leading-relaxed">
+              탈퇴 시 개인정보가 즉시 파기되므로, 서비스에 게시·작성하신 모든 콘텐츠는 탈퇴 후 수정 및 삭제가 불가능합니다.
+              삭제를 원하시면 탈퇴 전 직접 삭제해 주세요.
+            </p>
+            <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
+              계정·로그인 연동 정보는 복구할 수 없습니다.
             </p>
             {deleteError && (
               <div className="px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-sm text-red-600 dark:text-red-400">

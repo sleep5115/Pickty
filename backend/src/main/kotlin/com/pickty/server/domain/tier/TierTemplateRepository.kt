@@ -10,6 +10,11 @@ interface TierTemplateRepository : JpaRepository<TierTemplate, UUID> {
 
     fun findAllByTemplateStatusOrderByCreatedAtDesc(templateStatus: TemplateStatus): List<TierTemplate>
 
+    fun findAllByCreatorIdAndTemplateStatusOrderByCreatedAtDesc(
+        creatorId: Long,
+        templateStatus: TemplateStatus,
+    ): List<TierTemplate>
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE TierTemplate t SET t.creatorId = :newId WHERE t.creatorId = :oldId")
     fun migrateCreatorId(

@@ -24,6 +24,21 @@ class TierTemplateService(
 
     fun listSummaries(viewerUserId: Long?): List<TemplateSummaryResponse> {
         val rows = tierTemplateRepository.findAllByTemplateStatusOrderByCreatedAtDesc(TemplateStatus.ACTIVE)
+        return mapEntitiesToSummaries(rows, viewerUserId)
+    }
+
+    fun listMySummaries(creatorId: Long, viewerUserId: Long?): List<TemplateSummaryResponse> {
+        val rows = tierTemplateRepository.findAllByCreatorIdAndTemplateStatusOrderByCreatedAtDesc(
+            creatorId,
+            TemplateStatus.ACTIVE,
+        )
+        return mapEntitiesToSummaries(rows, viewerUserId)
+    }
+
+    private fun mapEntitiesToSummaries(
+        rows: List<TierTemplate>,
+        viewerUserId: Long?,
+    ): List<TemplateSummaryResponse> {
         val ids = rows.mapNotNull { it.id }
         val reactions = communityMyReactionService.mapByTargetIds(ReactionTargetType.TIER_TEMPLATE, ids, viewerUserId)
         return rows.map { e ->

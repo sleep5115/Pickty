@@ -303,6 +303,30 @@ export async function listTemplates(accessToken: string | null = null): Promise<
   });
 }
 
+/** 로그인한 사용자가 만든 활성 템플릿만 (인증 필수) */
+export async function listMyTemplates(accessToken: string): Promise<TemplateSummaryResponse[]> {
+  const res = await apiFetch('/api/v1/templates/mine', {
+    headers: { ...authHeaders(accessToken) },
+  });
+  if (res.status === 401) {
+    throw new Error('401 Unauthorized');
+  }
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(t || `내 템플릿을 불러오지 못했습니다 (${res.status})`);
+  }
+  const raw = (await res.json()) as unknown;
+  if (!Array.isArray(raw)) {
+    throw new Error('내 템플릿 응답 형식이 올바르지 않습니다.');
+  }
+  return raw.map((row) => {
+    if (!row || typeof row !== 'object') {
+      throw new Error('내 템플릿 행 형식이 올바르지 않습니다.');
+    }
+    return mapTemplateSummaryRow(row as Record<string, unknown>);
+  });
+}
+
 export async function getTemplate(id: string, accessToken: string | null = null): Promise<TemplateDetailResponse> {
   const res = await apiFetch(`/api/v1/templates/${encodeURIComponent(id)}`, {
     headers: { ...authHeaders(accessToken) },

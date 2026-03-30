@@ -167,12 +167,12 @@ export function GNB() {
                     내 티어표
                   </Link>
                   <Link
-                    href="/tier/feed"
+                    href="/templates/mine"
                     role="menuitem"
                     onClick={() => setAccountOpen(false)}
                     className={accountLinkClass}
                   >
-                    티어표
+                    내 템플릿
                   </Link>
                   <div className="my-1 border-t border-slate-100 dark:border-zinc-800" />
                   <button
@@ -260,10 +260,10 @@ export function GNB() {
                       내 티어표
                     </Link>
                     <Link
-                      href="/tier/feed"
+                      href="/templates/mine"
                       className="text-sm px-3 py-2.5 rounded-lg text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800/60 transition-colors"
                     >
-                      티어표
+                      내 템플릿
                     </Link>
                     <button
                       onClick={handleLogout}

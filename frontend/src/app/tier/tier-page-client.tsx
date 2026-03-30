@@ -291,13 +291,6 @@ function TierPageInner() {
                   <h2 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-zinc-100">
                     {workspaceTemplateTitle?.trim() || '템플릿'}
                   </h2>
-                  <TemplateLikeButton
-                    templateId={templateId}
-                    initialLikeCount={templateLikeCount}
-                    initialMyReaction={templateMyReaction}
-                    onMyReactionResolved={setTemplateMyReaction}
-                    onLikeCountChange={setTemplateLikeCount}
-                  />
                 </div>
                 {workspaceTemplateDescription?.trim() ? (
                   <p className="mt-1 text-sm leading-relaxed text-slate-600 dark:text-zinc-400 whitespace-pre-wrap">
@@ -389,7 +382,21 @@ function TierPageInner() {
         </div>
       </div>
 
-      <TierBoard dragSelectRef={dragSelectRef} pointerModeReady={deviceReady} />
+      <TierBoard
+        dragSelectRef={dragSelectRef}
+        pointerModeReady={deviceReady}
+        templateLikeSlot={
+          templateId ? (
+            <TemplateLikeButton
+              templateId={templateId}
+              initialLikeCount={templateLikeCount}
+              initialMyReaction={templateMyReaction}
+              onMyReactionResolved={setTemplateMyReaction}
+              onLikeCountChange={setTemplateLikeCount}
+            />
+          ) : null
+        }
+      />
 
       {templateId ? (
         <div className="shrink-0 border-t border-slate-200 bg-slate-50/90 px-3 py-4 dark:border-zinc-800 dark:bg-zinc-950/60 sm:px-4">
@@ -434,31 +441,6 @@ function TierPageInner() {
       )}
 
       <ImagePreviewModal />
-
-      <footer className="shrink-0 px-4 py-1.5 bg-slate-100/80 dark:bg-zinc-950/80 border-t border-slate-200 dark:border-zinc-800 text-center">
-        <p className="text-xs text-slate-500 dark:text-zinc-600">
-          {isFine ? (
-            <>
-              <span className="text-slate-600 dark:text-zinc-500">타겟팅:</span> 라벨 클릭 → 아이템 클릭
-              &nbsp;|&nbsp;
-              <span className="text-slate-600 dark:text-zinc-500">범위 선택:</span> 빈 공간 드래그
-              &nbsp;|&nbsp;
-              <span className="text-slate-600 dark:text-zinc-500">Ctrl+클릭:</span> 개별 추가 선택
-              &nbsp;|&nbsp;
-              <span className="text-slate-600 dark:text-zinc-500">Alt+클릭:</span> 이미지 확대 / 확대 중엔 닫기
-              &nbsp;|&nbsp;
-              <span className="text-slate-600 dark:text-zinc-500">확대:</span> ←→ 이전·다음
-              &nbsp;|&nbsp;
-              선택 후 드래그로 일괄 이동
-            </>
-          ) : (
-            <>
-              티어 라벨을 터치하여 활성화 → 아이템을 터치하면 이동 &nbsp;|&nbsp; 빈 공간 터치로 해제
-              &nbsp;|&nbsp; 이미지 확대는 카드의 돋보기 · 확대 중 좌우 스와이프로 이전·다음
-            </>
-          )}
-        </p>
-      </footer>
     </div>
   );
 }

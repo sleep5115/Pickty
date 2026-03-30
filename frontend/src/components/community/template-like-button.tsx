@@ -69,11 +69,13 @@ export function TemplateLikeButton({
       try {
         const r = await toggleReaction('TIER_TEMPLATE', templateId, 'LIKE');
         const serverLiked = Boolean(r.active && r.reactionType === 'LIKE');
-        if (serverLiked !== nextLiked) {
-          setLiked(prevLiked);
-          applyCount(prevCount);
-          toast.error('좋아요 상태가 맞지 않아요. 잠시 후 다시 시도해 주세요.');
-        } else if (!isMember) {
+        setLiked(serverLiked);
+        const syncedCount = Math.max(
+          0,
+          prevCount - (prevLiked ? 1 : 0) + (serverLiked ? 1 : 0),
+        );
+        applyCount(syncedCount);
+        if (!isMember) {
           if (serverLiked && r.reactionType === 'LIKE') {
             setStoredReaction(templateId, 'LIKE');
           } else {
@@ -107,7 +109,7 @@ export function TemplateLikeButton({
       className={[
         'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors',
         liked
-          ? 'border-rose-400 bg-rose-50 text-rose-700 dark:border-rose-700 dark:bg-rose-950/50 dark:text-rose-200'
+          ? 'border-pink-500 bg-pink-50 text-pink-800 dark:border-pink-600 dark:bg-pink-950/40 dark:text-pink-200'
           : 'border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800',
         busy ? 'opacity-60' : '',
         className,
