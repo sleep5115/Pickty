@@ -117,7 +117,9 @@ export function TemplateLikeButton({
     <button
       type="button"
       onClick={(e) => void onClick(e)}
-      disabled={locked || busy || !templateId}
+      disabled={busy || !templateId}
+      aria-disabled={locked || busy || !templateId}
+      tabIndex={locked ? -1 : 0}
       aria-pressed={liked}
       title={locked ? '티어 만들기 화면에서만 좋아요할 수 있어요' : undefined}
       className={[

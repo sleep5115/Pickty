@@ -188,7 +188,9 @@ export function ResultVoteButtons({
     >
       <button
         type="button"
-        disabled={locked || busy !== null || !resultId}
+        disabled={busy !== null || !resultId}
+        aria-disabled={locked || busy !== null || !resultId}
+        tabIndex={locked ? -1 : 0}
         aria-pressed={selection === 'UPVOTE'}
         onClick={(e) => void handleVote('UPVOTE', e)}
         className={[
@@ -205,12 +207,22 @@ export function ResultVoteButtons({
           busy === 'UP' ? 'opacity-60' : '',
         ].join(' ')}
       >
-        <ThumbsUp className={[iconUp, 'shrink-0'].join(' ')} strokeWidth={iconStroke} aria-hidden />
+        <ThumbsUp
+          className={[
+            iconUp,
+            'shrink-0',
+            selection === 'UPVOTE' ? 'text-red-600 dark:text-red-400' : '',
+          ].join(' ')}
+          strokeWidth={iconStroke}
+          aria-hidden
+        />
         <span className="min-w-[1.25em] text-center">{upCount}</span>
       </button>
       <button
         type="button"
-        disabled={locked || busy !== null || !resultId}
+        disabled={busy !== null || !resultId}
+        aria-disabled={locked || busy !== null || !resultId}
+        tabIndex={locked ? -1 : 0}
         aria-pressed={selection === 'DOWNVOTE'}
         onClick={(e) => void handleVote('DOWNVOTE', e)}
         className={[
@@ -227,7 +239,15 @@ export function ResultVoteButtons({
           busy === 'DOWN' ? 'opacity-60' : '',
         ].join(' ')}
       >
-        <ThumbsDown className={[iconUp, 'shrink-0'].join(' ')} strokeWidth={iconStroke} aria-hidden />
+        <ThumbsDown
+          className={[
+            iconUp,
+            'shrink-0',
+            selection === 'DOWNVOTE' ? 'text-blue-600 dark:text-blue-400' : '',
+          ].join(' ')}
+          strokeWidth={iconStroke}
+          aria-hidden
+        />
         <span className="min-w-[1.25em] text-center">{downCount}</span>
       </button>
     </div>

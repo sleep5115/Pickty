@@ -109,7 +109,6 @@ export function TemplateCard({
       </Link>
       <div className="flex h-11 shrink-0 items-center justify-between gap-2 border-t border-slate-100 px-3 dark:border-zinc-800/80 rounded-b-xl">
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <span className="min-w-0 truncate text-xs leading-none text-slate-500 dark:text-zinc-500">{itemLine}</span>
           <TemplateLikeButton
             templateId={id}
             initialLikeCount={row.likeCount ?? 0}
@@ -120,6 +119,7 @@ export function TemplateCard({
             onLikeCountChange={(n) => onLikeCountChange(id, n)}
             className="shrink-0"
           />
+          <span className="min-w-0 truncate text-xs leading-none text-slate-500 dark:text-zinc-500">{itemLine}</span>
         </div>
         {showMenu ? (
           <div className="relative flex shrink-0 items-center justify-center" ref={menuRef}>
