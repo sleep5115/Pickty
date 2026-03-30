@@ -4,6 +4,7 @@ import { ThumbsDown, ThumbsUp } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { toggleReaction, type CommunityReactionType } from '@/lib/api/community-api';
+import { useReactionsInteractiveSurface } from '@/lib/hooks/use-reactions-interactive-surface';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { getStoredReaction, setStoredReaction } from '@/lib/store/reaction-store';
 
@@ -72,6 +73,7 @@ export function ResultVoteButtons({
   onCountsChange,
   size = 'sm',
 }: Props) {
+  const surfaceInteractive = useReactionsInteractiveSurface();
   const accessToken = useAuthStore((s) => s.accessToken);
   const isMember = Boolean(accessToken);
 
@@ -116,7 +118,7 @@ export function ResultVoteButtons({
     async (click: CommunityReactionType, e?: React.MouseEvent) => {
       e?.preventDefault();
       e?.stopPropagation();
-      if (!resultId || busy) return;
+      if (!surfaceInteractive || !resultId || busy) return;
       const prevSel = selection;
       const prevUp = upCount;
       const prevDown = downCount;
@@ -154,9 +156,20 @@ export function ResultVoteButtons({
         setBusy(null);
       }
     },
-    [resultId, busy, selection, upCount, downCount, applyCounts, isMember, onMyReactionResolved],
+    [
+      surfaceInteractive,
+      resultId,
+      busy,
+      selection,
+      upCount,
+      downCount,
+      applyCounts,
+      isMember,
+      onMyReactionResolved,
+    ],
   );
 
+  const locked = !surfaceInteractive;
   const isLg = size === 'lg';
   const rowGap = isLg ? 'gap-3' : 'gap-2';
   const btnPad = isLg ? 'gap-2 rounded-xl border-2 px-5 py-3 text-base font-semibold' : 'gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium';
@@ -169,10 +182,11 @@ export function ResultVoteButtons({
       onClick={(e) => e.stopPropagation()}
       role="group"
       aria-label="추천·비추천"
+      title={locked ? '티어 만들기·결과 화면에서만 추천할 수 있어요' : undefined}
     >
       <button
         type="button"
-        disabled={busy !== null || !resultId}
+        disabled={locked || busy !== null || !resultId}
         aria-pressed={selection === 'UPVOTE'}
         onClick={(e) => void handleVote('UPVOTE', e)}
         className={[
@@ -180,7 +194,10 @@ export function ResultVoteButtons({
           btnPad,
           selection === 'UPVOTE'
             ? 'border-red-500 bg-red-50 text-red-800 dark:border-red-600 dark:bg-red-950/40 dark:text-red-200'
-            : 'border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800',
+            : 'border-slate-200 text-slate-600 dark:border-zinc-600 dark:text-zinc-300',
+          locked
+            ? 'cursor-not-allowed opacity-80'
+            : 'hover:bg-slate-50 dark:hover:bg-zinc-800',
           busy === 'UP' ? 'opacity-60' : '',
         ].join(' ')}
       >
@@ -189,7 +206,7 @@ export function ResultVoteButtons({
       </button>
       <button
         type="button"
-        disabled={busy !== null || !resultId}
+        disabled={locked || busy !== null || !resultId}
         aria-pressed={selection === 'DOWNVOTE'}
         onClick={(e) => void handleVote('DOWNVOTE', e)}
         className={[
@@ -197,7 +214,10 @@ export function ResultVoteButtons({
           btnPad,
           selection === 'DOWNVOTE'
             ? 'border-blue-500 bg-blue-50 text-blue-800 dark:border-blue-600 dark:bg-blue-950/40 dark:text-blue-200'
-            : 'border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800',
+            : 'border-slate-200 text-slate-600 dark:border-zinc-600 dark:text-zinc-300',
+          locked
+            ? 'cursor-not-allowed opacity-80'
+            : 'hover:bg-slate-50 dark:hover:bg-zinc-800',
           busy === 'DOWN' ? 'opacity-60' : '',
         ].join(' ')}
       >

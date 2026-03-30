@@ -4,6 +4,7 @@ import { Heart } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { toggleReaction, type CommunityReactionType } from '@/lib/api/community-api';
+import { useReactionsInteractiveSurface } from '@/lib/hooks/use-reactions-interactive-surface';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { getStoredReaction, setStoredReaction } from '@/lib/store/reaction-store';
 
@@ -26,6 +27,7 @@ export function TemplateLikeButton({
   className = '',
   onLikeCountChange,
 }: Props) {
+  const surfaceInteractive = useReactionsInteractiveSurface();
   const accessToken = useAuthStore((s) => s.accessToken);
   const isMember = Boolean(accessToken);
 
@@ -58,7 +60,7 @@ export function TemplateLikeButton({
     async (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      if (!templateId || busy) return;
+      if (!surfaceInteractive || !templateId || busy) return;
       const prevLiked = liked;
       const prevCount = likeCount;
       const nextLiked = !prevLiked;
@@ -97,20 +99,35 @@ export function TemplateLikeButton({
         setBusy(false);
       }
     },
-    [templateId, busy, liked, likeCount, applyCount, isMember, onMyReactionResolved],
+    [
+      surfaceInteractive,
+      templateId,
+      busy,
+      liked,
+      likeCount,
+      applyCount,
+      isMember,
+      onMyReactionResolved,
+    ],
   );
+
+  const locked = !surfaceInteractive;
 
   return (
     <button
       type="button"
       onClick={(e) => void onClick(e)}
-      disabled={busy || !templateId}
+      disabled={locked || busy || !templateId}
       aria-pressed={liked}
+      title={locked ? '티어 만들기 화면에서만 좋아요할 수 있어요' : undefined}
       className={[
         'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors',
         liked
           ? 'border-pink-500 bg-pink-50 text-pink-800 dark:border-pink-600 dark:bg-pink-950/40 dark:text-pink-200'
-          : 'border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800',
+          : 'border-slate-200 text-slate-600 dark:border-zinc-600 dark:text-zinc-300',
+        locked
+          ? 'cursor-not-allowed opacity-80'
+          : 'hover:bg-slate-50 dark:hover:bg-zinc-800',
         busy ? 'opacity-60' : '',
         className,
       ].join(' ')}
