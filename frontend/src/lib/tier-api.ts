@@ -490,6 +490,35 @@ export async function listMyTierResults(accessToken: string | null): Promise<Tie
   return rows.map((row) => mapTierResultSummaryRow(row));
 }
 
+/** 템플릿별 추천(업보트) 상위 결과 — `limit` 기본 3, 최대 50(서버에서 캡) */
+export async function listPopularTierResultsByTemplate(
+  templateId: string,
+  accessToken: string | null = null,
+  limit = 3,
+): Promise<TierResultSummaryResponse[]> {
+  const params = new URLSearchParams({
+    templateId,
+    limit: String(limit),
+  });
+  const res = await apiFetch(`/api/v1/tiers/results/popular?${params.toString()}`, {
+    headers: { ...authHeaders(accessToken) },
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(t || `인기 티어표를 불러오지 못했습니다 (${res.status})`);
+  }
+  const raw = (await res.json()) as unknown;
+  if (!Array.isArray(raw)) {
+    throw new Error('인기 티어표 응답 형식이 올바르지 않습니다.');
+  }
+  return raw.map((row) => {
+    if (!row || typeof row !== 'object') {
+      throw new Error('인기 티어표 행 형식이 올바르지 않습니다.');
+    }
+    return mapTierResultSummaryRow(row as Record<string, unknown>);
+  });
+}
+
 export async function listTierResultsFeedPage(
   page: number,
   size = 12,

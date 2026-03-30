@@ -38,6 +38,20 @@ interface TierResultRepository : JpaRepository<TierResult, UUID> {
     @EntityGraph(attributePaths = ["template"])
     fun findAllByResultStatusOrderByCreatedAtDesc(resultStatus: ResultStatus, pageable: Pageable): Page<TierResult>
 
+    /** 템플릿별 활성 결과 — 추천 수(up_count) 내림차순, 동점 시 최신순. 정렬은 pageable에 위임 */
+    @EntityGraph(attributePaths = ["template"])
+    @Query(
+        """
+        SELECT r FROM TierResult r
+        WHERE r.template.id = :templateId AND r.resultStatus = :resultStatus
+        """,
+    )
+    fun findPopularByTemplateId(
+        @Param("templateId") templateId: UUID,
+        @Param("resultStatus") resultStatus: ResultStatus,
+        pageable: Pageable,
+    ): List<TierResult>
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE TierResult r SET r.userId = :newId WHERE r.userId = :oldId")
     fun migrateUserId(

@@ -7,6 +7,7 @@ import { MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { TierBoard } from '@/components/tier/tier-board';
 import { ImagePreviewModal } from '@/components/tier/image-preview-modal';
 import { CommentSection } from '@/components/community/comment-section';
+import { PopularTierResults } from '@/components/tier/popular-tier-results';
 import { TemplateLikeButton } from '@/components/community/template-like-button';
 import { TemplateDeleteConfirmDialog } from '@/components/template/template-delete-confirm-dialog';
 import { TemplateEditMetaModal } from '@/components/template/template-edit-meta-modal';
@@ -397,6 +398,16 @@ function TierPageInner() {
           ) : null
         }
       />
+
+      {templateId ? (
+        <PopularTierResults
+          key={templateId}
+          templateId={templateId}
+          currentUserId={me?.id ?? null}
+          isAdmin={isAdmin}
+          accessToken={accessToken}
+        />
+      ) : null}
 
       {templateId ? (
         <div className="shrink-0 border-t border-slate-200 bg-slate-50/90 px-3 py-4 dark:border-zinc-800 dark:bg-zinc-950/60 sm:px-4">

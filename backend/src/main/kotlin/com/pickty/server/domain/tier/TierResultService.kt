@@ -11,7 +11,9 @@ import com.pickty.server.domain.tier.dto.UpdateTierResultMetaRequest
 import com.pickty.server.global.exception.PicktyValidationException
 import jakarta.validation.Validator
 import org.springframework.data.domain.Page
+import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Sort
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -72,6 +74,28 @@ class TierResultService(
         val ids = page.content.mapNotNull { it.id }
         val reactions = communityMyReactionService.mapByTargetIds(ReactionTargetType.TIER_RESULT, ids, viewerUserId)
         return page.map { toSummaryResponse(it, reactions[it.id]) }
+    }
+
+    @Transactional(readOnly = true)
+    fun getPopularResultsByTemplateId(
+        templateId: UUID,
+        limit: Int,
+        viewerUserId: Long?,
+    ): List<TierResultSummaryResponse> {
+        val capped = limit.coerceIn(1, 50)
+        val pageable = PageRequest.of(
+            0,
+            capped,
+            Sort.by(
+                Sort.Order.desc("upCount"),
+                Sort.Order.desc("createdAt"),
+                Sort.Order.desc("id"),
+            ),
+        )
+        val rows = tierResultRepository.findPopularByTemplateId(templateId, ResultStatus.ACTIVE, pageable)
+        val ids = rows.mapNotNull { it.id }
+        val reactions = communityMyReactionService.mapByTargetIds(ReactionTargetType.TIER_RESULT, ids, viewerUserId)
+        return rows.map { toSummaryResponse(it, reactions[it.id]) }
     }
 
     private fun toSummaryResponse(
