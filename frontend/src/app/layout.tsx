@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { SonnerToaster } from "@/components/providers/sonner-toaster";
 import { GNB } from "@/components/layout/gnb";
+import { SiteFooter } from "@/components/layout/site-footer";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -55,6 +56,7 @@ export default function RootLayout({
             <main className="flex-1 flex flex-col max-w-6xl mx-auto w-full px-4">
               {children}
             </main>
+            <SiteFooter />
           </div>
         </ThemeProvider>
       </body>

@@ -203,6 +203,24 @@ function LoginPageContent() {
             </button>
           </div>
 
+          <p className="mt-5 text-center text-[11px] leading-relaxed text-slate-500 dark:text-zinc-500 px-0.5">
+            로그인 시 픽티의{' '}
+            <Link
+              href="/terms"
+              className="text-violet-600 dark:text-violet-400 underline underline-offset-2 hover:text-violet-700 dark:hover:text-violet-300"
+            >
+              이용약관
+            </Link>
+            {' '}및{' '}
+            <Link
+              href="/privacy"
+              className="text-violet-600 dark:text-violet-400 underline underline-offset-2 hover:text-violet-700 dark:hover:text-violet-300"
+            >
+              개인정보처리방침
+            </Link>
+            에 동의하는 것으로 간주합니다.
+          </p>
+
           <div className="mt-8 flex items-center justify-center gap-4">
             <div className="flex-1 h-px bg-slate-200 dark:bg-zinc-800" />
             <div className="flex gap-3">

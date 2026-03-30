@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "sync:legal": "node ./scripts/sync-legal-docs.mjs",
     "verify:deploy": "node ./scripts/verify-deployment.mjs"
   },
   "dependencies": {
@@ -22,12 +23,15 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-hook-form": "^7.71.2",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "sonner": "^2.0.7",
     "zod": "^4.3.6",
     "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@tailwindcss/typography": "^0.5.19",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
