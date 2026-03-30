@@ -172,11 +172,26 @@ export function ResultVoteButtons({
   const locked = !surfaceInteractive;
   const isLg = size === 'lg';
   const rowGap = isLg ? 'gap-5' : 'gap-3';
-  const btnBase = isLg
-    ? 'inline-flex items-center gap-2 border-0 bg-transparent px-0 py-0.5 text-base font-semibold tabular-nums rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/40 focus-visible:ring-offset-1 focus-visible:ring-offset-white dark:focus-visible:ring-zinc-500/40 dark:focus-visible:ring-offset-zinc-900'
-    : 'inline-flex items-center gap-1 border-0 bg-transparent px-0 py-0.5 text-xs font-medium tabular-nums rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/40 focus-visible:ring-offset-1 focus-visible:ring-offset-white dark:focus-visible:ring-zinc-500/40 dark:focus-visible:ring-offset-zinc-900';
+  const focusRing =
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/40 focus-visible:ring-offset-1 focus-visible:ring-offset-white dark:focus-visible:ring-zinc-500/40 dark:focus-visible:ring-offset-zinc-900';
+  /** 카드·목록 — 테두리 없음 */
+  const btnSmBase = `inline-flex items-center gap-1 border-0 bg-transparent px-0 py-0.5 text-xs font-medium tabular-nums rounded-sm ${focusRing}`;
+  /** 결과 상세 — 라운드·테두리 박스 (색은 항상 빨강/파랑, 선택 시 테두리 글로우) */
+  const btnLgBase = `inline-flex items-center gap-2 rounded-xl border-2 px-5 py-3 text-base font-semibold tabular-nums transition-shadow duration-200 ${focusRing}`;
+  /** 상세·추천 — 비선택은 옅은 빨강 테두리, 선택 시 진한 테두리 + 붉은 글로우 */
+  const lgUpIdle =
+    'border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950/35 dark:text-red-200';
+  const lgUpLit =
+    'border-red-500 bg-red-50 text-red-800 shadow-[0_0_0_1px_rgb(239,68,68),0_0_16px_5px_rgba(239,68,68,0.45)] dark:border-red-400 dark:bg-red-950/45 dark:text-red-100 dark:shadow-[0_0_0_1px_rgb(248,113,113),0_0_18px_6px_rgba(248,113,113,0.4)]';
+  /** 상세·비추천 */
+  const lgDownIdle =
+    'border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-950/35 dark:text-blue-200';
+  const lgDownLit =
+    'border-blue-500 bg-blue-50 text-blue-800 shadow-[0_0_0_1px_rgb(59,130,246),0_0_16px_5px_rgba(59,130,246,0.45)] dark:border-blue-400 dark:bg-blue-950/45 dark:text-blue-100 dark:shadow-[0_0_0_1px_rgb(96,165,250),0_0_18px_6px_rgba(96,165,250,0.4)]';
   const iconUp = isLg ? 'h-7 w-7' : 'h-3.5 w-3.5';
   const iconStroke = isLg ? 2.25 : 2;
+
+  const canInteract = !locked && busy === null && resultId;
 
   return (
     <div
@@ -194,26 +209,27 @@ export function ResultVoteButtons({
         aria-pressed={selection === 'UPVOTE'}
         onClick={(e) => void handleVote('UPVOTE', e)}
         className={[
-          btnBase,
+          isLg ? btnLgBase : btnSmBase,
           'transition-colors disabled:cursor-default',
-          selection === 'UPVOTE'
-            ? 'text-red-600 dark:text-red-400'
-            : 'text-slate-600 dark:text-zinc-400',
-          !locked && busy === null && resultId
+          isLg
             ? selection === 'UPVOTE'
-              ? 'cursor-pointer hover:opacity-90'
-              : 'cursor-pointer hover:text-red-600 dark:hover:text-red-400'
+              ? lgUpLit
+              : lgUpIdle
+            : 'text-red-600 dark:text-red-400',
+          canInteract
+            ? isLg
+              ? selection === 'UPVOTE'
+                ? 'cursor-pointer hover:opacity-95'
+                : 'cursor-pointer hover:border-red-300 hover:bg-red-100/90 dark:hover:border-red-600 dark:hover:bg-red-950/50'
+              : 'cursor-pointer hover:opacity-90'
             : '',
           busy === 'UP' ? 'opacity-60' : '',
         ].join(' ')}
       >
         <ThumbsUp
-          className={[
-            iconUp,
-            'shrink-0',
-            selection === 'UPVOTE' ? 'text-red-600 dark:text-red-400' : '',
-          ].join(' ')}
+          className={[iconUp, 'shrink-0'].join(' ')}
           strokeWidth={iconStroke}
+          stroke="currentColor"
           aria-hidden
         />
         <span className="min-w-[1.25em] text-center">{upCount}</span>
@@ -226,33 +242,44 @@ export function ResultVoteButtons({
         aria-pressed={selection === 'DOWNVOTE'}
         onClick={(e) => void handleVote('DOWNVOTE', e)}
         className={[
-          btnBase,
+          isLg ? btnLgBase : btnSmBase,
           'transition-colors disabled:cursor-default',
-          selection === 'DOWNVOTE' ? '' : 'text-slate-600 dark:text-zinc-400',
-          !locked && busy === null && resultId
+          isLg
             ? selection === 'DOWNVOTE'
-              ? 'cursor-pointer hover:opacity-90'
-              : 'cursor-pointer hover:text-[#2563eb] dark:hover:text-[#60a5fa]'
+              ? lgDownLit
+              : lgDownIdle
+            : 'text-[#2563eb] dark:text-[#60a5fa]',
+          canInteract
+            ? isLg
+              ? selection === 'DOWNVOTE'
+                ? 'cursor-pointer hover:opacity-95'
+                : 'cursor-pointer hover:border-blue-300 hover:bg-blue-100/90 dark:hover:border-blue-600 dark:hover:bg-blue-950/50'
+              : 'cursor-pointer hover:opacity-90'
             : '',
           busy === 'DOWN' ? 'opacity-60' : '',
         ].join(' ')}
       >
-        <span
-          className={[
-            'inline-flex items-center gap-1',
-            selection === 'DOWNVOTE'
-              ? 'text-[#2563eb] dark:text-[#60a5fa]'
-              : 'text-inherit',
-          ].join(' ')}
-        >
-          <ThumbsDown
-            className={[iconUp, 'shrink-0'].join(' ')}
-            strokeWidth={iconStroke}
-            stroke="currentColor"
-            aria-hidden
-          />
-          <span className="min-w-[1.25em] text-center tabular-nums">{downCount}</span>
-        </span>
+        {isLg ? (
+          <>
+            <ThumbsDown
+              className={[iconUp, 'shrink-0'].join(' ')}
+              strokeWidth={iconStroke}
+              stroke="currentColor"
+              aria-hidden
+            />
+            <span className="min-w-[1.25em] text-center tabular-nums">{downCount}</span>
+          </>
+        ) : (
+          <span className="inline-flex items-center gap-1">
+            <ThumbsDown
+              className={[iconUp, 'shrink-0'].join(' ')}
+              strokeWidth={iconStroke}
+              stroke="currentColor"
+              aria-hidden
+            />
+            <span className="min-w-[1.25em] text-center tabular-nums">{downCount}</span>
+          </span>
+        )}
       </button>
     </div>
   );

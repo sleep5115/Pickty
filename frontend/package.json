@@ -7,7 +7,6 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "sync:legal": "node ./scripts/sync-legal-docs.mjs",
     "verify:deploy": "node ./scripts/verify-deployment.mjs"
   },
   "dependencies": {

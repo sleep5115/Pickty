@@ -98,7 +98,7 @@
 - **내 티어표**: GNB **내 정보** → `**/tier/my`** · `GET .../tiers/results/mine` **ACTIVE만**(삭제한 건 목록에서 제외, 직접 URL·OG는 유지) · 카드 **수정/삭제/리믹스**.
 - **내 템플릿**: GNB **내 정보** → `**/templates/mine`**(로그인) · `GET /api/v1/templates/mine` — 본인이 만든 **ACTIVE** 템플릿만 · 카드는 전체 목록과 동일(티어 만들기·좋아요·수정/삭제). **`frontend/src/components/template/template-card.tsx`** 공통.
 - **글로벌 피드**: `**/tier/feed`** — `GET /api/v1/tiers/results` **ACTIVE만** **무한 스크롤** · 카드 권한: **수정=본인만**, **삭제=본인 또는 ADMIN**, **리믹스=항상** · **(2026-03-30)** 카드에 **추천/비추천**(낙관적 UI).
-- **P2 커뮤니티 (1차)**: 템플릿 **좋아요**(`/templates` 카드·`/tier`는 **`tier-board`** 저장\|다운로드 줄 **왼쪽** **(2026-03-30)**), 결과 **추천/비추천**(피드·결과 상세), **통합 댓글**(`/tier`·`/tier/result/[id]` 하단). 비회원 댓글은 닉네임(선택)·비번(필수)·표시 `익명 (IP 앞 두 마디)`; API는 `**/api/v1/community/**`**. 반응 UI는 **새로고침 후에도 유지** — 회원: 목록·상세 GET의 **`myReaction`**(JWT 시 bulk 조회); 비회원: **`pickty.community.reactions.v1`** `localStorage` · 버튼 **선택 색**: 좋아요 **핑크**·추천 **빨강**·비추천 **파랑**.
+- **P2 커뮤니티 (1차)**: 템플릿 **좋아요**(`/templates` 카드·`/tier`는 **`tier-board`** 저장\|다운로드 줄 **왼쪽** **(2026-03-30)**), 결과 **추천/비추천**(피드·결과 상세), **통합 댓글**(`/tier`·`/tier/result/[id]` 하단). 비회원 댓글은 닉네임(선택)·비번(필수)·표시 `익명 (IP 앞 두 마디)`; API는 `**/api/v1/community/**`**. 반응 UI는 **새로고침 후에도 유지** — 회원: 목록·상세 GET의 **`myReaction`**(JWT 시 bulk 조회); 비회원: **`pickty.community.reactions.v1`** `localStorage` · 버튼 **선택 색**: 좋아요 **핑크**·추천 **빨강**·비추천 **파랑** · **(2026-03-30)** 카드 추천/비추천 **상시 빨강·파랑**, 상세는 **글로우로 내 선택** — 위 **「추천/비추천·템플릿 좋아요 UI」** 절.
 - **비회원 저장→소셜**: export 모달 **「로그인하고 서버에 저장」** → 보드·intent **sessionStorage** · **ACTIVE** 즉시 결과 저장 후 `**/tier/result/[id]`** · **PENDING** 은 온보딩 후 저장·이동 · 비회원 시 **제목·설명 입력 없음**(기본 제목 등) — **메타 수정**은 `/tier/my`·결과 상세·피드 카드에서 가능.
 - **공유·OG**: `generateMetadata` + `fetchTierResultForOpenGraph` / `fetchTemplateForOpenGraph`. **카톡 등 크롤러용 `og:image`** 는 R2 직링크 대신 `**resolvePicktyImageUrlForOpenGraph**` 로 `**https://api.pickty.app/api/v1/images/file/{key}**` 절대 URL 사용(`pickty-image-url.ts`). UI: `**sonner**` 토스트(클립보드) — `tier-page-client`(템플릿 링크), `tier-result-client-page`, `export-modal` 저장 완료 화면.
 - **이미지 업로드 한도**: `**uploadPicktyImages**` — 압축 후 **파일마다 별도 `POST /api/v1/images`**(순차, 단일 `files` 파트). **8MB** — `**deploy/lightsail/nginx.conf`** `client_max_body_size` · `**application.yaml`** `spring.servlet.multipart` + `server.tomcat` · `**TomcatMaxPostSizeCustomizer**` 동일. 브라우저 쪽 목표는 **~0.5MB/장**(장변 1024 WebP).
@@ -132,6 +132,13 @@
 - **프론트**: `tier-api` `resultStatus` 파싱·응답 타입 · `tier-result-card` / **`/tier/result/[id]`** 삭제·삭제됨 표시 · **`tier-result-delete-confirm-dialog`** 문구(소프트·비공개·피드 숨김, 링크 유지). 삭제 성공 시 상세는 **`reloadResult`** 로 상태 반영.
 - **마이그레이션 역할**: **`2026-03-30-rename-status-columns.sql`** 의 `tier_results` 블록은 **`status` 컬럼이 있을 때만** `result_status`로 RENAME — 원래 `status` 없던 DB는 **아무 컬럼도 안 생김**. 컬럼 **추가**는 **`2026-03-30-tier-results-result-status-soft-delete.sql`** (`ADD COLUMN IF NOT EXISTS`). 로컬은 **`ddl-auto: update`** 로 기동 시 컬럼이 생길 수 있어 DBeaver와 타이밍이 어긋날 수 있음.
 - **공통 정책(에이전트·구현 참고)**: `**.cursor/rules/pickty-project-context.mdc`** — **「UGC·리소스 수정·삭제 정책」** — **수정**은 **본인만**(화면마다 수정 가능 필드 범위는 다를 수 있음) · **삭제**는 **본인 + `ROLE_ADMIN`** · 문맥상 **「삭제」** 기본 = **소프트 삭제** + **비공개** + **DB 레코드 유지**; 하드 삭제는 명시 시에만.
+
+---
+
+## 추천/비추천·템플릿 좋아요 UI **(2026-03-30)**
+
+- **`ResultVoteButtons`** (`**frontend/src/components/community/result-vote-buttons.tsx**`): **`size="sm"`**(카드·피드 등) — **회색 비선택 없음**; 추천·비추천 **항상 빨강·파랑**(아이콘·숫자). **`size="lg"`**(결과 상세) — 동일하게 **빨강·파랑 톤 고정**(옅은 테두리·배경); **내가 선택한 쪽만** 테두리 **글로우**(`box-shadow`)로 강조. 반응 **토글**은 **`/tier`**·**`/tier/result/…`** 만(`**useReactionsInteractiveSurface**`) — 그 외 경로는 수치만.
+- **`TemplateLikeButton`**: **`appearance="plain"`** — 템플릿 **카드** 등 테두리 없음 · **`boxed`** — 티어 보드 헤더 등 **라운드·보더** 유지(`**template-card.tsx**`는 `plain`).
 
 ---
 

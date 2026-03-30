@@ -1,3 +1,3 @@
-법률 문서 빌드용 사본입니다.
-저장소 루트의 TERMS_OF_SERVICE_KO.md, PRIVACY_POLICY_KO.md를 수정한 뒤
-프론트엔드 폴더에서 `npm run sync:legal` 을 실행해 이 폴더로 복사해 주세요.
+법률 문서 정본(단일 원본).
+수정 시 이 폴더의 TERMS_OF_SERVICE_KO.md, PRIVACY_POLICY_KO.md 만 편집하면 됩니다.
+Next 빌드는 read-legal-doc.ts 가 여기서 직접 읽습니다.

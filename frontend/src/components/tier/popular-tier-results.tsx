@@ -57,7 +57,7 @@ export function PopularTierResults({
         <span aria-hidden>🔥</span> 인기 티어표
       </h3>
       <p className="mt-1 text-xs text-slate-600 dark:text-zinc-400 sm:text-sm">
-        이 템플릿으로 만든 결과 중 추천을 많이 받은 티어표예요.
+        이 템플릿으로 만든 티어표 중 추천을 많이 받은 티어표예요.
       </p>
       <ul className="mt-4 m-0 flex list-none flex-row gap-4 overflow-x-auto overflow-y-visible pb-2 [-webkit-overflow-scrolling:touch] md:grid md:grid-cols-3 md:gap-4 md:overflow-x-visible md:pb-0 [&>li]:w-[min(20rem,calc(100vw-2rem))] [&>li]:max-w-full [&>li]:shrink-0 md:[&>li]:w-auto md:[&>li]:shrink">
         {items.map((r) => (

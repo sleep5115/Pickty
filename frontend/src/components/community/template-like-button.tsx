@@ -9,6 +9,8 @@ import { useAuthStore } from '@/lib/store/auth-store';
 import { getStoredReaction, setStoredReaction } from '@/lib/store/reaction-store';
 
 type Props = {
+  /** `plain` — 목록 카드(테두리 없음). `boxed`(기본) — 티어 화면 헤더 등 */
+  appearance?: 'plain' | 'boxed';
   templateId: string;
   initialLikeCount: number;
   /** 로그인 시 API `myReaction` — 비회원이면 무시하고 localStorage 사용 */
@@ -20,6 +22,7 @@ type Props = {
 };
 
 export function TemplateLikeButton({
+  appearance = 'boxed',
   templateId,
   initialLikeCount,
   initialMyReaction = null,
@@ -112,6 +115,7 @@ export function TemplateLikeButton({
   );
 
   const locked = !surfaceInteractive;
+  const isPlain = appearance === 'plain';
 
   return (
     <button
@@ -123,15 +127,30 @@ export function TemplateLikeButton({
       aria-pressed={liked}
       title={locked ? '티어 만들기 화면에서만 좋아요할 수 있어요' : undefined}
       className={[
-        'inline-flex items-center gap-1.5 border-0 bg-transparent px-0 py-0.5 text-xs font-medium tabular-nums transition-colors disabled:cursor-default rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500/35 focus-visible:ring-offset-1 focus-visible:ring-offset-white dark:focus-visible:ring-offset-zinc-900',
-        liked
-          ? 'text-pink-600 dark:text-pink-400'
-          : 'text-slate-600 dark:text-zinc-400',
-        !locked && !busy && templateId
-          ? liked
-            ? 'cursor-pointer hover:opacity-90'
-            : 'cursor-pointer hover:text-pink-600 dark:hover:text-pink-400'
-          : '',
+        'inline-flex items-center gap-1.5 text-xs font-medium tabular-nums transition-colors disabled:cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500/35 focus-visible:ring-offset-1 focus-visible:ring-offset-white dark:focus-visible:ring-offset-zinc-900',
+        isPlain
+          ? [
+              'border-0 bg-transparent px-0 py-0.5 rounded-sm',
+              liked
+                ? 'text-pink-600 dark:text-pink-400'
+                : 'text-slate-600 dark:text-zinc-400',
+              !locked && !busy && templateId
+                ? liked
+                  ? 'cursor-pointer hover:opacity-90'
+                  : 'cursor-pointer hover:text-pink-600 dark:hover:text-pink-400'
+                : '',
+            ].join(' ')
+          : [
+              'rounded-lg border px-2.5 py-1.5',
+              liked
+                ? 'border-pink-500 bg-pink-50 text-pink-800 dark:border-pink-600 dark:bg-pink-950/40 dark:text-pink-200'
+                : 'border-slate-200 text-slate-600 dark:border-zinc-600 dark:text-zinc-300',
+              !locked && !busy && templateId
+                ? liked
+                  ? 'cursor-pointer hover:opacity-90'
+                  : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800'
+                : '',
+            ].join(' '),
         busy ? 'opacity-60' : '',
         className,
       ].join(' ')}

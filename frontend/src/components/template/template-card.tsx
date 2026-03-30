@@ -110,6 +110,7 @@ export function TemplateCard({
       <div className="flex h-11 shrink-0 items-center justify-between gap-2 border-t border-slate-100 px-3 dark:border-zinc-800/80 rounded-b-xl">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <TemplateLikeButton
+            appearance="plain"
             templateId={id}
             initialLikeCount={row.likeCount ?? 0}
             initialMyReaction={row.myReaction ?? null}
