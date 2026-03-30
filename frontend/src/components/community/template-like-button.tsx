@@ -121,13 +121,13 @@ export function TemplateLikeButton({
       aria-pressed={liked}
       title={locked ? '티어 만들기 화면에서만 좋아요할 수 있어요' : undefined}
       className={[
-        'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors',
+        'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors disabled:cursor-default',
         liked
           ? 'border-pink-500 bg-pink-50 text-pink-800 dark:border-pink-600 dark:bg-pink-950/40 dark:text-pink-200'
           : 'border-slate-200 text-slate-600 dark:border-zinc-600 dark:text-zinc-300',
-        locked
-          ? 'cursor-not-allowed opacity-80'
-          : 'hover:bg-slate-50 dark:hover:bg-zinc-800',
+        !locked && !busy && templateId
+          ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800'
+          : '',
         busy ? 'opacity-60' : '',
         className,
       ].join(' ')}

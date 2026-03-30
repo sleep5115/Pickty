@@ -190,14 +190,14 @@ export function ResultVoteButtons({
         aria-pressed={selection === 'UPVOTE'}
         onClick={(e) => void handleVote('UPVOTE', e)}
         className={[
-          'inline-flex items-center transition-colors',
+          'inline-flex items-center transition-colors disabled:cursor-default',
           btnPad,
           selection === 'UPVOTE'
             ? 'border-red-500 bg-red-50 text-red-800 dark:border-red-600 dark:bg-red-950/40 dark:text-red-200'
             : 'border-slate-200 text-slate-600 dark:border-zinc-600 dark:text-zinc-300',
-          locked
-            ? 'cursor-not-allowed opacity-80'
-            : 'hover:bg-slate-50 dark:hover:bg-zinc-800',
+          !locked && busy === null && resultId
+            ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800'
+            : '',
           busy === 'UP' ? 'opacity-60' : '',
         ].join(' ')}
       >
@@ -210,14 +210,14 @@ export function ResultVoteButtons({
         aria-pressed={selection === 'DOWNVOTE'}
         onClick={(e) => void handleVote('DOWNVOTE', e)}
         className={[
-          'inline-flex items-center transition-colors',
+          'inline-flex items-center transition-colors disabled:cursor-default',
           btnPad,
           selection === 'DOWNVOTE'
             ? 'border-blue-500 bg-blue-50 text-blue-800 dark:border-blue-600 dark:bg-blue-950/40 dark:text-blue-200'
             : 'border-slate-200 text-slate-600 dark:border-zinc-600 dark:text-zinc-300',
-          locked
-            ? 'cursor-not-allowed opacity-80'
-            : 'hover:bg-slate-50 dark:hover:bg-zinc-800',
+          !locked && busy === null && resultId
+            ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800'
+            : '',
           busy === 'DOWN' ? 'opacity-60' : '',
         ].join(' ')}
       >
