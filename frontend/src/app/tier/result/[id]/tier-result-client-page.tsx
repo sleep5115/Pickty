@@ -38,7 +38,6 @@ export function TierResultClientPage() {
   const [templateTitle, setTemplateTitle] = useState('');
   const [listTitle, setListTitle] = useState<string | null>(null);
   const [listDescription, setListDescription] = useState<string | null>(null);
-  const [version, setVersion] = useState(1);
   const [resultUserId, setResultUserId] = useState<number | null>(null);
   const [resultStatus, setResultStatus] = useState<TierResultStatus>('ACTIVE');
   const [tiers, setTiers] = useState<Tier[]>([]);
@@ -67,7 +66,6 @@ export function TierResultClientPage() {
     setTemplateTitle(res.templateTitle);
     setListTitle(res.listTitle);
     setListDescription(res.listDescription);
-    setVersion(res.templateVersion);
     setResultUserId(res.userId ?? null);
     setResultStatus(res.resultStatus ?? 'ACTIVE');
     setUpCount(res.upCount ?? 0);
@@ -217,7 +215,7 @@ export function TierResultClientPage() {
             {listTitle?.trim() || '저장된 티어표'}
           </h1>
           <p className="text-xs text-slate-400 dark:text-zinc-600 mt-0.5">
-            템플릿: {templateTitle} · v{version}
+            템플릿: {templateTitle}
             {isResultDeleted ? ' · 삭제됨(비공개·피드 숨김)' : ''}
           </p>
         </div>

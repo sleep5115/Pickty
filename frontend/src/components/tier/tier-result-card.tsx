@@ -118,7 +118,7 @@ export function TierResultCard({
             {r.listTitle?.trim() || '제목 없음'}
           </span>
           <span className="text-xs text-slate-500 dark:text-zinc-500 line-clamp-1">
-            템플릿: {r.templateTitle} · v{r.templateVersion}
+            템플릿: {r.templateTitle}
             {r.isPublic ? ' · 공개' : ''}
             {isDeleted ? ' · 삭제됨(비공개)' : ''}
           </span>
