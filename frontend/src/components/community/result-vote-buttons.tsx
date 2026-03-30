@@ -17,6 +17,8 @@ type Props = {
   onMyReactionResolved?: (reaction: CommunityReactionType | null) => void;
   className?: string;
   onCountsChange?: (up: number, down: number) => void;
+  /** 기본 `sm` — 카드 등. `lg`는 결과 상세 등 강조 UI */
+  size?: 'sm' | 'lg';
 };
 
 function predictToggle(
@@ -68,6 +70,7 @@ export function ResultVoteButtons({
   onMyReactionResolved,
   className = '',
   onCountsChange,
+  size = 'sm',
 }: Props) {
   const accessToken = useAuthStore((s) => s.accessToken);
   const isMember = Boolean(accessToken);
@@ -154,9 +157,15 @@ export function ResultVoteButtons({
     [resultId, busy, selection, upCount, downCount, applyCounts, isMember, onMyReactionResolved],
   );
 
+  const isLg = size === 'lg';
+  const rowGap = isLg ? 'gap-3' : 'gap-2';
+  const btnPad = isLg ? 'gap-2 rounded-xl border-2 px-5 py-3 text-base font-semibold' : 'gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium';
+  const iconUp = isLg ? 'h-6 w-6' : 'h-3.5 w-3.5';
+  const iconStroke = isLg ? 2.25 : 2;
+
   return (
     <div
-      className={['inline-flex flex-wrap items-center gap-2', className].join(' ')}
+      className={['inline-flex flex-wrap items-center justify-center', rowGap, className].join(' ')}
       onClick={(e) => e.stopPropagation()}
       role="group"
       aria-label="추천·비추천"
@@ -167,15 +176,16 @@ export function ResultVoteButtons({
         aria-pressed={selection === 'UPVOTE'}
         onClick={(e) => void handleVote('UPVOTE', e)}
         className={[
-          'inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors',
+          'inline-flex items-center transition-colors',
+          btnPad,
           selection === 'UPVOTE'
             ? 'border-red-500 bg-red-50 text-red-800 dark:border-red-600 dark:bg-red-950/40 dark:text-red-200'
             : 'border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800',
           busy === 'UP' ? 'opacity-60' : '',
         ].join(' ')}
       >
-        <ThumbsUp className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
-        <span className="tabular-nums">{upCount}</span>
+        <ThumbsUp className={[iconUp, 'shrink-0'].join(' ')} strokeWidth={iconStroke} aria-hidden />
+        <span className="tabular-nums min-w-[1.25em] text-center">{upCount}</span>
       </button>
       <button
         type="button"
@@ -183,15 +193,16 @@ export function ResultVoteButtons({
         aria-pressed={selection === 'DOWNVOTE'}
         onClick={(e) => void handleVote('DOWNVOTE', e)}
         className={[
-          'inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors',
+          'inline-flex items-center transition-colors',
+          btnPad,
           selection === 'DOWNVOTE'
             ? 'border-blue-500 bg-blue-50 text-blue-800 dark:border-blue-600 dark:bg-blue-950/40 dark:text-blue-200'
             : 'border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800',
           busy === 'DOWN' ? 'opacity-60' : '',
         ].join(' ')}
       >
-        <ThumbsDown className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
-        <span className="tabular-nums">{downCount}</span>
+        <ThumbsDown className={[iconUp, 'shrink-0'].join(' ')} strokeWidth={iconStroke} aria-hidden />
+        <span className="tabular-nums min-w-[1.25em] text-center">{downCount}</span>
       </button>
     </div>
   );

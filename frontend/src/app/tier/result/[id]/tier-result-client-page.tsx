@@ -319,19 +319,6 @@ export function TierResultClientPage() {
       {listDescription?.trim() && (
         <p className="text-sm text-slate-600 dark:text-zinc-400 whitespace-pre-wrap">{listDescription}</p>
       )}
-      {!isResultDeleted && id && (
-        <ResultVoteButtons
-          resultId={id}
-          initialUpCount={upCount}
-          initialDownCount={downCount}
-          initialMyReaction={resultMyReaction}
-          onMyReactionResolved={setResultMyReaction}
-          onCountsChange={(up, down) => {
-            setUpCount(up);
-            setDownCount(down);
-          }}
-        />
-      )}
       {downloadError && (
         <p className="text-sm text-red-600 dark:text-red-400" role="alert">
           다운로드 실패: {downloadError}
@@ -343,9 +330,22 @@ export function TierResultClientPage() {
 
       <TierBoardReadonly ref={captureRef} tiers={tiers} pool={pool} />
 
-      <p className="text-xs text-slate-400 dark:text-zinc-600 text-center">
-        읽기 전용 · 이 페이지 URL을 공유하면 동일한 배치를 볼 수 있습니다.
-      </p>
+      {!isResultDeleted && id ? (
+        <div className="flex w-full justify-center py-5 sm:py-6">
+          <ResultVoteButtons
+            resultId={id}
+            size="lg"
+            initialUpCount={upCount}
+            initialDownCount={downCount}
+            initialMyReaction={resultMyReaction}
+            onMyReactionResolved={setResultMyReaction}
+            onCountsChange={(up, down) => {
+              setUpCount(up);
+              setDownCount(down);
+            }}
+          />
+        </div>
+      ) : null}
 
       {id && (
         <CommentSection
