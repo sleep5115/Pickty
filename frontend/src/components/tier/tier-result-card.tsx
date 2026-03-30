@@ -40,10 +40,11 @@ export function TierResultCard({
   onEdit,
   onDelete,
 }: TierResultCardProps) {
+  const isDeleted = r.resultStatus === 'DELETED';
   const isOwner =
     currentUserId != null && r.userId != null && currentUserId === r.userId;
-  const showEdit = Boolean(accessToken && isOwner);
-  const showDelete = Boolean(accessToken && (isOwner || isAdmin));
+  const showEdit = Boolean(accessToken && isOwner && !isDeleted);
+  const showDelete = Boolean(accessToken && (isOwner || isAdmin) && !isDeleted);
   const showOwnerMenu = Boolean(accessToken && (showEdit || showDelete));
 
   const [menuOpen, setMenuOpen] = useState(false);
@@ -68,7 +69,14 @@ export function TierResultCard({
   }, [menuOpen]);
 
   return (
-    <li className="flex h-full flex-col rounded-xl border border-slate-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+    <li
+      className={[
+        'flex h-full flex-col rounded-xl border bg-white shadow-sm dark:bg-zinc-900',
+        isDeleted
+          ? 'border-slate-200/80 opacity-90 dark:border-zinc-800/80'
+          : 'border-slate-200 dark:border-zinc-800',
+      ].join(' ')}
+    >
       <Link
         href={`/tier/result/${encodeURIComponent(r.id)}`}
         className="group flex min-h-0 flex-1 flex-col transition-colors hover:border-violet-400 dark:hover:border-violet-600"
@@ -106,6 +114,7 @@ export function TierResultCard({
           <span className="text-xs text-slate-500 dark:text-zinc-500 line-clamp-1">
             템플릿: {r.templateTitle} · v{r.templateVersion}
             {r.isPublic ? ' · 공개' : ''}
+            {isDeleted ? ' · 삭제됨(비공개)' : ''}
           </span>
           <span className="text-xs text-slate-400 dark:text-zinc-600 mt-auto pt-2 tabular-nums">
             {formatTierResultSavedAt(r.createdAt)}

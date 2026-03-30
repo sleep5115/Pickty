@@ -85,6 +85,9 @@ export type CreateTemplatePayload = {
   thumbnailUrl?: string | null;
 };
 
+/** `tier_results.result_status` — 백엔드 [ResultStatus] */
+export type TierResultStatus = 'ACTIVE' | 'DELETED';
+
 export interface TierResultResponse {
   id: string;
   templateId: string;
@@ -95,6 +98,7 @@ export interface TierResultResponse {
   snapshotData: Record<string, unknown>;
   isPublic: boolean;
   isTemporary: boolean;
+  resultStatus: TierResultStatus;
   userId: number | null;
   thumbnailUrl: string | null;
 }
@@ -107,6 +111,7 @@ export interface TierResultSummaryResponse {
   listTitle: string | null;
   listDescription: string | null;
   isPublic: boolean;
+  resultStatus: TierResultStatus;
   /** null 이면 익명·미귀속 */
   userId: number | null;
   createdAt: string;
@@ -159,6 +164,12 @@ function optStringField(row: Record<string, unknown>, camel: string, snake: stri
   return null;
 }
 
+export function parseTierResultStatus(row: Record<string, unknown>): TierResultStatus {
+  const v = row.resultStatus ?? row.result_status;
+  if (v === 'DELETED') return 'DELETED';
+  return 'ACTIVE';
+}
+
 export function mapTierResultSummaryRow(row: Record<string, unknown>): TierResultSummaryResponse {
   const uidRaw = row.userId ?? row.user_id;
   let userId: number | null = null;
@@ -182,6 +193,7 @@ export function mapTierResultSummaryRow(row: Record<string, unknown>): TierResul
     listTitle: optStringField(row, 'listTitle', 'list_title'),
     listDescription: optStringField(row, 'listDescription', 'list_description'),
     isPublic: Boolean(row.isPublic ?? row.is_public),
+    resultStatus: parseTierResultStatus(row),
     userId,
     createdAt:
       typeof row.createdAt === 'string'
@@ -388,6 +400,7 @@ export async function createTierResult(
   const raw = row as unknown as TierResultResponse;
   return {
     ...raw,
+    resultStatus: parseTierResultStatus(row),
     thumbnailUrl: parseResultThumbnailUrl(row),
   };
 }
@@ -451,6 +464,7 @@ export async function getTierResult(id: string): Promise<TierResultResponse> {
   const raw = row as unknown as TierResultResponse;
   return {
     ...raw,
+    resultStatus: parseTierResultStatus(row),
     snapshotData: rewriteSnapshotUploadedImageUrls(raw.snapshotData),
     thumbnailUrl: parseResultThumbnailUrl(row),
   };
@@ -480,6 +494,7 @@ export async function patchTierResultMeta(
   const raw = row as unknown as TierResultResponse;
   return {
     ...raw,
+    resultStatus: parseTierResultStatus(row),
     snapshotData: rewriteSnapshotUploadedImageUrls(raw.snapshotData),
     thumbnailUrl: parseResultThumbnailUrl(row),
   };

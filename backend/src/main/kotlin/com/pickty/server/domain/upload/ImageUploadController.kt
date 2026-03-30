@@ -2,7 +2,6 @@ package com.pickty.server.domain.upload
 
 import com.pickty.server.domain.tier.resolveUserId
 import com.pickty.server.domain.upload.dto.ImageUploadResponse
-import org.springframework.http.CacheControl
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -16,7 +15,6 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.multipart.MultipartFile
 import org.springframework.web.server.ResponseStatusException
-import java.util.concurrent.TimeUnit
 
 @RestController
 @RequestMapping("/api/v1/images")
@@ -42,9 +40,10 @@ class ImageUploadController(
     private fun serveStoredFile(key: String): ResponseEntity<ByteArray> {
         val obj = r2ImageStorageService.fetchStoredObjectIfPresent(key)
             ?: return ResponseEntity.notFound().build()
+        // 객체 키는 UUID 기반 불변 URL — 브라우저·중간 캐시(OG 크롤러·CDN)가 장기 재사용하도록 1년 + immutable
         return ResponseEntity.ok()
             .contentType(MediaType.parseMediaType(obj.contentType))
-            .cacheControl(CacheControl.maxAge(7, TimeUnit.DAYS).cachePublic())
+            .header(HttpHeaders.CACHE_CONTROL, "public, max-age=31536000, immutable")
             .header(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "*")
             .body(obj.bytes)
     }

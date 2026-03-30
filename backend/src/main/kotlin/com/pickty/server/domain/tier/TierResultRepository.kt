@@ -11,7 +11,7 @@ import java.util.UUID
 
 interface TierResultRepository : JpaRepository<TierResult, UUID> {
 
-    fun countByTemplate_Id(templateId: UUID): Long
+    fun countByTemplate_IdAndResultStatus(templateId: UUID, resultStatus: ResultStatus): Long
 
     @Query(
         """
@@ -26,14 +26,17 @@ interface TierResultRepository : JpaRepository<TierResult, UUID> {
         """
         SELECT r FROM TierResult r
         JOIN FETCH r.template t
-        WHERE r.userId = :userId
+        WHERE r.userId = :userId AND r.resultStatus = :resultStatus
         ORDER BY r.createdAt DESC
         """,
     )
-    fun findByUserIdWithTemplateOrderByCreatedAtDesc(@Param("userId") userId: Long): List<TierResult>
+    fun findByUserIdAndResultStatusWithTemplateOrderByCreatedAtDesc(
+        @Param("userId") userId: Long,
+        @Param("resultStatus") resultStatus: ResultStatus,
+    ): List<TierResult>
 
     @EntityGraph(attributePaths = ["template"])
-    fun findAllByOrderByCreatedAtDesc(pageable: Pageable): Page<TierResult>
+    fun findAllByResultStatusOrderByCreatedAtDesc(resultStatus: ResultStatus, pageable: Pageable): Page<TierResult>
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE TierResult r SET r.userId = :newId WHERE r.userId = :oldId")

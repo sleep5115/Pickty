@@ -9,7 +9,7 @@ type Props = {
   onClose: () => void;
   resultId: string;
   accessToken: string;
-  onDeleted: () => void;
+  onDeleted: () => void | Promise<void>;
 };
 
 export function TierResultDeleteConfirmDialog({
@@ -30,7 +30,7 @@ export function TierResultDeleteConfirmDialog({
     void (async () => {
       try {
         await deleteTierResult(resultId, accessToken);
-        onDeleted();
+        await Promise.resolve(onDeleted());
         onClose();
       } catch (e) {
         setErr(e instanceof Error ? e.message : '삭제에 실패했습니다.');
@@ -71,7 +71,7 @@ export function TierResultDeleteConfirmDialog({
         </div>
         <div className="p-4">
           <p className="text-sm text-slate-600 dark:text-zinc-400">
-            이 티어표를 삭제할까요? 되돌릴 수 없습니다.
+            이 티어표를 삭제하시겠습니까?
           </p>
           {err && (
             <p className="mt-2 text-xs text-red-600 dark:text-red-400" role="alert">

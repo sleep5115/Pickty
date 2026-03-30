@@ -11,6 +11,7 @@ import { useTierStore } from '@/lib/store/tier-store';
 import { createTemplate, createTierResult } from '@/lib/tier-api';
 import { buildTierSnapshot, collectDistinctItems } from '@/lib/tier-snapshot';
 import { stashTierAutoSaveThumbnailFromPreviewUrl } from '@/lib/tier-autosave-thumbnail';
+import { PICKTY_IMAGE_UPLOAD_HINT } from '@/lib/pickty-upload-hint';
 
 interface ExportModalProps {
   captureRef: React.RefObject<HTMLDivElement | null>;
@@ -390,9 +391,12 @@ function LoggedInSaveDownloadPanel({
   return (
     <>
       <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-slate-100 dark:border-zinc-800 shrink-0">
-        <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
-          <strong>저장</strong>은 서버에 두고 링크로 공유 · <strong>다운로드</strong>는 PNG로 저장합니다.
-        </p>
+        <div className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed space-y-1.5">
+          <p>
+            <strong>저장</strong>은 서버에 두고 링크로 공유 · <strong>다운로드</strong>는 PNG로 저장합니다.
+          </p>
+          <p className="text-xs text-slate-500 dark:text-zinc-500">{PICKTY_IMAGE_UPLOAD_HINT}</p>
+        </div>
         <button
           type="button"
           onClick={onClose}

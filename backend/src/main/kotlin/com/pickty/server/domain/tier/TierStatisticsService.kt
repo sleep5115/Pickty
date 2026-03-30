@@ -15,7 +15,7 @@ class TierStatisticsService(
 
     @Transactional(readOnly = true)
     fun countResultsByTemplateId(templateId: UUID): Long =
-        tierResultRepository.countByTemplate_Id(templateId)
+        tierResultRepository.countByTemplate_IdAndResultStatus(templateId, ResultStatus.ACTIVE)
 
     /**
      * 추후: native query / jsonb_each 로 아이템→티어 분포 집계

@@ -5,10 +5,10 @@
 
 server:
   port: 8080
-  # 멀티파트 전체 본문 한도 — 미설정 시 Tomcat 기본(약 2MB)에서 먼저 413 발생할 수 있음
+  # 멀티파트 본문 한도 — Nginx·Spring multipart·Tomcat 커넥터와 동일 수치(8MB)로 통일
   tomcat:
-    max-http-form-post-size: 80MB
-    max-swallow-size: 80MB
+    max-http-form-post-size: 8MB
+    max-swallow-size: 8MB
 
 spring:
   application:
@@ -19,8 +19,8 @@ spring:
 
   servlet:
     multipart:
-      max-file-size: 25MB
-      max-request-size: 80MB
+      max-file-size: 8MB
+      max-request-size: 8MB
 
   security:
     oauth2:

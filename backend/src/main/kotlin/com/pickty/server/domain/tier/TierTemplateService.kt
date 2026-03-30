@@ -20,7 +20,7 @@ class TierTemplateService(
 ) {
 
     fun listSummaries(): List<TemplateSummaryResponse> =
-        tierTemplateRepository.findAllByStatusOrderByCreatedAtDesc(TemplateStatus.ACTIVE).map { e ->
+        tierTemplateRepository.findAllByTemplateStatusOrderByCreatedAtDesc(TemplateStatus.ACTIVE).map { e ->
             val id = e.id ?: throw IllegalStateException("template id missing")
             val items = e.items
             val itemCount = countItemsInPayload(items)
@@ -56,6 +56,9 @@ class TierTemplateService(
             tierTemplateRepository.findById(pid)
                 .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "parent template not found") }
         }
+        if (parent != null && parent.templateStatus == TemplateStatus.DELETED) {
+            throw ResponseStatusException(HttpStatus.GONE, "fork source template was removed")
+        }
 
         val entity = TierTemplate(
             title = request.title.trim(),
@@ -87,7 +90,7 @@ class TierTemplateService(
     ): PatchTemplateMetaResponse {
         val entity = tierTemplateRepository.findById(id)
             .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "template not found") }
-        if (entity.status == TemplateStatus.DELETED) {
+        if (entity.templateStatus == TemplateStatus.DELETED) {
             throw PicktyValidationException(listOf("삭제된 템플릿은 수정할 수 없습니다."))
         }
         val ownerId = entity.creatorId
@@ -117,7 +120,7 @@ class TierTemplateService(
         if (!allowed) {
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "not allowed")
         }
-        if (entity.status == TemplateStatus.DELETED) {
+        if (entity.templateStatus == TemplateStatus.DELETED) {
             return
         }
         entity.markDeleted()

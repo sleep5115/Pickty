@@ -19,6 +19,7 @@ import {
   type TemplateNewFormValues,
 } from '@/lib/schemas/template-new';
 import { PICKTY_IMAGE_ACCEPT } from '@/lib/pickty-image-accept';
+import { PICKTY_IMAGE_UPLOAD_HINT } from '@/lib/pickty-upload-hint';
 
 type FileEntry = { file: File; previewUrl: string };
 
@@ -460,7 +461,7 @@ function NewTemplatePageInner() {
             <div className="text-center">
               <p className="text-sm font-semibold text-slate-900 dark:text-zinc-100">저장 중입니다</p>
               <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-zinc-400">
-                이미지를 서버에 올리고 템플릿을 저장하고 있어요. 장 수가 많으면 조금 걸릴 수 있어요.
+                {PICKTY_IMAGE_UPLOAD_HINT} 저장까지 이어서 진행 중이에요.
               </p>
             </div>
           </div>
@@ -701,6 +702,9 @@ function NewTemplatePageInner() {
             </p>
             <p className="mt-1 text-xs text-slate-500 dark:text-zinc-500">
               파일명(확장자 제외)이 기본 아이템 이름으로 들어갑니다.
+            </p>
+            <p className="mt-2 text-xs text-slate-500 dark:text-zinc-500 leading-relaxed">
+              {PICKTY_IMAGE_UPLOAD_HINT}
             </p>
           </div>
 

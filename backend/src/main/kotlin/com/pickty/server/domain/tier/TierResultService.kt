@@ -28,6 +28,9 @@ class TierResultService(
     fun create(request: CreateTierResultRequest, userId: Long?): TierResultResponse {
         val template = tierTemplateRepository.findById(request.templateId)
             .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "template not found") }
+        if (template.templateStatus == TemplateStatus.DELETED) {
+            throw ResponseStatusException(HttpStatus.GONE, "template was removed")
+        }
 
         val loggedIn = userId != null
         val thumb = request.thumbnailUrl?.trim()?.takeIf { it.isNotEmpty() }
@@ -49,11 +52,14 @@ class TierResultService(
 
     @Transactional(readOnly = true)
     fun listMine(userId: Long): List<TierResultSummaryResponse> =
-        tierResultRepository.findByUserIdWithTemplateOrderByCreatedAtDesc(userId).map { toSummaryResponse(it) }
+        tierResultRepository
+            .findByUserIdAndResultStatusWithTemplateOrderByCreatedAtDesc(userId, ResultStatus.ACTIVE)
+            .map { toSummaryResponse(it) }
 
     @Transactional(readOnly = true)
     fun listAll(pageable: Pageable): Page<TierResultSummaryResponse> =
-        tierResultRepository.findAllByOrderByCreatedAtDesc(pageable).map { toSummaryResponse(it) }
+        tierResultRepository.findAllByResultStatusOrderByCreatedAtDesc(ResultStatus.ACTIVE, pageable)
+            .map { toSummaryResponse(it) }
 
     private fun toSummaryResponse(e: TierResult): TierResultSummaryResponse {
         val fmt = DateTimeFormatter.ISO_LOCAL_DATE_TIME
@@ -68,6 +74,7 @@ class TierResultService(
             listTitle = e.listTitle,
             listDescription = e.listDescription,
             isPublic = e.isPublic,
+            resultStatus = e.resultStatus,
             userId = e.userId,
             createdAt = e.createdAt.format(fmt),
             thumbnailUrl = e.thumbnailUrl?.trim()?.takeIf { it.isNotEmpty() }
@@ -92,6 +99,9 @@ class TierResultService(
 
         val entity = tierResultRepository.findByIdWithTemplate(id)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "tier result not found")
+        if (entity.resultStatus == ResultStatus.DELETED) {
+            throw PicktyValidationException(listOf("삭제된 티어표는 수정할 수 없습니다."))
+        }
         if (entity.userId != userId) {
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "not owner")
         }
@@ -149,7 +159,11 @@ class TierResultService(
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "not allowed")
         }
         val rid = entity.id ?: throw IllegalStateException("result id null")
-        tierResultRepository.delete(entity)
+        if (entity.resultStatus == ResultStatus.DELETED) {
+            tierResultCacheService.evict(rid)
+            return
+        }
+        entity.markDeleted()
         tierResultCacheService.evict(rid)
     }
 
@@ -167,6 +181,7 @@ class TierResultService(
             snapshotData = entity.snapshotData,
             isPublic = entity.isPublic,
             isTemporary = entity.isTemporary,
+            resultStatus = entity.resultStatus,
             userId = entity.userId,
             thumbnailUrl = entity.thumbnailUrl?.trim()?.takeIf { it.isNotEmpty() }
                 ?: firstHttpImageFromSnapshot(entity.snapshotData),

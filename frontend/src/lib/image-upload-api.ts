@@ -1,6 +1,10 @@
 import { apiFetch } from '@/lib/api-fetch';
 
-/** 클라이언트 압축 후 업로드 — 413·R2 부하 완화. 서버는 JPEG/PNG/WebP/GIF 화이트리스트 + 매직 검증. */
+/**
+ * 클라이언트 압축 후 업로드 — R2 부하·413 완화.
+ * 서버·Nginx 요청당 본문 한도는 8MB로 통일(`application.yaml`, `deploy/lightsail/nginx.conf`).
+ * 서버는 JPEG/PNG/WebP/GIF 화이트리스트 + 매직 검증.
+ */
 const PICKTY_CLIENT_COMPRESS_OPTIONS = {
   maxSizeMB: 0.5,
   maxWidthOrHeight: 1024,
@@ -93,6 +97,13 @@ export async function uploadPicktyImages(
     }
     if (!res.ok) {
       const t = await res.text();
+      if (res.status === 413) {
+        const err = new Error(
+          '이 파일은 업로드 허용 크기를 넘었습니다. 다른 이미지로 바꿔 주시거나, 잠시 후 다시 시도해 주세요.',
+        );
+        options?.onImageFailure?.({ file: original, phase: 'upload', error: err });
+        throw err;
+      }
       const err = new Error(
         t || `이미지 업로드 실패 (${res.status}) — ${i + 1}번째 파일`,
       );

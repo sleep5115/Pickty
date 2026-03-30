@@ -3,6 +3,8 @@ package com.pickty.server.domain.tier
 import com.pickty.server.global.common.BaseTimeEntity
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
 import jakarta.persistence.FetchType
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
@@ -10,6 +12,7 @@ import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
+import org.hibernate.annotations.ColumnDefault
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
 import java.util.UUID
@@ -60,6 +63,11 @@ class TierResult(
     var isTemporary: Boolean = isTemporaryInit
         protected set
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "result_status", nullable = false, length = 20)
+    @ColumnDefault("'ACTIVE'")
+    var resultStatus: ResultStatus = ResultStatus.ACTIVE
+
     /** 유저가 붙인 티어표 제목 (TierMaker의 Title of Tier List) */
     @Column(name = "list_title", length = 100)
     var listTitle: String? = listTitleInit
@@ -83,5 +91,11 @@ class TierResult(
     fun applyListMeta(listTitle: String?, listDescription: String?) {
         this.listTitle = listTitle
         this.listDescription = listDescription
+    }
+
+    /** 소프트 삭제 — 피드·목록에서 제외, 링크·OG 정합용 행은 유지. 비공개 처리 */
+    fun markDeleted() {
+        resultStatus = ResultStatus.DELETED
+        isPublic = false
     }
 }

@@ -8,7 +8,7 @@ import java.util.UUID
 
 interface TierTemplateRepository : JpaRepository<TierTemplate, UUID> {
 
-    fun findAllByStatusOrderByCreatedAtDesc(status: TemplateStatus): List<TierTemplate>
+    fun findAllByTemplateStatusOrderByCreatedAtDesc(templateStatus: TemplateStatus): List<TierTemplate>
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE TierTemplate t SET t.creatorId = :newId WHERE t.creatorId = :oldId")

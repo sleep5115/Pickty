@@ -1,5 +1,6 @@
 package com.pickty.server.domain.tier.dto
 
+import com.pickty.server.domain.tier.ResultStatus
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotEmpty
@@ -119,6 +120,7 @@ data class TierResultResponse(
     val snapshotData: Map<String, Any?>,
     val isPublic: Boolean,
     val isTemporary: Boolean,
+    val resultStatus: ResultStatus,
     val userId: Long?,
     val thumbnailUrl: String?,
 )
@@ -132,6 +134,7 @@ data class TierResultSummaryResponse(
     val listTitle: String?,
     val listDescription: String?,
     val isPublic: Boolean,
+    val resultStatus: ResultStatus,
     /** null 이면 익명·미귀속 결과 */
     val userId: Long?,
     val createdAt: String,

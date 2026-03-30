@@ -13,6 +13,7 @@ import { uploadPicktyImages } from '@/lib/image-upload-api';
 import { onboardingSchema, type OnboardingFormValues } from '@/lib/schemas/auth';
 import { PUBLIC_API_BASE_URL } from '@/lib/public-site-config';
 import { PICKTY_IMAGE_ACCEPT } from '@/lib/pickty-image-accept';
+import { PICKTY_IMAGE_UPLOAD_HINT } from '@/lib/pickty-upload-hint';
 
 interface UserInfo {
   id: number;
@@ -389,6 +390,9 @@ function ProfileEditModal({ open, onClose, accessToken, user, onSaved, onUnautho
               )}
               <p className="mt-2 text-xs text-slate-500 dark:text-zinc-400 text-center">
                 클릭 또는 드래그로 사진 변경
+              </p>
+              <p className="mt-2 text-xs text-slate-500 dark:text-zinc-500 text-center leading-relaxed px-1">
+                {PICKTY_IMAGE_UPLOAD_HINT}
               </p>
             </div>
             {(avatarFile || (!removedAvatar && baselineAvatarUrl)) && (

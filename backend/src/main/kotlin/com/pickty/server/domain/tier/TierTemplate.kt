@@ -64,9 +64,9 @@ class TierTemplate(
     var thumbnailUrl: String? = null
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
+    @Column(name = "template_status", nullable = false, length = 20)
     @ColumnDefault("'ACTIVE'")
-    var status: TemplateStatus = TemplateStatus.ACTIVE
+    var templateStatus: TemplateStatus = TemplateStatus.ACTIVE
 
     fun updateItems(newItems: Map<String, Any?>) {
         this.items = newItems
@@ -87,6 +87,6 @@ class TierTemplate(
     }
 
     fun markDeleted() {
-        status = TemplateStatus.DELETED
+        templateStatus = TemplateStatus.DELETED
     }
 }

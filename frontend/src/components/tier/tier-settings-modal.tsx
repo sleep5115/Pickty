@@ -11,6 +11,7 @@ import {
 } from '@/lib/tier-label-surface';
 import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
 import { PICKTY_IMAGE_ACCEPT } from '@/lib/pickty-image-accept';
+import { PICKTY_IMAGE_UPLOAD_HINT } from '@/lib/pickty-upload-hint';
 
 /** 한글/CJK 포함 시 최대 3자, 영어·숫자만이면 최대 5자 */
 function isWithinLabelLimit(s: string): boolean {
@@ -249,6 +250,11 @@ export function TierSettingsModal({ tier, onClose }: TierSettingsModalProps) {
               {!accessToken && (
                 <p className="text-xs text-amber-700 dark:text-amber-300/90">
                   로그인한 계정에서만 업로드할 수 있습니다.
+                </p>
+              )}
+              {accessToken && (
+                <p className="text-xs text-slate-500 dark:text-zinc-500 leading-relaxed">
+                  {PICKTY_IMAGE_UPLOAD_HINT}
                 </p>
               )}
               {uploadError && (

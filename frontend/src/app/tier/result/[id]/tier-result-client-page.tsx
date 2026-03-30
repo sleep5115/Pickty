@@ -8,7 +8,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { TierBoardReadonly } from '@/components/tier/tier-board-readonly';
 import { TierResultEditMetaModal } from '@/components/tier/tier-result-edit-meta-modal';
 import { TierResultDeleteConfirmDialog } from '@/components/tier/tier-result-delete-confirm-dialog';
-import { getTierResult } from '@/lib/tier-api';
+import { getTierResult, type TierResultStatus } from '@/lib/tier-api';
 import { apiFetch } from '@/lib/api-fetch';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { captureTierElementToPng, formatImageCaptureError } from '@/lib/tier-capture-png';
@@ -37,6 +37,7 @@ export function TierResultClientPage() {
   const [listDescription, setListDescription] = useState<string | null>(null);
   const [version, setVersion] = useState(1);
   const [resultUserId, setResultUserId] = useState<number | null>(null);
+  const [resultStatus, setResultStatus] = useState<TierResultStatus>('ACTIVE');
   const [tiers, setTiers] = useState<Tier[]>([]);
   const [pool, setPool] = useState<TierItem[]>([]);
   const [downloadBusy, setDownloadBusy] = useState(false);
@@ -62,6 +63,7 @@ export function TierResultClientPage() {
     setListDescription(res.listDescription);
     setVersion(res.templateVersion);
     setResultUserId(res.userId ?? null);
+    setResultStatus(res.resultStatus ?? 'ACTIVE');
     setTiers(snap.tiers);
     setPool(snap.pool);
   }, [id]);
@@ -118,9 +120,10 @@ export function TierResultClientPage() {
   const isOwner = Boolean(
     me && resultUserId != null && me.id === resultUserId,
   );
+  const isResultDeleted = resultStatus === 'DELETED';
   const canDelete = isOwner || me?.role === 'ADMIN';
-  const showEdit = isOwner && Boolean(accessToken);
-  const showDelete = canDelete && Boolean(accessToken);
+  const showEdit = isOwner && Boolean(accessToken) && !isResultDeleted;
+  const showDelete = canDelete && Boolean(accessToken) && !isResultDeleted;
   const showOwnerMenu = Boolean(accessToken && (showEdit || showDelete));
   const remixHref =
     templateId != null
@@ -206,6 +209,7 @@ export function TierResultClientPage() {
           </h1>
           <p className="text-xs text-slate-400 dark:text-zinc-600 mt-0.5">
             템플릿: {templateTitle} · v{version}
+            {isResultDeleted ? ' · 삭제됨(비공개·피드 숨김)' : ''}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
@@ -297,6 +301,14 @@ export function TierResultClientPage() {
           )}
         </div>
       </div>
+      {isResultDeleted && (
+        <p
+          className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100"
+          role="status"
+        >
+          이 티어표는 삭제 처리되어 피드에 노출되지 않고 비공개로 전환되었습니다. 링크로는 계속 열어볼 수 있습니다.
+        </p>
+      )}
       {listDescription?.trim() && (
         <p className="text-sm text-slate-600 dark:text-zinc-400 whitespace-pre-wrap">{listDescription}</p>
       )}
@@ -336,8 +348,14 @@ export function TierResultClientPage() {
           resultId={id}
           accessToken={accessToken}
           onDeleted={() => {
-            toast.success('삭제했어요.');
-            router.replace('/tier/my');
+            void reloadResult()
+              .then(() => {
+                toast.success('피드에서 숨기고 비공개로 처리했어요.');
+              })
+              .catch(() => {
+                toast.error('갱신에 실패했어요. 내 티어표에서 확인해 주세요.');
+                router.replace('/tier/my');
+              });
           }}
         />
       )}

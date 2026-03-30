@@ -25,6 +25,7 @@
 | 백엔드 CORS 허용 오리진 | `https://pickty.app`, `https://www.pickty.app`, 로컬 3002 | 동일 파일의 `app.oauth2.allowed-frontend-origins` (쉼표 구분, 공백 없이) |
 | R2 공개 URL | `https://img.pickty.app` | `cloud.cloudflare.r2.public-url` 이 업로드 응답 URL과 일치 |
 | Mixed Content | HTTPS 페이지에서 API·이미지 모두 `https://` | 브라우저 주소창이 `https://pickty.app` 일 때 Network 탭에 `http://` 요청 없음 |
+| API 이미지 업로드 본문 한도 | **8MB** (`client_max_body_size 8m`) | `deploy/lightsail/nginx.conf` 는 Spring `multipart`·Tomcat `maxPostSize` 와 **같은 수치**로 둔다. nginx 설정을 바꾼 뒤에는 서버에서 반영(reload) 필요. |
 
 **정합성**: 프론트가 부르는 API 호스트와 백엔드 실제 공개 URL이 같아야 하며, OAuth 리다이렉트 대상 오리진은 반드시 CORS·`allowed-frontend-origins` 에 포함되어야 합니다.
 
@@ -79,6 +80,31 @@ npm run verify:deploy
 환경 변수로 덮어쓰기: `VERIFY_API_BASE`, `VERIFY_IMAGE_BASE`, 선택 `VERIFY_IMAGE_PATH`(업로드해 둔 객체 키).
 
 해석 가이드: API가 **521/502/connection error** 이면 `api.pickty.app` 프록시·백엔드 기동을 먼저 확인. `img.pickty.app/` 루트 **HEAD** 가 **403/404** 여도 TLS·DNS가 살아 있는 경우가 많음 — 실제 객체 URL(`VERIFY_IMAGE_PATH`)으로 다시 확인.
+
+### OG·프록시 경로 캐시 헤더 (백엔드)
+
+`GET https://api.pickty.app/api/v1/images/file/{key}` (또는 `?key=`) 응답에는 레포 기준 **`Cache-Control: public, max-age=31536000, immutable`** 가 붙는다. 배포 후 확인:
+
+```bash
+curl -sI "https://api.pickty.app/api/v1/images/file/실제-객체-키"
+```
+
+**`cache-control`** 에 `max-age=31536000`·`immutable` 포함 여부 확인. (nginx가 이 헤더를 덮어쓰지 않도록 `proxy_hide_header` 등으로 제거하지 말 것.)
+
+---
+
+## 3.5 Cloudflare R2 및 CDN 캐시 가이드 (`img.pickty.app`)
+
+R2 커스텀 도메인은 보통 **Cloudflare DNS·프록시(주황 구름)** 앞에 둔다. **트래픽 비용·체감 속도**를 위해 대시보드에서 아래를 점검한다. (메뉴 이름은 플랜·UI 버전에 따라 `Caching` / `Cache` / `Rules` 로 다를 수 있음.)
+
+| 목적 | 권장 행동 |
+|------|-----------|
+| **엣지 캐시** | **Cache Rules**(또는 구 **Page Rules**): 호스트 `img.pickty.app`·경로 `*` 에 대해 **Cache eligibility** 을 켜고, 가능하면 **Edge TTL** 을 **원본 `Cache-Control` 존중** 또는 **1년에 가깝게** 설정. R2가 보내는 응답에 `Cache-Control` 이 짧거나 없으면, 규칙으로 **캐시 everything** + TTL 연장을 검토(정적 객체·UUID 파일명 전제). |
+| **브라우저 캐시** | 동일 호스트에 대해 **Browser Cache TTL** 을 **원본 헤더 존중**으로 두거나, 객체가 불변이면 **긴 TTL** 허용. (백엔드 `images/file` 프록시는 이미 `immutable` 응답.) |
+| **R2 객체 메타데이터 (선택·권장)** | `PutObject` 시 **`Cache-Control: public, max-age=31536000, immutable`** 를 객체 메타에 넣으면, **`img.pickty.app` 직링크** 요청도 엣지·브라우저가 장기 캐시하기 쉽다. (현재 레포는 업로드 시 이 메타 자동 세팅이 **필수는 아님** — API 경유 URL만으로도 OG 등은 캐시됨.) |
+| **API 도메인** | `api.pickty.app` 은 Lightsail nginx 등 **Cloudflare 밖**일 수 있음. 이미지 프록시는 **백엔드가 위 Cache-Control** 을 내려주므로, 중간 프록시가 헤더를 제거하지 않게 유지. |
+
+**요약**: `img.pickty.app` 은 **정적·불변 URL**을 전제로 **엣지+브라우저 TTL을 길게** 잡고, 가능하면 **R2 객체에도 동일 Cache-Control** 을 심는 것이 R2 **Class B(읽기)** 호출 감소에 유리하다.
 
 ---
 

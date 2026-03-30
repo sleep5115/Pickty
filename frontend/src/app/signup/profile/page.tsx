@@ -14,6 +14,7 @@ import { generateRandomPlayfulNickname } from '@/lib/nickname-playful';
 import { runPersistedTierAutoSave } from '@/lib/post-oauth-tier-flow';
 import { toast } from 'sonner';
 import { PICKTY_IMAGE_ACCEPT } from '@/lib/pickty-image-accept';
+import { PICKTY_IMAGE_UPLOAD_HINT } from '@/lib/pickty-upload-hint';
 
 const BIRTH_YEAR_OPTIONS = (() => {
   const y = new Date().getFullYear();
@@ -339,6 +340,9 @@ export default function OnboardingProfilePage() {
                       </>
                     )}
                   </div>
+                  <p className="text-xs text-slate-500 dark:text-zinc-500 leading-relaxed text-center">
+                    {PICKTY_IMAGE_UPLOAD_HINT}
+                  </p>
                   {avatarFile && (
                     <button
                       type="button"
