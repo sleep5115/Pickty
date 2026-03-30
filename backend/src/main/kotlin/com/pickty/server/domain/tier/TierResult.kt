@@ -82,6 +82,18 @@ class TierResult(
     var thumbnailUrl: String? = thumbnailUrlInit
         protected set
 
+    @Column(name = "up_count", nullable = false)
+    @ColumnDefault("0")
+    var upCount: Long = 0
+
+    @Column(name = "down_count", nullable = false)
+    @ColumnDefault("0")
+    var downCount: Long = 0
+
+    @Column(name = "comment_count", nullable = false)
+    @ColumnDefault("0")
+    var commentCount: Long = 0
+
     fun attachUser(userId: Long) {
         this.userId = userId
         this.isTemporary = false

@@ -163,6 +163,13 @@ export default function TierFeedPage() {
                 accessToken={accessToken}
                 onEdit={setEditTarget}
                 onDelete={setDeleteTarget}
+                onVoteCountsChange={(resultId, upCount, downCount) => {
+                  setItems((prev) =>
+                    prev.map((row) =>
+                      row.id === resultId ? { ...row, upCount, downCount } : row,
+                    ),
+                  );
+                }}
               />
             ))}
           </ul>

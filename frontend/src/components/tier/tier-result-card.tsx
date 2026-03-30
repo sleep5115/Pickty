@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { MoreVertical, Pencil, RefreshCw, Trash2 } from 'lucide-react';
+import { ResultVoteButtons } from '@/components/community/result-vote-buttons';
 import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
 import type { TierResultSummaryResponse } from '@/lib/tier-api';
 
@@ -27,6 +28,7 @@ export type TierResultCardProps = {
   accessToken: string | null;
   onEdit: (r: TierResultSummaryResponse) => void;
   onDelete: (r: TierResultSummaryResponse) => void;
+  onVoteCountsChange?: (resultId: string, upCount: number, downCount: number) => void;
 };
 
 /**
@@ -39,6 +41,7 @@ export function TierResultCard({
   accessToken,
   onEdit,
   onDelete,
+  onVoteCountsChange,
 }: TierResultCardProps) {
   const isDeleted = r.resultStatus === 'DELETED';
   const isOwner =
@@ -122,6 +125,14 @@ export function TierResultCard({
         </div>
       </Link>
       <div className="flex flex-wrap items-center gap-2 rounded-b-xl border-t border-transparent px-4 pb-4 pt-0">
+        {!isDeleted && (
+          <ResultVoteButtons
+            resultId={r.id}
+            initialUpCount={r.upCount ?? 0}
+            initialDownCount={r.downCount ?? 0}
+            onCountsChange={(up, down) => onVoteCountsChange?.(r.id, up, down)}
+          />
+        )}
         <Link
           href={`/tier?templateId=${encodeURIComponent(r.templateId)}&sourceResultId=${encodeURIComponent(r.id)}`}
           className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800"

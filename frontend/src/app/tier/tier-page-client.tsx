@@ -6,6 +6,8 @@ import { toast } from 'sonner';
 import { MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { TierBoard } from '@/components/tier/tier-board';
 import { ImagePreviewModal } from '@/components/tier/image-preview-modal';
+import { CommentSection } from '@/components/community/comment-section';
+import { TemplateLikeButton } from '@/components/community/template-like-button';
 import { TemplateDeleteConfirmDialog } from '@/components/template/template-delete-confirm-dialog';
 import { TemplateEditMetaModal } from '@/components/template/template-edit-meta-modal';
 import { apiFetch } from '@/lib/api-fetch';
@@ -43,6 +45,7 @@ function TierPageInner() {
 
   const [templateBanner, setTemplateBanner] = useState<string | null>(null);
   const [templateCreatorId, setTemplateCreatorId] = useState<number | null>(null);
+  const [templateLikeCount, setTemplateLikeCount] = useState(0);
   const [me, setMe] = useState<{ id: number; role: string } | null>(null);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [editMetaOpen, setEditMetaOpen] = useState(false);
@@ -161,9 +164,11 @@ function TierPageInner() {
                 description: templateItemsDescription(detail.items),
               });
               setTemplateCreatorId(detail.creatorId ?? null);
+              setTemplateLikeCount(detail.likeCount ?? 0);
             })
             .catch(() => {
               setTemplateCreatorId(null);
+              setTemplateLikeCount(0);
             });
         } catch {
           if (!cancelled) {
@@ -214,11 +219,13 @@ function TierPageInner() {
           workspaceTemplateDescription: templateItemsDescription(detail.items),
         });
         setTemplateCreatorId(detail.creatorId ?? null);
+        setTemplateLikeCount(detail.likeCount ?? 0);
         setTemplateBanner(null);
       } catch {
         if (!cancelled) {
           setTemplateBanner('템플릿을 불러오지 못했습니다. 링크를 확인해 주세요.');
           setTemplateCreatorId(null);
+          setTemplateLikeCount(0);
         }
       }
     })();
@@ -257,9 +264,16 @@ function TierPageInner() {
           <div className="px-3 sm:px-4 pt-2 pb-1.5 text-left">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
               <div className="min-w-0 flex-1">
-                <h2 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-zinc-100">
-                  {workspaceTemplateTitle?.trim() || '템플릿'}
-                </h2>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-zinc-100">
+                    {workspaceTemplateTitle?.trim() || '템플릿'}
+                  </h2>
+                  <TemplateLikeButton
+                    templateId={templateId}
+                    initialLikeCount={templateLikeCount}
+                    onLikeCountChange={setTemplateLikeCount}
+                  />
+                </div>
                 {workspaceTemplateDescription?.trim() ? (
                   <p className="mt-1 text-sm leading-relaxed text-slate-600 dark:text-zinc-400 whitespace-pre-wrap">
                     {workspaceTemplateDescription.trim()}
@@ -351,6 +365,16 @@ function TierPageInner() {
       </div>
 
       <TierBoard dragSelectRef={dragSelectRef} pointerModeReady={deviceReady} />
+
+      {templateId ? (
+        <div className="shrink-0 border-t border-slate-200 bg-slate-50/90 px-3 py-4 dark:border-zinc-800 dark:bg-zinc-950/60 sm:px-4">
+          <CommentSection
+            targetType="TIER_TEMPLATE"
+            targetId={templateId}
+            currentUserId={me?.id ?? null}
+          />
+        </div>
+      ) : null}
 
       {accessToken && templateId && editMetaOpen && (
         <TemplateEditMetaModal

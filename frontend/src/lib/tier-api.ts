@@ -28,6 +28,8 @@ export interface TemplateDetailResponse {
   /** 단일 썸네일 URL */
   thumbnailUrl?: string | null;
   creatorId?: number | null;
+  likeCount?: number;
+  commentCount?: number;
 }
 
 export interface TemplateMetaPatchResponse {
@@ -46,6 +48,8 @@ export interface TemplateSummaryResponse {
   thumbnailUrl: string | null;
   /** 작성자 id — 없으면 null */
   creatorId: number | null;
+  likeCount?: number;
+  commentCount?: number;
 }
 
 /** 템플릿 items JSONB의 `description` 문자열 (없으면 null) */
@@ -101,6 +105,9 @@ export interface TierResultResponse {
   resultStatus: TierResultStatus;
   userId: number | null;
   thumbnailUrl: string | null;
+  upCount?: number;
+  downCount?: number;
+  commentCount?: number;
 }
 
 export interface TierResultSummaryResponse {
@@ -116,6 +123,9 @@ export interface TierResultSummaryResponse {
   userId: number | null;
   createdAt: string;
   thumbnailUrl: string | null;
+  upCount?: number;
+  downCount?: number;
+  commentCount?: number;
 }
 
 export interface PageTierResultSummary {
@@ -164,6 +174,13 @@ function optStringField(row: Record<string, unknown>, camel: string, snake: stri
   return null;
 }
 
+function optLongField(row: Record<string, unknown>, camel: string, snake: string): number {
+  const v = row[camel] ?? row[snake];
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  const n = v != null && v !== '' ? Number(v) : NaN;
+  return Number.isFinite(n) ? n : 0;
+}
+
 export function parseTierResultStatus(row: Record<string, unknown>): TierResultStatus {
   const v = row.resultStatus ?? row.result_status;
   if (v === 'DELETED') return 'DELETED';
@@ -202,6 +219,9 @@ export function mapTierResultSummaryRow(row: Record<string, unknown>): TierResul
           ? row.created_at
           : '',
     thumbnailUrl: parseResultThumbnailUrl(row),
+    upCount: optLongField(row, 'upCount', 'up_count'),
+    downCount: optLongField(row, 'downCount', 'down_count'),
+    commentCount: optLongField(row, 'commentCount', 'comment_count'),
   };
 }
 
@@ -245,6 +265,8 @@ function mapTemplateSummaryRow(row: Record<string, unknown>): TemplateSummaryRes
     description,
     thumbnailUrl: parseTemplateThumbnailUrl(row),
     creatorId: Number.isFinite(creatorIdNum) ? creatorIdNum : null,
+    likeCount: optLongField(row, 'likeCount', 'like_count'),
+    commentCount: optLongField(row, 'commentCount', 'comment_count'),
   };
 }
 
@@ -281,6 +303,8 @@ export async function getTemplate(id: string): Promise<TemplateDetailResponse> {
     ...base,
     thumbnailUrl: parseTemplateThumbnailUrl(row),
     creatorId: Number.isFinite(creatorIdNum) ? creatorIdNum : null,
+    likeCount: optLongField(row, 'likeCount', 'like_count'),
+    commentCount: optLongField(row, 'commentCount', 'comment_count'),
   };
 }
 
@@ -467,6 +491,9 @@ export async function getTierResult(id: string): Promise<TierResultResponse> {
     resultStatus: parseTierResultStatus(row),
     snapshotData: rewriteSnapshotUploadedImageUrls(raw.snapshotData),
     thumbnailUrl: parseResultThumbnailUrl(row),
+    upCount: optLongField(row, 'upCount', 'up_count'),
+    downCount: optLongField(row, 'downCount', 'down_count'),
+    commentCount: optLongField(row, 'commentCount', 'comment_count'),
   };
 }
 

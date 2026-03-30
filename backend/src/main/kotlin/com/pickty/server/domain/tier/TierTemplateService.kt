@@ -33,6 +33,8 @@ class TierTemplateService(
                 description = description,
                 thumbnailUrl = normalizeThumbnailUrl(e.thumbnailUrl),
                 creatorId = e.creatorId,
+                likeCount = e.likeCount,
+                commentCount = e.commentCount,
             )
         }
 
@@ -47,6 +49,8 @@ class TierTemplateService(
             items = e.items,
             thumbnailUrl = normalizeThumbnailUrl(e.thumbnailUrl),
             creatorId = e.creatorId,
+            likeCount = e.likeCount,
+            commentCount = e.commentCount,
         )
     }
 

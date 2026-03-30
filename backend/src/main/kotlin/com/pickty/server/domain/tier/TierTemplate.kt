@@ -68,6 +68,14 @@ class TierTemplate(
     @ColumnDefault("'ACTIVE'")
     var templateStatus: TemplateStatus = TemplateStatus.ACTIVE
 
+    @Column(name = "like_count", nullable = false)
+    @ColumnDefault("0")
+    var likeCount: Long = 0
+
+    @Column(name = "comment_count", nullable = false)
+    @ColumnDefault("0")
+    var commentCount: Long = 0
+
     fun updateItems(newItems: Map<String, Any?>) {
         this.items = newItems
     }

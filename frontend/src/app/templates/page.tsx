@@ -12,6 +12,7 @@ import { useAuthStore } from '@/lib/store/auth-store';
 import { useAuthPersistHydrated } from '@/lib/hooks/use-auth-persist-hydrated';
 import { listTemplates, type TemplateSummaryResponse } from '@/lib/tier-api';
 import { TemplateDeleteConfirmDialog } from '@/components/template/template-delete-confirm-dialog';
+import { TemplateLikeButton } from '@/components/community/template-like-button';
 
 function TemplateCard({
   row,
@@ -20,6 +21,7 @@ function TemplateCard({
   accessToken,
   onEdit,
   onDelete,
+  onLikeCountChange,
 }: {
   row: TemplateSummaryResponse;
   currentUserId: number | null;
@@ -27,6 +29,7 @@ function TemplateCard({
   accessToken: string | null;
   onEdit: (t: TemplateSummaryResponse) => void;
   onDelete: (t: TemplateSummaryResponse) => void;
+  onLikeCountChange: (templateId: string, likeCount: number) => void;
 }) {
   const { id, title, description, thumbnailUrl, itemCount, creatorId } = row;
   const descTrimmed = description?.trim() ? description.trim() : null;
@@ -109,7 +112,15 @@ function TemplateCard({
         </div>
       </Link>
       <div className="flex h-11 shrink-0 items-center justify-between gap-2 border-t border-slate-100 px-3 dark:border-zinc-800/80 rounded-b-xl">
-        <span className="min-w-0 truncate text-xs leading-none text-slate-500 dark:text-zinc-500">{itemLine}</span>
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <span className="min-w-0 truncate text-xs leading-none text-slate-500 dark:text-zinc-500">{itemLine}</span>
+          <TemplateLikeButton
+            templateId={id}
+            initialLikeCount={row.likeCount ?? 0}
+            onLikeCountChange={(n) => onLikeCountChange(id, n)}
+            className="shrink-0"
+          />
+        </div>
         {showMenu ? (
           <div className="relative flex shrink-0 items-center justify-center" ref={menuRef}>
             <button
@@ -288,6 +299,11 @@ export default function TemplatesPage() {
                 currentUserId={me?.id ?? null}
                 isAdmin={me?.role === 'ADMIN'}
                 accessToken={accessToken}
+                onLikeCountChange={(templateId, likeCount) => {
+                  setRows((prev) =>
+                    prev.map((r) => (r.id === templateId ? { ...r, likeCount } : r)),
+                  );
+                }}
                 onEdit={(target) => {
                   if (!accessToken) {
                     router.push('/login?returnTo=/templates');

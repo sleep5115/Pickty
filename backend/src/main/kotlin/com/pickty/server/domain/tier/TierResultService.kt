@@ -79,6 +79,9 @@ class TierResultService(
             createdAt = e.createdAt.format(fmt),
             thumbnailUrl = e.thumbnailUrl?.trim()?.takeIf { it.isNotEmpty() }
                 ?: firstHttpImageFromSnapshot(e.snapshotData),
+            upCount = e.upCount,
+            downCount = e.downCount,
+            commentCount = e.commentCount,
         )
     }
 
@@ -185,6 +188,9 @@ class TierResultService(
             userId = entity.userId,
             thumbnailUrl = entity.thumbnailUrl?.trim()?.takeIf { it.isNotEmpty() }
                 ?: firstHttpImageFromSnapshot(entity.snapshotData),
+            upCount = entity.upCount,
+            downCount = entity.downCount,
+            commentCount = entity.commentCount,
         )
     }
 

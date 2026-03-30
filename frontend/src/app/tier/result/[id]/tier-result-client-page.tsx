@@ -7,6 +7,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { TierBoardReadonly } from '@/components/tier/tier-board-readonly';
 import { TierResultEditMetaModal } from '@/components/tier/tier-result-edit-meta-modal';
+import { CommentSection } from '@/components/community/comment-section';
+import { ResultVoteButtons } from '@/components/community/result-vote-buttons';
 import { TierResultDeleteConfirmDialog } from '@/components/tier/tier-result-delete-confirm-dialog';
 import { getTierResult, type TierResultStatus } from '@/lib/tier-api';
 import { apiFetch } from '@/lib/api-fetch';
@@ -47,6 +49,8 @@ export function TierResultClientPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
+  const [upCount, setUpCount] = useState(0);
+  const [downCount, setDownCount] = useState(0);
 
   const reloadResult = useCallback(async () => {
     if (!id) return;
@@ -64,6 +68,8 @@ export function TierResultClientPage() {
     setVersion(res.templateVersion);
     setResultUserId(res.userId ?? null);
     setResultStatus(res.resultStatus ?? 'ACTIVE');
+    setUpCount(res.upCount ?? 0);
+    setDownCount(res.downCount ?? 0);
     setTiers(snap.tiers);
     setPool(snap.pool);
   }, [id]);
@@ -312,6 +318,17 @@ export function TierResultClientPage() {
       {listDescription?.trim() && (
         <p className="text-sm text-slate-600 dark:text-zinc-400 whitespace-pre-wrap">{listDescription}</p>
       )}
+      {!isResultDeleted && id && (
+        <ResultVoteButtons
+          resultId={id}
+          initialUpCount={upCount}
+          initialDownCount={downCount}
+          onCountsChange={(up, down) => {
+            setUpCount(up);
+            setDownCount(down);
+          }}
+        />
+      )}
       {downloadError && (
         <p className="text-sm text-red-600 dark:text-red-400" role="alert">
           다운로드 실패: {downloadError}
@@ -326,6 +343,15 @@ export function TierResultClientPage() {
       <p className="text-xs text-slate-400 dark:text-zinc-600 text-center">
         읽기 전용 · 이 페이지 URL을 공유하면 동일한 배치를 볼 수 있습니다.
       </p>
+
+      {id && (
+        <CommentSection
+          targetType="TIER_RESULT"
+          targetId={id}
+          currentUserId={me?.id ?? null}
+          onCommentPosted={() => void reloadResult().catch(() => {})}
+        />
+      )}
 
       {showEdit && accessToken && (
         <TierResultEditMetaModal
