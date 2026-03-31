@@ -18,6 +18,8 @@
 | `progress/PROGRESS_20260327.md` | 2026-03-27 이전 **전량** 진행 로그·체크리스트 보관                     |
 | `progress/PROGRESS_20260329.md` | 2026-03-29 **검증 정합·템플릿 UGC(소프트삭제·PATCH 메타·파생)·목록 UI** 요약 보관 |
 | `progress/PROGRESS_20260330.md` | 2026-03-30 **법무 웹 노출·탈퇴 모달·약관 명칭(서비스 제공자)** 등 보관 |
+| `progress/PROGRESS_20260331.md` | 2026-03-31 **`/template/new` 도화지·미리보기** 상세 정리·다음 작업(표 배경색) 보관 |
+| `docs/TEMPLATE_NEW_CANVAS_AND_PREVIEW.md` | 템플릿 만들기 **도화지·미리보기·board_config·레이어** 정본 |
 | `docs/LOCAL-DEV.md`             | 로컬 실행(Windows, JDK 25, 프론트 **3002**, `dev`/`local` 프로필) |
 | `docs/DEPLOYMENT-CHECKLIST.md`  | OAuth·Vercel·CORS·`npm run verify:deploy`               |
 | `deploy/lightsail/README.md`    | Lightsail·compose·시크릿 경로                                |
@@ -46,6 +48,8 @@
 
 ## 진행 메모 **(2026-03-31)**
 
+- **`/template/new` 도화지·미리보기(정본)**: **`docs/TEMPLATE_NEW_CANVAS_AND_PREVIEW.md`** — 캔버스 레이어(z-index)·`showLabelColor`/`paintLabelColorUnderImage`·톱니바퀴·`board_config` 저장·불러오기·회귀 체크 메모. **다음 작업**: 표 전체 **배경색**(이미지 외 컬러 피커; `workspaceBoardSurface.backgroundColor` 이미 지원, UI만 추가). **배포**: 해당 작업까지 반영 후 진행(`docs/DEPLOYMENT-CHECKLIST.md`).
+- **`/template/new` 도화지(한 줄)**: 상단 **`TemplateBoardCanvasEditor`** — 표 배경 이미지·행 라벨(이미지 유무에 따라 `TierLabelCellView` 또는 동일 스타일 업로드 칸)·행 추가·**기본 세팅**. 하단 **`TierBoard variant="template-preview"`** + **`syncTemplatePreviewPoolFromForm`**.
 - **좋아요 UI** (`**TemplateLikeButton**`): **`appearance="boxed"`** (`/tier` 헤더) — 연한 핑크 박스·선택 시 **테두리 글로우**(추천/비추천 `size="lg"`와 같은 패턴). **`plain`**(템플릿 목록 카드) — **글로우 없음**·항상 **핑크** 글자·테두리 없음(잠금 카드는 수치만).
 - **용어·문서**: `PROGRESS.md`에서 **결과/결과표**라는 별도 사용자 용어 안내 삭제 — 화면·카피는 **티어표**, 기술 구분은 **`tier_results`**·라우트 등으로 기술. **법무** — `TERMS_OF_SERVICE_KO.md`·`PRIVACY_POLICY_KO.md`에서 **결과표**·**결과물** 제거·**티어표** 등으로 정리. **커서룰** — `pickty-project-context.mdc` UGC 예시 문장을 **`tier_results`** 기준으로 수정.
 - **PROGRESS 동기화**: P2 표·「다음 작업」에 **인기 티어표 Top3** API·슬라이더 반영, 템플릿 **비공개** backlog를 **소프트 삭제·`mine` ACTIVE만** 등 실제 구현에 맞게 정리.

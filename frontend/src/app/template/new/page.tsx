@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -20,6 +20,17 @@ import {
 } from '@/lib/schemas/template-new';
 import { PICKTY_IMAGE_ACCEPT } from '@/lib/pickty-image-accept';
 import { PICKTY_IMAGE_UPLOAD_HINT } from '@/lib/pickty-upload-hint';
+import {
+  buildTemplateBoardConfigFromEditorState,
+  cloneTemplateBoardConfig,
+  createDefaultTemplateBoardConfig,
+  templateBoardConfigToApiPayload,
+} from '@/lib/template-board-config';
+import { type TierItem, useTierStore } from '@/lib/store/tier-store';
+import { useTierPersistHydrated } from '@/lib/hooks/use-tier-persist-hydrated';
+import { TierBoard } from '@/components/tier/tier-board';
+import { ImagePreviewModal } from '@/components/tier/image-preview-modal';
+import { TemplateBoardCanvasEditor } from '@/components/template/template-board-canvas-editor';
 
 type FileEntry = { file: File; previewUrl: string };
 
@@ -57,6 +68,8 @@ function NewTemplatePageInner() {
   const [persistedListThumbnailUrl, setPersistedListThumbnailUrl] = useState<string | null>(null);
   const [keepOriginalThumb, setKeepOriginalThumb] = useState(false);
   const [forkLoadError, setForkLoadError] = useState<string | null>(null);
+  const tierHydrated = useTierPersistHydrated();
+  const [boardPointerReady, setBoardPointerReady] = useState(false);
 
   const form = useForm<TemplateNewFormValues>({
     resolver: zodResolver(templateNewFormSchema),
@@ -152,6 +165,16 @@ function NewTemplatePageInner() {
   }, [hydrated, accessToken]);
 
   useEffect(() => {
+    queueMicrotask(() => setBoardPointerReady(true));
+  }, []);
+
+  useEffect(() => {
+    if (!tierHydrated || !hydrated || !accessToken) return;
+    if (forkTemplateIdTrimmed) return;
+    useTierStore.getState().initTemplateBoardEditor(createDefaultTemplateBoardConfig());
+  }, [tierHydrated, hydrated, accessToken, forkTemplateIdTrimmed]);
+
+  useEffect(() => {
     if (!hydrated || !accessToken || !forkTemplateIdTrimmed) {
       setForkLoadError(null);
       if (!forkTemplateIdTrimmed) setPersistedListThumbnailUrl(null);
@@ -159,6 +182,7 @@ function NewTemplatePageInner() {
     }
     let cancelled = false;
     setForkLoadError(null);
+    useTierStore.getState().initTemplateBoardEditor(createDefaultTemplateBoardConfig());
     void (async () => {
       try {
         const d = await getTemplate(forkTemplateIdTrimmed, accessToken ?? null);
@@ -188,6 +212,11 @@ function NewTemplatePageInner() {
         setPersistedListThumbnailUrl(d.thumbnailUrl ?? null);
         userEditedThumbsRef.current = false;
         prevItemIdsKeyRef.current = rows.map((r) => r.clientId).join('\0');
+        useTierStore.getState().initTemplateBoardEditor(
+          d.boardConfig
+            ? cloneTemplateBoardConfig(d.boardConfig)
+            : createDefaultTemplateBoardConfig(),
+        );
       } catch (e) {
         if (!cancelled) {
           setForkLoadError(e instanceof Error ? e.message : '템플릿을 불러오지 못했습니다.');
@@ -212,6 +241,35 @@ function NewTemplatePageInner() {
     },
     [append],
   );
+
+  const formTierEntriesForPool = useMemo((): TierItem[] => {
+    const out: TierItem[] = [];
+    for (let i = 0; i < watchedItems.length; i++) {
+      const row = watchedItems[i]!;
+      const cid = row.clientId;
+      if (!cid) continue;
+      const local = fileMap[cid]?.previewUrl;
+      const existing = row.existingImageUrl?.trim();
+      const src = local ?? (existing ? picktyImageDisplaySrc(existing) : '');
+      if (!src) continue;
+      out.push({
+        id: cid,
+        name: (typeof row.name === 'string' && row.name.trim()) || '아이템',
+        imageUrl: src,
+      });
+    }
+    return out;
+  }, [watchedItems, fileMap]);
+
+  const poolSyncKey = useMemo(
+    () => formTierEntriesForPool.map((p) => `${p.id}:${p.imageUrl}`).join('|'),
+    [formTierEntriesForPool],
+  );
+
+  useEffect(() => {
+    if (!tierHydrated || !accessToken) return;
+    useTierStore.getState().syncTemplatePreviewPoolFromForm(formTierEntriesForPool);
+  }, [tierHydrated, accessToken, poolSyncKey, formTierEntriesForPool]);
 
   const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -348,6 +406,12 @@ function NewTemplatePageInner() {
         version: 1,
         items: itemsEnvelope,
         thumbnailUrl: finalThumbnailUrl ?? null,
+        boardConfig: templateBoardConfigToApiPayload(
+          buildTemplateBoardConfigFromEditorState(
+            useTierStore.getState().tiers,
+            useTierStore.getState().workspaceBoardSurface,
+          ),
+        ),
       };
       const created = await createTemplate(payload, accessToken);
       if (
@@ -815,6 +879,30 @@ function NewTemplatePageInner() {
                 );
               })}
             </ul>
+          </div>
+        )}
+
+        {tierHydrated ? (
+          <>
+            <TemplateBoardCanvasEditor formTierEntries={formTierEntriesForPool} />
+            <div className="space-y-3">
+              <div>
+                <h2 className="text-base font-semibold tracking-tight text-slate-900 dark:text-zinc-100">
+                  실시간 미리보기 및 체험
+                </h2>
+                <p className="mt-1 text-xs text-slate-500 dark:text-zinc-500">
+                  위에서 만든 도화지가 그대로 반영됩니다. 미분류 풀에서 티어로 끌어다 놓아 보세요.
+                </p>
+              </div>
+              <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+                <TierBoard variant="template-preview" pointerModeReady={boardPointerReady} />
+              </div>
+            </div>
+            <ImagePreviewModal />
+          </>
+        ) : (
+          <div className="flex justify-center rounded-2xl border border-dashed border-slate-200 py-16 text-sm text-slate-500 dark:border-zinc-700 dark:text-zinc-500">
+            보드 불러오는 중…
           </div>
         )}
 

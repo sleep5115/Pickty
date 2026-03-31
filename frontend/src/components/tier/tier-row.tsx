@@ -3,12 +3,8 @@
 import { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Tier } from '@/lib/store/tier-store';
-import {
-  getTierLabelSurfaceStyle,
-  getTierLabelTextStyle,
-  tierHasBackgroundImage,
-} from '@/lib/tier-label-surface';
+import { type Tier, useTierStore } from '@/lib/store/tier-store';
+import { TierLabelCellView } from '@/components/tier/tier-label-cell-view';
 import { ItemCard } from './item-card';
 import { TierSettingsModal } from './tier-settings-modal';
 
@@ -21,6 +17,10 @@ interface TierRowProps {
   isRowSortActive: boolean;
   onClickTier: () => void;
   onClickItem: (itemId: string, e: React.MouseEvent) => void;
+  /** true면 ⚙ 비활성(미리보기 전용 — 설정은 상단 에디터에서) */
+  disableTierSettings?: boolean;
+  /** true면 행 순서 핸들 비활성(미리보기 전용) */
+  disableRowReorder?: boolean;
 }
 
 export function TierRow({
@@ -31,6 +31,8 @@ export function TierRow({
   isRowSortActive,
   onClickTier,
   onClickItem,
+  disableTierSettings = false,
+  disableRowReorder = false,
 }: TierRowProps) {
   const selectedSet = new Set(selectedItemIds);
   const targetItemIds = new Set(tier.items.map((i) => i.id));
@@ -55,8 +57,12 @@ export function TierRow({
     ...(isDragging ? { zIndex: 10, position: 'relative' } : {}),
   };
 
-  // 아이템 드래그 중 hover 하이라이트 (행 정렬 중에는 표시 안 함)
   const showDropHighlight = isOver && !isRowSortActive;
+  /** 캡처 루트(`TierBoard`)의 표 전체 배경이 행 뒤로 비치도록 — 불투명 흰 칸이 이미지를 덮지 않게 함 */
+  const itemStripSurface = showDropHighlight
+    ? 'bg-violet-900/30 ring-2 ring-inset ring-violet-400/60'
+    : 'bg-transparent';
+  const railSurface = showDropHighlight ? 'bg-violet-900/30' : 'bg-transparent';
 
   return (
     <>
@@ -71,8 +77,8 @@ export function TierRow({
           .filter(Boolean)
           .join(' ')}
       >
-        {/* 티어 라벨 */}
         <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation();
             onClickTier();
@@ -83,31 +89,20 @@ export function TierRow({
               : `'${tier.label}' 티어로 이동 타겟팅`
           }
           className={[
-            'w-20 min-w-[80px] flex items-center justify-center',
-            'text-2xl font-black select-none',
-            tierHasBackgroundImage(tier) ? '' : 'text-zinc-900',
-            'transition-all duration-150 shrink-0',
+            'relative w-20 min-w-[80px] shrink-0 overflow-hidden',
+            'transition-all duration-150',
             isTarget
               ? 'brightness-110 ring-2 ring-violet-400'
               : 'hover:brightness-90 cursor-pointer',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-          style={{
-            ...getTierLabelSurfaceStyle(tier),
-            ...getTierLabelTextStyle(tier),
-          }}
+          ].join(' ')}
         >
-          {tier.label}
+          <TierLabelCellView tier={tier} />
         </button>
 
-        {/* 아이템 배치 영역 */}
         <div
           className={[
             'flex flex-row flex-wrap gap-1 p-1.5 flex-1 min-h-20 transition-colors duration-150',
-            showDropHighlight
-              ? 'bg-violet-900/30 ring-2 ring-inset ring-violet-400/60'
-              : 'bg-white dark:bg-zinc-900',
+            itemStripSurface,
           ].join(' ')}
         >
           {tier.items.map((item) => (
@@ -122,47 +117,77 @@ export function TierRow({
           ))}
         </div>
 
-        {/* 설정 버튼 — 캡처 시 제외 */}
-        <button
-          className={[
-            'w-8 shrink-0 flex items-center justify-center',
-            'text-slate-500 dark:text-zinc-600 hover:text-slate-700 dark:hover:text-zinc-300',
-            'bg-white dark:bg-zinc-900 border-l border-slate-200 dark:border-zinc-800',
-            'transition-colors text-sm',
-          ].join(' ')}
-          title="티어 설정"
-          onClick={(e) => {
-            e.stopPropagation();
-            setSettingsOpen(true);
-          }}
-          data-no-drag-select
-          data-capture-ignore="true"
-        >
-          ⚙
-        </button>
+        {disableTierSettings ? (
+          <span
+            className={[
+              'w-8 shrink-0 flex items-center justify-center',
+              'border-l border-slate-200 dark:border-zinc-800',
+              railSurface,
+              'text-sm text-slate-300 dark:text-zinc-700 pointer-events-none select-none',
+            ].join(' ')}
+            aria-hidden
+          >
+            ⚙
+          </span>
+        ) : (
+          <button
+            type="button"
+            className={[
+              'w-8 shrink-0 flex items-center justify-center',
+              'text-slate-500 dark:text-zinc-600 hover:text-slate-700 dark:hover:text-zinc-300',
+              railSurface,
+              'border-l border-slate-200 dark:border-zinc-800',
+              'transition-colors text-sm',
+            ].join(' ')}
+            title="티어 설정"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSettingsOpen(true);
+            }}
+            data-no-drag-select
+            data-capture-ignore="true"
+          >
+            ⚙
+          </button>
+        )}
 
-        {/* 드래그 핸들 — 캡처 시 제외 */}
-        <button
-          suppressHydrationWarning
-          {...handleListeners}
-          {...attributes}
-          className={[
-            'w-8 shrink-0 flex items-center justify-center',
-            'text-slate-500 dark:text-zinc-600 hover:text-slate-700 dark:hover:text-zinc-300',
-            'bg-white dark:bg-zinc-900 border-l border-slate-200 dark:border-zinc-800',
-            'transition-colors cursor-grab active:cursor-grabbing',
-            'touch-none select-none',
-          ].join(' ')}
-          title="드래그하여 순서 변경"
-          data-no-drag-select
-          data-capture-ignore="true"
-          tabIndex={-1}
-        >
-          <DragHandleIcon />
-        </button>
+        {disableRowReorder ? (
+          <span
+            className={[
+              'w-8 shrink-0 flex items-center justify-center',
+              'border-l border-slate-200 dark:border-zinc-800',
+              railSurface,
+              'text-slate-300 dark:text-zinc-700 pointer-events-none select-none',
+            ].join(' ')}
+            aria-hidden
+          >
+            <DragHandleIcon />
+          </span>
+        ) : (
+          <button
+            type="button"
+            suppressHydrationWarning
+            {...handleListeners}
+            {...attributes}
+            className={[
+              'w-8 shrink-0 flex items-center justify-center',
+              'text-slate-500 dark:text-zinc-600 hover:text-slate-700 dark:hover:text-zinc-300',
+              railSurface,
+              'border-l border-slate-200 dark:border-zinc-800',
+              'transition-colors cursor-grab active:cursor-grabbing',
+              'touch-none select-none',
+            ].join(' ')}
+            title="드래그하여 순서 변경"
+            data-no-drag-select
+            data-capture-ignore="true"
+            tabIndex={-1}
+          >
+            <DragHandleIcon />
+          </button>
+        )}
       </div>
 
-      {settingsOpen && (
+      {settingsOpen && !disableTierSettings && (
         <TierSettingsModal
           tier={tier}
           onClose={() => setSettingsOpen(false)}

@@ -240,6 +240,7 @@ function TierPageInner() {
           pool,
           workspaceTemplateTitle: detail.title,
           workspaceTemplateDescription: templateItemsDescription(detail.items),
+          boardConfig: detail.boardConfig ?? null,
         });
         setTemplateCreatorId(detail.creatorId ?? null);
         setTemplateLikeCount(detail.likeCount ?? 0);

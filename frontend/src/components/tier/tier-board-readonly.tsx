@@ -2,16 +2,19 @@
 
 import { forwardRef } from 'react';
 import type { Tier, TierItem } from '@/lib/store/tier-store';
+import type { TemplateBoardSurface } from '@/lib/template-board-config';
 import {
-  getTierLabelSurfaceStyle,
-  getTierLabelTextStyle,
-  tierHasBackgroundImage,
+  buildWorkspaceBoardSurfaceStyle,
+  workspaceBoardSurfaceIsVisual,
 } from '@/lib/tier-label-surface';
+import { TierLabelCellView } from '@/components/tier/tier-label-cell-view';
 import { StaticItemCard } from '@/components/tier/static-item-card';
 
 interface TierBoardReadonlyProps {
   tiers: Tier[];
   pool: TierItem[];
+  /** 결과 스냅샷 등 — 표 배경 한 겹(라벨+아이템 공통) */
+  boardSurface?: TemplateBoardSurface | null;
 }
 
 /**
@@ -19,50 +22,54 @@ interface TierBoardReadonlyProps {
  * ref는 `TierBoard`와 같이 **티어 행만** 감쌉니다 — PNG 캡처 시 미분류 풀 제외.
  */
 export const TierBoardReadonly = forwardRef<HTMLDivElement, TierBoardReadonlyProps>(
-  function TierBoardReadonly({ tiers, pool }, ref) {
+  function TierBoardReadonly({ tiers, pool, boardSurface = null }, ref) {
+    const hasBoard = workspaceBoardSurfaceIsVisual(boardSurface);
+    const boardStyle = buildWorkspaceBoardSurfaceStyle(boardSurface);
+
     return (
-      <div className="flex flex-col border border-slate-200 dark:border-zinc-800 rounded-xl overflow-hidden bg-white dark:bg-zinc-900 shadow-sm">
-        <div ref={ref} className="bg-white dark:bg-zinc-900">
-          {tiers.map((tier) => (
+      <div className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <div ref={ref} className="relative overflow-hidden bg-white dark:bg-zinc-900">
+          {hasBoard ? (
             <div
-              key={tier.id}
-              className="flex flex-row min-h-20 border-b border-slate-200 dark:border-zinc-800 last:border-b-0"
-            >
+              aria-hidden
+              className="pointer-events-none absolute bottom-0 left-0 top-0 z-0"
+              style={{
+                width: 'calc(100% - 4rem)',
+                ...boardStyle,
+              }}
+            />
+          ) : null}
+          <div className="relative z-[5]">
+            {tiers.map((tier) => (
               <div
-                className={[
-                  'w-20 min-w-[80px] shrink-0 flex items-center justify-center text-2xl font-black select-none',
-                  tierHasBackgroundImage(tier) ? '' : 'text-zinc-900',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                style={{
-                  ...getTierLabelSurfaceStyle(tier),
-                  ...getTierLabelTextStyle(tier),
-                }}
+                key={tier.id}
+                className="flex min-h-20 flex-row border-b border-slate-200 last:border-b-0 dark:border-zinc-800"
               >
-                {tier.label}
+                <div className="relative w-20 min-w-[80px] shrink-0 overflow-hidden">
+                  <TierLabelCellView tier={tier} />
+                </div>
+                <div className="flex min-h-20 min-w-0 flex-1 flex-row flex-wrap content-start items-start gap-1 bg-transparent p-1.5">
+                  {tier.items.map((item) => (
+                    <StaticItemCard key={item.id} item={item} />
+                  ))}
+                </div>
+                <div className="w-8 shrink-0 bg-transparent" aria-hidden />
+                <div className="w-8 shrink-0 bg-transparent" aria-hidden />
               </div>
-              <div className="flex flex-row flex-wrap gap-1 p-1.5 flex-1 min-h-20 bg-white dark:bg-zinc-900 items-start content-start">
-                {tier.items.map((item) => (
-                  <StaticItemCard key={item.id} item={item} />
-                ))}
-              </div>
-              {/* TierRow 설정 열 너비 맞춤 (빈 칸) */}
-              <div className="w-8 shrink-0 bg-white dark:bg-zinc-900" aria-hidden />
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
-        <div className="shrink-0 border-t-2 bg-slate-100 dark:bg-zinc-950 border-slate-300 dark:border-zinc-700">
-          <div className="px-2 pt-1.5 pb-1 flex items-center gap-2">
-            <span className="text-xs font-semibold text-slate-500 dark:text-zinc-500 uppercase tracking-wider">
+        <div className="shrink-0 border-t-2 border-slate-300 bg-slate-100 dark:border-zinc-700 dark:bg-zinc-950">
+          <div className="flex items-center gap-2 px-2 pb-1 pt-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-500">
               미분류 아이템
             </span>
             <span className="text-xs text-slate-500 dark:text-zinc-600">({pool.length})</span>
           </div>
-          <div className="px-2 pb-2 max-h-52 overflow-y-auto">
+          <div className="max-h-52 overflow-y-auto px-2 pb-2">
             {pool.length === 0 ? (
-              <p className="text-slate-500 dark:text-zinc-600 text-sm py-4 text-center">
+              <p className="py-4 text-center text-sm text-slate-500 dark:text-zinc-600">
                 모든 아이템이 티어에 배치되었습니다
               </p>
             ) : (

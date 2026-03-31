@@ -46,6 +46,11 @@ class TierTemplate(
     var items: Map<String, Any?> = itemsPayload
         protected set
 
+    /** 템플릿 도화지(JSON). null 이면 클라이언트 기본(S~E·테마 배경). */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "board_config", columnDefinition = "jsonb")
+    var boardConfig: Map<String, Any?>? = null
+
     @Column(nullable = false)
     var version: Int = version
         protected set

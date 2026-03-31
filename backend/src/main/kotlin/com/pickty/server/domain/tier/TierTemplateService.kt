@@ -4,6 +4,7 @@ import com.pickty.server.domain.community.CommunityMyReactionService
 import com.pickty.server.domain.community.ReactionTargetType
 import com.pickty.server.domain.tier.dto.CreateTemplateRequest
 import com.pickty.server.domain.tier.dto.PatchTemplateMetaResponse
+import com.pickty.server.domain.tier.dto.TemplateBoardConfigPayload
 import com.pickty.server.domain.tier.dto.TemplateItemsPayload
 import com.pickty.server.domain.tier.dto.TemplateDetailResponse
 import com.pickty.server.domain.tier.dto.TemplateResponse
@@ -72,6 +73,7 @@ class TierTemplateService(
             parentTemplateId = e.parent?.id,
             items = e.items,
             thumbnailUrl = normalizeThumbnailUrl(e.thumbnailUrl),
+            boardConfig = cloneBoardConfigForResponse(e.boardConfig),
             creatorId = e.creatorId,
             likeCount = e.likeCount,
             commentCount = e.commentCount,
@@ -97,6 +99,7 @@ class TierTemplateService(
             creatorId = creatorId,
         )
         entity.thumbnailUrl = request.thumbnailUrl?.trim()?.takeIf { it.isNotEmpty() }
+        entity.boardConfig = resolveBoardConfigForCreate(request, parent)
         val saved = tierTemplateRepository.save(entity)
         tierTemplateRepository.flush()
         val id = saved.id ?: throw IllegalStateException("template id missing after save")
@@ -154,6 +157,76 @@ class TierTemplateService(
         }
         entity.markDeleted()
     }
+
+    private fun resolveBoardConfigForCreate(
+        request: CreateTemplateRequest,
+        parent: TierTemplate?,
+    ): Map<String, Any?>? {
+        if (request.boardConfig != null) {
+            return templateBoardConfigPayloadToMap(request.boardConfig)
+        }
+        if (parent != null) {
+            return cloneBoardConfigForPersist(parent.boardConfig)
+        }
+        return null
+    }
+
+    private fun templateBoardConfigPayloadToMap(p: TemplateBoardConfigPayload): Map<String, Any?> = buildMap {
+        put("schemaVersion", p.schemaVersion)
+        val boardMap = buildMap<String, Any?> {
+            val c = p.board?.backgroundColor?.trim()?.takeIf { it.isNotEmpty() }
+            if (c != null) put("backgroundColor", c)
+            val u = p.board?.backgroundUrl?.trim()?.takeIf { it.isNotEmpty() }
+            if (u != null) put("backgroundUrl", normalizeThumbnailUrl(u) ?: u)
+        }
+        if (boardMap.isNotEmpty()) put("board", boardMap)
+        put(
+            "rows",
+            p.rows.map { row ->
+                buildMap<String, Any?> {
+                    put("id", row.id.trim())
+                    put("label", row.label.trim())
+                    put("color", row.color.trim())
+                    val tx = row.textColor?.trim()?.takeIf { it.isNotEmpty() }
+                    if (tx != null) put("textColor", tx)
+                    row.paintLabelColorUnderImage?.let { put("paintLabelColorUnderImage", it) }
+                    row.showLabelColor?.let { put("showLabelColor", it) }
+                    val bg = row.backgroundUrl?.trim()?.takeIf { it.isNotEmpty() }
+                    if (bg != null) put("backgroundUrl", normalizeThumbnailUrl(bg) ?: bg)
+                }
+            },
+        )
+    }
+
+    /** 응답/저장 간 공유 참조 방지용 얕은 복제(schema v1 구조 가정). */
+    private fun cloneBoardConfigForPersist(source: Map<String, Any?>?): Map<String, Any?>? {
+        if (source == null) return null
+        return buildMap {
+            source["schemaVersion"]?.let { put("schemaVersion", it) }
+            val board = source["board"]
+            if (board is Map<*, *>) {
+                @Suppress("UNCHECKED_CAST")
+                put("board", HashMap(board as Map<String, Any?>))
+            }
+            val rows = source["rows"]
+            if (rows is List<*>) {
+                put(
+                    "rows",
+                    rows.map { row ->
+                        if (row is Map<*, *>) {
+                            @Suppress("UNCHECKED_CAST")
+                            HashMap(row as Map<String, Any?>)
+                        } else {
+                            row
+                        }
+                    },
+                )
+            }
+        }
+    }
+
+    private fun cloneBoardConfigForResponse(source: Map<String, Any?>?): Map<String, Any?>? =
+        cloneBoardConfigForPersist(source)
 
     private fun templateItemsPayloadToMap(payload: TemplateItemsPayload): Map<String, Any?> {
         val rows = payload.items.map { row ->

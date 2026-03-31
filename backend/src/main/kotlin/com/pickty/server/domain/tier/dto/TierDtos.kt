@@ -37,6 +37,7 @@ data class CreateTemplateRequest(
     val parentTemplateId: UUID? = null,
     @field:Size(max = 2048, message = "썸네일 URL은 2048자 이하로 입력해 주세요.")
     val thumbnailUrl: String? = null,
+    @field:Valid val boardConfig: TemplateBoardConfigPayload? = null,
 )
 
 data class TemplateResponse(
@@ -57,6 +58,8 @@ data class TemplateDetailResponse(
     val parentTemplateId: UUID?,
     val items: Map<String, Any?>,
     val thumbnailUrl: String?,
+    /** 도화지(JSON). 구 템플릿·미설정 시 null */
+    val boardConfig: Map<String, Any?>?,
     /** 작성자 — 헤더 케밥 권한 등 (null 이면 구 데이터) */
     val creatorId: Long?,
     val likeCount: Long = 0,

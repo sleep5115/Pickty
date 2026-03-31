@@ -1,6 +1,10 @@
 import type { CommunityReactionType } from '@/lib/api/community-api';
 import { apiFetch } from '@/lib/api-fetch';
 import { resolvePicktyUploadsUrl } from '@/lib/pickty-image-url';
+import {
+  parseTemplateBoardConfig,
+  type TemplateBoardConfig,
+} from '@/lib/template-board-config';
 import type { TierItem } from '@/lib/store/tier-store';
 import { rewriteSnapshotUploadedImageUrls } from '@/lib/tier-snapshot';
 import type { TierSnapshotPayload } from '@/lib/tier-snapshot';
@@ -28,6 +32,8 @@ export interface TemplateDetailResponse {
   items: Record<string, unknown>;
   /** 단일 썸네일 URL */
   thumbnailUrl?: string | null;
+  /** 파싱 성공 시만 존재 — 없거나 검증 실패 시 undefined */
+  boardConfig?: TemplateBoardConfig | null;
   creatorId?: number | null;
   likeCount?: number;
   commentCount?: number;
@@ -80,6 +86,23 @@ export function templatePayloadToTierItems(payload: Record<string, unknown>): Ti
   return out;
 }
 
+export type CreateTemplateBoardConfigPayload = {
+  schemaVersion: 1;
+  board?: {
+    backgroundColor?: string;
+    backgroundUrl?: string;
+  };
+  rows: Array<{
+    id: string;
+    label: string;
+    color: string;
+    textColor?: string | null;
+    paintLabelColorUnderImage?: boolean | null;
+    showLabelColor?: boolean | null;
+    backgroundUrl?: string | null;
+  }>;
+};
+
 export type CreateTemplatePayload = {
   title: string;
   items: {
@@ -90,6 +113,8 @@ export type CreateTemplatePayload = {
   version?: number;
   /** 단일 썸네일 */
   thumbnailUrl?: string | null;
+  /** 도화지(JSON) — 백엔드 `board_config` */
+  boardConfig?: CreateTemplateBoardConfigPayload;
 };
 
 /** `tier_results.result_status` — 백엔드 [ResultStatus] */
@@ -340,9 +365,15 @@ export async function getTemplate(id: string, accessToken: string | null = null)
   const cr = row.creatorId ?? row.creator_id;
   const creatorIdNum =
     cr === null || cr === undefined || cr === '' ? NaN : Number(cr);
+  const rawBoard = row.boardConfig ?? row.board_config;
+  const boardConfig =
+    rawBoard != null && typeof rawBoard === 'object'
+      ? parseTemplateBoardConfig(rawBoard)
+      : null;
   return {
     ...base,
     thumbnailUrl: parseTemplateThumbnailUrl(row),
+    boardConfig: boardConfig ?? undefined,
     creatorId: Number.isFinite(creatorIdNum) ? creatorIdNum : null,
     likeCount: optLongField(row, 'likeCount', 'like_count'),
     commentCount: optLongField(row, 'commentCount', 'comment_count'),

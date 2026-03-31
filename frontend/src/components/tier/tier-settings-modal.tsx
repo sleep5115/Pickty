@@ -1,14 +1,18 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Tier, useTierStore } from '@/lib/store/tier-store';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { uploadPicktyImages } from '@/lib/image-upload-api';
 import {
-  getTierLabelSurfaceStyle,
-  getTierLabelTextStyle,
+  buildWorkspaceBoardSurfaceStyle,
+  contrastTextForHex,
+  shouldResetPaintMatWhenAddingFirstLabelImage,
   tierHasBackgroundImage,
+  workspaceBoardSurfaceIsVisual,
 } from '@/lib/tier-label-surface';
+import { TierLabelCellView } from '@/components/tier/tier-label-cell-view';
 import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
 import { PICKTY_IMAGE_ACCEPT } from '@/lib/pickty-image-accept';
 import { PICKTY_IMAGE_UPLOAD_HINT } from '@/lib/pickty-upload-hint';
@@ -19,6 +23,7 @@ function isWithinLabelLimit(s: string): boolean {
   return s.length <= (hasCJK ? 3 : 5);
 }
 
+/** 배경·글자 색 공용 팔레트 */
 const COLOR_PRESETS = [
   '#FF7F7F',
   '#FFBF7F',
@@ -32,10 +37,26 @@ const COLOR_PRESETS = [
   '#FF4444',
   '#FFAA00',
   '#44DD44',
+  '#16a34a',
+  '#2563eb',
+  '#7c3aed',
   '#FFFFFF',
+  '#f9fafb',
   '#AAAAAA',
   '#555555',
+  '#111827',
+  '#000000',
 ];
+
+const HEX6 = /^#[0-9A-Fa-f]{6}$/;
+
+/** 저장된 글자색이 없을 때 모달 초기값(한 번 고르면 그대로 저장됨) */
+function initialLabelTextColor(tier: Tier): string {
+  const t = tier.textColor?.trim();
+  if (t && HEX6.test(t)) return t;
+  if (tierHasBackgroundImage(tier)) return '#ffffff';
+  return contrastTextForHex(tier.color);
+}
 
 interface TierSettingsModalProps {
   tier: Tier;
@@ -45,14 +66,34 @@ interface TierSettingsModalProps {
 export function TierSettingsModal({ tier, onClose }: TierSettingsModalProps) {
   const accessToken = useAuthStore((s) => s.accessToken);
   const { updateTier, addTierRow, deleteTierRow, clearTierRow } = useTierStore();
+  const workspaceBoardSurface = useTierStore((s) => s.workspaceBoardSurface);
   const [label, setLabel] = useState(tier.label);
   const [color, setColor] = useState(tier.color);
+  const [textColor, setTextColor] = useState(() => initialLabelTextColor(tier));
+  /** 상단 토글 — 아래 팔레트가 배경용인지 글자용인지 */
+  const [colorEditTab, setColorEditTab] = useState<'background' | 'text'>('background');
   const [uploadBusy, setUploadBusy] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [paintMat, setPaintMat] = useState(() => tier.paintLabelColorUnderImage !== false);
+  /** 같은 hex를 다시 고를 때(특히 첫 프리셋)에도 라벨 배경 켜짐을 반영하기 위함 */
+  const [labelBgPaletteInteracted, setLabelBgPaletteInteracted] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const bgFileRef = useRef<HTMLInputElement>(null);
 
-  const previewTier: Tier = { ...tier, color };
+  const previewShowsLabelFill =
+    tier.showLabelColor !== false ||
+    color !== tier.color ||
+    (tierHasBackgroundImage(tier) && paintMat) ||
+    labelBgPaletteInteracted;
+
+  const previewTier: Tier = {
+    ...tier,
+    label,
+    color,
+    textColor,
+    paintLabelColorUnderImage: paintMat,
+    showLabelColor: previewShowsLabelFill,
+  };
 
   // ESC로 닫기
   useEffect(() => {
@@ -68,9 +109,31 @@ export function TierSettingsModal({ tier, onClose }: TierSettingsModalProps) {
     inputRef.current?.focus();
   }, []);
 
+  useEffect(() => {
+    setLabel(tier.label);
+    setColor(tier.color);
+    setTextColor(initialLabelTextColor(tier));
+    setPaintMat(tier.paintLabelColorUnderImage !== false);
+    setColorEditTab('background');
+    setLabelBgPaletteInteracted(false);
+  }, [tier.id]);
+
   const handleApply = () => {
     const trimmed = label.trim();
-    if (trimmed) updateTier(tier.id, { label: trimmed, color });
+    if (trimmed) {
+      const showLabelColor =
+        tier.showLabelColor !== false ||
+        color !== tier.color ||
+        (tierHasBackgroundImage(tier) && paintMat) ||
+        labelBgPaletteInteracted;
+      updateTier(tier.id, {
+        label: trimmed,
+        color,
+        textColor,
+        showLabelColor,
+        paintLabelColorUnderImage: tierHasBackgroundImage(tier) ? paintMat : undefined,
+      });
+    }
     onClose();
   };
 
@@ -86,7 +149,12 @@ export function TierSettingsModal({ tier, onClose }: TierSettingsModalProps) {
     setUploadBusy(true);
     try {
       const [url] = await uploadPicktyImages([file], accessToken);
-      updateTier(tier.id, { backgroundUrl: url });
+      updateTier(tier.id, {
+        backgroundUrl: url,
+        ...(shouldResetPaintMatWhenAddingFirstLabelImage(tier)
+          ? { paintLabelColorUnderImage: undefined }
+          : {}),
+      });
     } catch (err) {
       const msg =
         err instanceof Error ? err.message : '이미지 업로드에 실패했습니다.';
@@ -121,29 +189,47 @@ export function TierSettingsModal({ tier, onClose }: TierSettingsModalProps) {
     onClose();
   };
 
-  return (
-    /* 배경 오버레이 */
+  const modal = (
+    /* body 포털 — DnD·폼·도화지 레이어와 스택/포인터 분리 */
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onPointerDown={(e) => {
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="tier-settings-title"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      {/* 모달 패널 — 터치/포인터에서도 배경 닫기와 충돌 방지 */}
       <div
         className="w-80 max-w-[calc(100vw-2rem)] rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 shadow-2xl shadow-black/60 overflow-hidden touch-manipulation"
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
       >
         {/* 헤더 */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-zinc-800">
           <div className="flex items-center gap-2.5">
             <div
-              className="w-5 h-5 rounded-sm shrink-0 border border-black/10 dark:border-white/10 overflow-hidden bg-cover bg-center"
-              style={{
-                ...getTierLabelSurfaceStyle(previewTier),
-              }}
-            />
-            <span className="text-sm font-semibold text-slate-800 dark:text-zinc-200">
+              className={[
+                'relative h-5 w-5 shrink-0 overflow-hidden rounded-sm border border-black/10 dark:border-white/10',
+                !workspaceBoardSurfaceIsVisual(workspaceBoardSurface) ? 'bg-white dark:bg-zinc-900' : '',
+              ].join(' ')}
+              style={
+                workspaceBoardSurfaceIsVisual(workspaceBoardSurface)
+                  ? buildWorkspaceBoardSurfaceStyle(workspaceBoardSurface)
+                  : undefined
+              }
+            >
+              <TierLabelCellView
+                tier={{ ...previewTier, label: label.slice(0, 1) || '?' }}
+                compact
+                textClassName="text-[0.55rem] font-black leading-none"
+              />
+            </div>
+            <span
+              id="tier-settings-title"
+              className="text-sm font-semibold text-slate-800 dark:text-zinc-200"
+            >
               티어 설정
             </span>
           </div>
@@ -158,37 +244,137 @@ export function TierSettingsModal({ tier, onClose }: TierSettingsModalProps) {
         </div>
 
         <div className="p-4 flex flex-col gap-5">
-          {/* 색상 팔레트 */}
+          {/* ① 최상단: 편집 대상 토글 */}
+          <div className="flex rounded-lg border border-slate-200 dark:border-zinc-700 p-0.5">
+            <button
+              type="button"
+              onClick={() => setColorEditTab('background')}
+              className={[
+                'flex-1 rounded-md py-2 text-xs font-semibold transition-colors',
+                colorEditTab === 'background'
+                  ? 'bg-violet-600 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800',
+              ].join(' ')}
+            >
+              라벨 배경 색
+            </button>
+            <button
+              type="button"
+              onClick={() => setColorEditTab('text')}
+              className={[
+                'flex-1 rounded-md py-2 text-xs font-semibold transition-colors',
+                colorEditTab === 'text'
+                  ? 'bg-violet-600 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800',
+              ].join(' ')}
+            >
+              라벨 글자 색
+            </button>
+          </div>
+
+          {/* ② 미리보기 스와치 — 배경 | 글자 */}
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setColorEditTab('background')}
+              className={[
+                'flex flex-col items-center gap-2 rounded-xl border p-3 transition-colors text-left',
+                colorEditTab === 'background'
+                  ? 'border-violet-500 bg-violet-50/60 dark:border-violet-500 dark:bg-violet-950/25'
+                  : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300 dark:hover:border-zinc-600',
+              ].join(' ')}
+            >
+              <span className="text-[0.65rem] font-medium uppercase tracking-wide text-slate-500 dark:text-zinc-500">
+                라벨 배경 색
+              </span>
+              <div
+                className={[
+                  'relative h-11 w-11 shrink-0 overflow-hidden rounded-lg border border-black/15 dark:border-white/15 shadow-inner',
+                  !workspaceBoardSurfaceIsVisual(workspaceBoardSurface) ? 'bg-white dark:bg-zinc-900' : '',
+                ].join(' ')}
+                style={
+                  workspaceBoardSurfaceIsVisual(workspaceBoardSurface)
+                    ? buildWorkspaceBoardSurfaceStyle(workspaceBoardSurface)
+                    : undefined
+                }
+                aria-hidden
+              >
+                <TierLabelCellView
+                  tier={previewTier}
+                  compact
+                  textClassName="text-lg font-black opacity-0"
+                />
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setColorEditTab('text')}
+              className={[
+                'flex flex-col items-center gap-2 rounded-xl border p-3 transition-colors text-left',
+                colorEditTab === 'text'
+                  ? 'border-violet-500 bg-violet-50/60 dark:border-violet-500 dark:bg-violet-950/25'
+                  : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300 dark:hover:border-zinc-600',
+              ].join(' ')}
+            >
+              <span className="text-[0.65rem] font-medium uppercase tracking-wide text-slate-500 dark:text-zinc-500">
+                라벨 글자 색
+              </span>
+              <div
+                className="h-11 w-11 shrink-0 rounded-lg border border-black/15 dark:border-white/15 shadow-inner"
+                style={{ backgroundColor: textColor }}
+                aria-hidden
+              />
+            </button>
+          </div>
+
+          {/* ③ 팔레트 — 배경·글자 공용 */}
           <div>
             <p className="text-xs font-medium text-slate-500 dark:text-zinc-500 uppercase tracking-wider mb-2.5">
-              색상
+              팔레트
             </p>
             <div className="flex flex-wrap gap-2">
-              {COLOR_PRESETS.map((preset) => (
-                <button
-                  type="button"
-                  key={preset}
-                  onClick={() => setColor(preset)}
-                  title={preset}
-                  className={[
-                    'w-7 h-7 rounded-full transition-all duration-100',
-                    'border-2 hover:scale-110 active:scale-95',
-                    color === preset
-                      ? 'border-slate-900 dark:border-white scale-110 shadow-lg'
-                      : 'border-transparent hover:border-black/20 dark:hover:border-white/40',
-                  ].join(' ')}
-                  style={{ backgroundColor: preset }}
-                />
-              ))}
-              {/* 커스텀 색상 피커 */}
+              {COLOR_PRESETS.map((preset) => {
+                const active =
+                  colorEditTab === 'text' && textColor === preset;
+                return (
+                  <button
+                    type="button"
+                    key={preset}
+                    onClick={() => {
+                      if (colorEditTab === 'background') {
+                        setLabelBgPaletteInteracted(true);
+                        setColor(preset);
+                      } else {
+                        setTextColor(preset);
+                      }
+                    }}
+                    title={preset}
+                    className={[
+                      'w-7 h-7 rounded-full transition-all duration-100',
+                      'border-2 hover:scale-110 active:scale-95',
+                      active
+                        ? 'border-slate-900 dark:border-white scale-110 shadow-lg'
+                        : 'border-transparent hover:border-black/20 dark:hover:border-white/40',
+                    ].join(' ')}
+                    style={{ backgroundColor: preset }}
+                  />
+                );
+              })}
               <label
-                className="w-7 h-7 rounded-full border-2 border-slate-400 dark:border-zinc-600 hover:border-slate-600 dark:hover:border-zinc-400 flex items-center justify-center cursor-pointer transition-colors overflow-hidden"
+                className="w-7 h-7 rounded-full border-2 border-slate-400 dark:border-zinc-600 hover:border-slate-600 dark:hover:border-zinc-400 flex items-center justify-center cursor-pointer transition-colors overflow-hidden relative"
                 title="직접 입력"
               >
                 <input
                   type="color"
-                  value={color}
-                  onChange={(e) => setColor(e.target.value)}
+                  value={colorEditTab === 'background' ? color : textColor}
+                  onChange={(e) => {
+                    if (colorEditTab === 'background') {
+                      setLabelBgPaletteInteracted(true);
+                      setColor(e.target.value);
+                    } else {
+                      setTextColor(e.target.value);
+                    }
+                  }}
                   className="opacity-0 absolute w-0 h-0"
                 />
                 <span className="text-slate-500 dark:text-zinc-400 text-xs pointer-events-none">+</span>
@@ -260,6 +446,25 @@ export function TierSettingsModal({ tier, onClose }: TierSettingsModalProps) {
               {uploadError && (
                 <p className="text-xs text-red-600 dark:text-red-400">{uploadError}</p>
               )}
+              {tierHasBackgroundImage(tier) && (
+                <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-slate-200 px-3 py-2.5 dark:border-zinc-700">
+                  <input
+                    type="checkbox"
+                    checked={paintMat}
+                    onChange={(e) => setPaintMat(e.target.checked)}
+                    className="mt-0.5 rounded border-slate-300 dark:border-zinc-600"
+                  />
+                  <span className="text-xs leading-snug text-slate-600 dark:text-zinc-400">
+                    <span className="font-medium text-slate-800 dark:text-zinc-300">
+                      누끼 뒤에 라벨 배경색 깔기
+                    </span>
+                    <span className="mt-0.5 block text-slate-500 dark:text-zinc-500">
+                      기본은 켜 둠 — 라벨 팔레트 색이 이미지 아래(표 배경 위)에 깔립니다. 끄면 누끼 투명 구간에 표
+                      배경만 비칩니다.
+                    </span>
+                  </span>
+                </label>
+              )}
             </div>
           </div>
 
@@ -267,13 +472,21 @@ export function TierSettingsModal({ tier, onClose }: TierSettingsModalProps) {
           <div>
             <div className="flex gap-2 items-center">
               <div
-                className="w-8 h-8 rounded flex items-center justify-center text-base font-black shrink-0 border border-black/10 dark:border-white/10 overflow-hidden"
-                style={{
-                  ...getTierLabelSurfaceStyle(previewTier),
-                  ...getTierLabelTextStyle(previewTier),
-                }}
+                className={[
+                  'relative h-8 w-8 shrink-0 overflow-hidden rounded border border-black/10 dark:border-white/10',
+                  !workspaceBoardSurfaceIsVisual(workspaceBoardSurface) ? 'bg-white dark:bg-zinc-900' : '',
+                ].join(' ')}
+                style={
+                  workspaceBoardSurfaceIsVisual(workspaceBoardSurface)
+                    ? buildWorkspaceBoardSurfaceStyle(workspaceBoardSurface)
+                    : undefined
+                }
               >
-                {label.slice(0, 2) || '?'}
+                <TierLabelCellView
+                  tier={{ ...previewTier, label: label.slice(0, 2) || '?' }}
+                  compact
+                  textClassName="text-base font-black"
+                />
               </div>
               <input
                 ref={inputRef}
@@ -388,4 +601,7 @@ export function TierSettingsModal({ tier, onClose }: TierSettingsModalProps) {
       </div>
     </div>
   );
+
+  if (typeof document === 'undefined') return null;
+  return createPortal(modal, document.body);
 }

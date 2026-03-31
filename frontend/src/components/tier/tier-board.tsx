@@ -22,6 +22,7 @@ import { useTierStore } from '@/lib/store/tier-store';
 import { usePointerDevice } from '@/hooks/use-pointer-device';
 import { useDragSelect } from '@/hooks/use-drag-select';
 import { TierRow } from './tier-row';
+import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
 import { ItemPool } from './item-pool';
 import { ItemCard } from './item-card';
 import { ExportModal } from './export-modal';
@@ -36,9 +37,16 @@ interface TierBoardProps {
   pointerModeReady?: boolean;
   /** 저장·다운로드 버튼 왼쪽에 붙는 슬롯 (예: 템플릿 좋아요) */
   templateLikeSlot?: ReactNode;
+  /** `/template/new` 하단 — 저장·보내기 없이 풀·DnD만 */
+  variant?: 'full' | 'template-preview';
 }
 
-export function TierBoard({ dragSelectRef, pointerModeReady = true, templateLikeSlot }: TierBoardProps) {
+export function TierBoard({
+  dragSelectRef,
+  pointerModeReady = true,
+  templateLikeSlot,
+  variant = 'full',
+}: TierBoardProps) {
   const {
     tiers,
     pool,
@@ -53,7 +61,9 @@ export function TierBoard({ dragSelectRef, pointerModeReady = true, templateLike
     toggleItemSelection,
   } = useTierStore();
   const templateId = useTierStore((s) => s.templateId);
+  const workspaceBoardSurface = useTierStore((s) => s.workspaceBoardSurface);
   const accessToken = useAuthStore((s) => s.accessToken);
+  const isTemplatePreview = variant === 'template-preview';
   const { isPointerFine } = usePointerDevice();
   const isFine = pointerModeReady ? (isPointerFine ?? true) : true;
 
@@ -175,6 +185,21 @@ export function TierBoard({ dragSelectRef, pointerModeReady = true, templateLike
     clearSelection();
   };
 
+  const captureSurfaceStyle: React.CSSProperties = {};
+  const bc = workspaceBoardSurface?.backgroundColor?.trim();
+  const bu = workspaceBoardSurface?.backgroundUrl?.trim();
+  if (bc) captureSurfaceStyle.backgroundColor = bc;
+  if (bu) {
+    captureSurfaceStyle.backgroundImage = `url("${picktyImageDisplaySrc(bu)}")`;
+    captureSurfaceStyle.backgroundSize = 'cover';
+    captureSurfaceStyle.backgroundPosition = 'center';
+    captureSurfaceStyle.backgroundRepeat = 'no-repeat';
+  }
+
+  const hasBoardSurface = Boolean(bc || bu);
+  /** 캡처 영역 바탕 — 우측 레일(⚙·핸들)은 표 배경에서 제외되므로 항상 이 색으로 유지 */
+  const captureChromeClass = 'bg-white dark:bg-zinc-900';
+
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <DndContext
@@ -216,27 +241,49 @@ export function TierBoard({ dragSelectRef, pointerModeReady = true, templateLike
 
         {/* 티어 행 영역 — 캡처는 티어 행만 (Item Pool 제외), 워터마크는 PNG 다운로드 시에만 삽입 */}
         <div>
-          <div ref={captureRef} className="relative bg-white dark:bg-zinc-900">
-            <SortableContext items={tierIds} strategy={verticalListSortingStrategy}>
-              {tiers.map((tier) => (
-                <TierRow
-                  key={tier.id}
-                  tier={tier}
-                  isTarget={targetTierId === tier.id}
-                  selectedItemIds={selectedItemIds}
-                  targetingActive={targetingActive}
-                  isRowSortActive={isRowSortActive}
-                  onClickTier={() => handleClickTier(tier.id)}
-                  onClickItem={handleClickItem}
-                />
-              ))}
-            </SortableContext>
+          <div
+            ref={captureRef}
+            className={['relative overflow-hidden', captureChromeClass].join(' ')}
+          >
+            {hasBoardSurface ? (
+              <div
+                aria-hidden
+                className="pointer-events-none absolute left-0 top-0 bottom-0 z-0"
+                style={{
+                  width: 'calc(100% - 4rem)',
+                  ...captureSurfaceStyle,
+                }}
+              />
+            ) : null}
+            <div className="relative z-[5]">
+              <SortableContext items={tierIds} strategy={verticalListSortingStrategy}>
+                {tiers.map((tier) => (
+                  <TierRow
+                    key={tier.id}
+                    tier={tier}
+                    isTarget={targetTierId === tier.id}
+                    selectedItemIds={selectedItemIds}
+                    targetingActive={targetingActive}
+                    isRowSortActive={isRowSortActive}
+                    onClickTier={() => handleClickTier(tier.id)}
+                    onClickItem={handleClickItem}
+                    disableTierSettings={isTemplatePreview}
+                    disableRowReorder={isTemplatePreview}
+                  />
+                ))}
+              </SortableContext>
+            </div>
           </div>
           <p
             className="px-3 py-2 text-center text-xs text-slate-500 dark:text-zinc-600 border-t border-slate-200 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-950/50"
             onClick={(e) => e.stopPropagation()}
           >
-            {isFine ? (
+            {isTemplatePreview ? (
+              <>
+                위에서 편집한 도화지가 실시간으로 반영됩니다. 미분류에서 티어로 끌어다 놓거나, 라벨 타겟팅으로 배치해
+                보세요.
+              </>
+            ) : isFine ? (
               <>
                 <span className="text-slate-600 dark:text-zinc-500">타겟팅:</span> 라벨 클릭 → 아이템 클릭
                 &nbsp;|&nbsp;
@@ -260,6 +307,7 @@ export function TierBoard({ dragSelectRef, pointerModeReady = true, templateLike
         </div>
 
         {/* 파생(왼쪽) · 저장(서버) | 다운로드(PNG) — 모달에서 제목·설명 입력 후 분기 */}
+        {!isTemplatePreview ? (
         <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-zinc-950 border-t border-slate-200 dark:border-zinc-800">
           <div className="min-w-0 flex-1 flex items-center">
             {templateId ? (
@@ -307,6 +355,7 @@ export function TierBoard({ dragSelectRef, pointerModeReady = true, templateLike
             </button>
           </div>
         </div>
+        ) : null}
 
         {/* 미분류 아이템 풀 */}
         <ItemPool
@@ -333,7 +382,7 @@ export function TierBoard({ dragSelectRef, pointerModeReady = true, templateLike
       </div>
 
       {/* 내보내기 모달 */}
-      {isExportOpen && (
+      {!isTemplatePreview && isExportOpen && (
         <ExportModal
           captureRef={captureRef}
           onClose={() => setIsExportOpen(false)}
