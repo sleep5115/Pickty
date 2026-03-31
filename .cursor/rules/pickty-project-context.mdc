@@ -12,7 +12,7 @@ alwaysApply: true
 - **레포**: https://github.com/sleep5115/Pickty (단일 모노레포)
 - `frontend/` — **Frontend** (Next.js, App Router)
 - `backend/` — **Backend** (Kotlin, Spring Boot)
-- `docker-compose.yml` — PostgreSQL 17 + Valkey 9 (**선택**: PC 로컬). 호스트 포트 **5442·6380**(컨테이너 5432·6379) — 집·회사 동일. **`POSTGRES_PASSWORD`** 는 루트 **`.env`**. Spring **`dev`**: **`application-secrets.yaml`**. DBeaver 등은 PROGRESS.md 참고
+- `docker-compose.yml` — PostgreSQL 17 + Valkey 9 (**선택**: PC 로컬). 호스트 포트 **5442·6380**(컨테이너 5432·6379). **`POSTGRES_PASSWORD`** 는 루트 **`.env`**. Spring **`dev`**: **`application-secrets.yaml`**. DBeaver 등은 PROGRESS.md 참고
 
 ### Cursor 워크스페이스 · 협업 문서 (필수)
 
@@ -75,13 +75,10 @@ alwaysApply: true
 
 ## Git 계정 관리 규칙
 
-개인 PC와 회사 PC를 모두 사용하기 때문에 커밋 author 오염을 방지하기 위해 **레포 루트에 로컬 git config가 고정**되어 있다.
+여러 PC에서 작업할 때 커밋 author가 섞이지 않도록 **레포 루트에 로컬 git config가 고정**되어 있다.
 
-| 구분 | 계정 | 이메일 |
-|---|---|---|
-| 개인 GitHub (사용) | `sleep5115` | `85235927+sleep5115@users.noreply.github.com` |
-| 개인 Gmail | — | `sleep5165@gmail.com` |
-| 회사 계정 (프로젝트에서 완전 배제) | `sleep5165` | `sleep5165@maybeone.co.kr` |
+- **GitHub 사용자명:** `sleep5115`
+- **개인 메일:** `sleep5165@gmail.com` — 위 GitHub 계정과 **연동**됨. 커밋의 `user.email`은 **`sleep5165@gmail.com`** 또는 **`85235927+sleep5115@users.noreply.github.com`** 등 **본인 GitHub에 등록된 주소** 중 아무거나 쓰면 **기여·프로필 집계는 동일**하게 올라간다. **`user.name` 은 `sleep5115` 로 통일.**
 
 - **새 PC에서 처음 세팅할 때 반드시 아래 순서대로 실행**:
   ```bash
@@ -90,6 +87,7 @@ alwaysApply: true
   cd Pickty
   git config user.name "sleep5115"
   git config user.email "85235927+sleep5115@users.noreply.github.com"
+  # (또는 user.email "sleep5165@gmail.com")
 
   # 2. private pickty-config (Pickty 레포에 커밋 금지)
   #    git clone https://github.com/sleep5115/pickty-config.git
@@ -98,17 +96,16 @@ alwaysApply: true
   #    copy pickty-config\.env .env
   #    copy pickty-config\LightsailDefaultKey-ap-northeast-2.pem .
   #    copy pickty-config\frontend.env.local frontend\.env.local
-  #    집: copy pickty-config\gradle.properties.pickty-home backend\gradle.properties
-  #    회사: copy pickty-config\gradle.properties.pickty-work backend\gradle.properties
+  #    (선택) copy backend\gradle.properties.example backend\gradle.properties
   #    기본 프로필 dev — ./gradlew bootRun. local 은 bootRunLocal.
 
   # 3. 로컬 DB 필요 시
   docker compose --env-file .env up -d
   ```
 - **Spring 프로필**: **`dev`**(기본) = 일상 개발, DB **`pickty_dev`**, Valkey **1**, **`./gradlew bootRun`**. **`local`** = 로컬 Docker **`pickty`** + 호스트 **5442·6380**, **`./gradlew bootRunLocal`**. OAuth·JWT는 **`application-secrets.yaml`**. **`./gradlew test`** → Testcontainers(**Docker 필요**).
-- **`application-secrets.yaml`** / **`application-local.yaml`** / **`backend/gradle.properties`** / 루트 **`.env`** — 정본은 **`pickty-config`**, Pickty 쪽은 gitignore · 복사만. JDK는 **`JAVA_HOME` 권장**; `gradle.properties`의 `org.gradle.java.home`은 필요 시 PC별 한 줄만 활성화(`REPLACE_ME` 샘플)
+- **`application-secrets.yaml`** / **`application-local.yaml`** / 루트 **`.env`** 등 — **정본은 `pickty-config`**, Pickty 쪽 gitignore 경로에 복사만. **`backend/gradle.properties`** 는 gitignore · 선택 — IntelliJ SDK/`JAVA_HOME` 권장; 필요 시 레포 **`backend/gradle.properties.example`** → `gradle.properties` 복사 후 `org.gradle.java.home` 활성화
 - **Lightsail 운영 시크릿 경로:** 서버 **`~/Pickty/deploy/lightsail/application-secrets.yaml`** — Pickty **`deploy-backend.yml`** 은 GitHub Secret 으로 넣지 않고 **파일 존재만 검사** 후 compose 빌드. yaml 갱신은 **`pickty-config`** 레포 **`deploy-secrets.yml`**(또는 수동 scp). 상세 **`deploy/lightsail/README.md`**
-- 절대로 `git config --global`로 설정하지 말 것 (회사 글로벌 config 오염 방지)
+- 절대로 `git config --global`로 설정하지 말 것 (다른 머신·계정의 글로벌 Git 설정과 섞이는 것 방지)
 
 ## 진행 현황 파일 관리 규칙
 

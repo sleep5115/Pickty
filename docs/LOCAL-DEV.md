@@ -13,10 +13,7 @@ Pickty_Workspace/
   pickty-config/       ← private 설정 레포 (.git), Pickty 루트 `.gitignore` 대상 아님(형제)
 ```
 
-| PC | `Pickty_Workspace` 절대 경로 |
-|----|------------------------------|
-| 집(현재) | `C:\Users\Admin\CursorProjects\Pickty_Workspace` |
-| 회사 | `C:\Users\Administrator\CursorProjects\Pickty_Workspace` |
+`Pickty_Workspace` 의 절대 경로는 Windows 사용자 프로필에 따라 다름 (예: `%USERPROFILE%\CursorProjects\Pickty_Workspace`).
 
 `Pickty` 루트에서 설정을 복사할 때 상대 경로 예: `..\pickty-config\application-secrets.yaml` → `backend\src\main\resources\` (및 룰의 나머지 복사 항목).
 
@@ -35,27 +32,24 @@ npm run dev
 
 ## 백엔드 (Spring Boot, 프로필 `dev`)
 
-Pickty는 **JDK 25 (Corretto)** 가 필요하다. **회사 PC**에서는 다른 업무용 프로젝트가 **JDK 16** 등으로 돌아가는 경우가 많으므로, **Windows 사용자·시스템 환경 변수의 `JAVA_HOME`은 건드리지 않는다.** Pickty 백엔드를 띄울 **그 Cursor 터미널 / PowerShell 세션에서만** `JAVA_HOME`과 `Path`를 덮어쓴 뒤 `gradlew`를 실행한다.
+Pickty는 **JDK 25 (Corretto)** 가 필요하다. PC 전체의 `JAVA_HOME`을 바꾸기 어렵다면(다른 프로젝트가 구 JDK를 쓰는 경우 등), **Pickty 백엔드를 띄울 Cursor 터미널 / PowerShell 세션에서만** `JAVA_HOME`과 `Path`를 덮어쓴 뒤 `gradlew`를 실행한다.
 
 JDK는 IntelliJ **Project Structure → SDK / Download JDK** 로 받으면 사용자 프로필 아래 **`.jdks`** 에 설치된다(`.jdk` 아님). **실제 `JAVA_HOME`으로 쓸 경로는 `.jdks` 바로 아래가 아니라, 그 안의 `corretto-25.x.x` 같은 버전 폴더**다.
 
-| PC | `.jdks` 위치(기준) | 세션용 `JAVA_HOME` 예시 |
-|----|-------------------|-------------------------|
-| 집 | `C:\Users\Admin\.jdks` | `C:\Users\Admin\.jdks\corretto-25.0.2` |
-| 회사 | `C:\Users\Administrator\.jdks` | `C:\Users\Administrator\.jdks\corretto-25.0.2` |
-
-마지막 경로의 **Corretto 폴더명**은 설치 버전에 따라 `corretto-25.0.3` 등으로 다를 수 있음 → 탐색기나 `Get-ChildItem $env:USERPROFILE\.jdks` 로 확인.
+- **`.jdks` 기준**: `%USERPROFILE%\.jdks`
+- **`JAVA_HOME` 예시**: `%USERPROFILE%\.jdks\corretto-25.0.2` (설치 버전에 따라 `corretto-25.0.3` 등으로 다름 → 탐색기나 `Get-ChildItem $env:USERPROFILE\.jdks` 로 확인)
 
 ```powershell
-# 예: 회사 PC — 위 표의 본인 `JAVA_HOME` 예시로 바꿔서 사용
-$env:JAVA_HOME = "C:\Users\Administrator\.jdks\corretto-25.0.2"
+$env:JAVA_HOME = "<위에서 확인한 corretto-25.x.x 전체 경로>"
 $env:Path = "$env:JAVA_HOME\bin;" + $env:Path
 $env:SPRING_PROFILES_ACTIVE = "dev"
 cd backend
 .\gradlew.bat bootRun
 ```
 
-private **`pickty-config` README** (`PC마다 다른 것`)에도 집·회사 사용자 폴더·클론 경로 메모가 있다.
+PC별 경로·복사 체크리스트는 private **`pickty-config`** 쪽 로컬 메모만 쓴다(퍼블릭 레포에는 실사용 경로를 남기지 않음).
+
+- **(선택) Gradle만 JDK 고정:** IntelliJ 대신 터미널에서만 `gradlew` 쓰고 `JAVA_HOME` 을 안 잡을 때 — `backend/gradle.properties.example` 을 `backend/gradle.properties` 로 복사한 뒤 주석 안내에 따라 `org.gradle.java.home` 한 줄 활성화.
 
 - **포트 충돌 (`Port 8080 was already in use`)**: IntelliJ 등에서 이미 백엔드를 띄운 경우. 한쪽만 종료하거나 포트 분리.
 
