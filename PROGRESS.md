@@ -34,14 +34,21 @@
 
 ---
 
-## 제품 용어 (템플릿 vs 결과) **(2026-03-30)**
+## 제품 용어 **(2026-03-30)**
 
-| 내부 호칭 | 의미 | DB 테이블 |
-|-----------|------|-----------|
-| **템플릿 (Template)** | 아이템만 나열된 **기본 판**(유저가 말하는 「포켓몬 티어표」 **밀키트** 형태로 올리는 원본). 티어 메이커에서 S/A/B 등에 **배치하기 전**의 재료 집합. | **`tier_templates`** — 소프트 삭제 컬럼 **`template_status`** (`ACTIVE` \| `DELETED`). |
-| **결과 / 결과표 (Tier Result)** | 유저가 템플릿 아이템을 티어 행(S, A, B …)과 풀에 **배치한 뒤 저장한 최종 스냅샷**. | **`tier_results`** — `template_id` 참조 · 소프트 삭제 **`result_status`** (`ACTIVE` \| `DELETED`), 삭제 시 **`is_public` false** · 피드·**내 티어표 API** 모두 목록은 **`ACTIVE`만**(유저 입장에선 삭제와 동일). 마이그레이션 본편: **`docs/migrations/2026-03-30-tier-results-result-status-soft-delete.sql`**. |
+- **사용자에게 보이는 말**: **티어표**로 통일(메이커 `/tier`·저장본 `/tier/result/…`·피드·내 티어표 등). `/tier`와 `/tier/result`를 헷갈리면 **라우트·화면**으로 구분한다.
+- **템플릿**: S/A/B에 올리기 **전** 아이템 집합(밀키트·원본 판). DB **`tier_templates`** · 소프트 삭제 **`template_status`** (`ACTIVE` \| `DELETED`).
+- **`tier_results`**: 메이커에서 배치·**저장**한 뒤의 DB 행(`template_id` 참조) · **`result_status`** · 삭제 시 **`is_public` false** · 피드·**내 티어표** 목록 API는 **`ACTIVE`만**. 마이그레이션: **`docs/migrations/2026-03-30-tier-results-result-status-soft-delete.sql`**.
 
 **계정 상태**와 구분: 유저는 **`users.account_status`** (`AccountStatus`), 템플릿은 **`template_status`** (`TemplateStatus`).
+
+---
+
+## 진행 메모 **(2026-03-31)**
+
+- **좋아요 UI** (`**TemplateLikeButton**`): **`appearance="boxed"`** (`/tier` 헤더) — 연한 핑크 박스·선택 시 **테두리 글로우**(추천/비추천 `size="lg"`와 같은 패턴). **`plain`**(템플릿 목록 카드) — **글로우 없음**·항상 **핑크** 글자·테두리 없음(잠금 카드는 수치만).
+- **용어·문서**: `PROGRESS.md`에서 **결과/결과표**라는 별도 사용자 용어 안내 삭제 — 화면·카피는 **티어표**, 기술 구분은 **`tier_results`**·라우트 등으로 기술. **법무** — `TERMS_OF_SERVICE_KO.md`·`PRIVACY_POLICY_KO.md`에서 **결과표**·**결과물** 제거·**티어표** 등으로 정리. **커서룰** — `pickty-project-context.mdc` UGC 예시 문장을 **`tier_results`** 기준으로 수정.
+- **PROGRESS 동기화**: P2 표·「다음 작업」에 **인기 티어표 Top3** API·슬라이더 반영, 템플릿 **비공개** backlog를 **소프트 삭제·`mine` ACTIVE만** 등 실제 구현에 맞게 정리.
 
 ---
 
@@ -71,20 +78,20 @@
 | Auth — 소셜·온보딩·계정·병합·탈퇴         | ✅     | Google·Kakao·Naver, `/signup/profile`, Merge·`MERGED`, `DELETE /me` · **(2026-03-30)** 탈퇴 확인 모달: 개인정보 즉시 파기·**서비스에 게시·작성한 모든 콘텐츠**는 탈퇴 후 수정·삭제 불가(월드컵·게시판 등 확장 대비 포괄 문구) · 소셜 로그인 하단 **이용약관·개인정보처리방침** 동의 안내 링크                                                                                                                                                                                                                        |
 | Auth — 세션 하드닝 **(2026-03-26)** | ✅     | Refresh **HttpOnly** 쿠키, OAuth 후 `**?exchange` → `POST /api/v1/auth/oauth-exchange`**, `**/auth/refresh`·`/auth/logout**`, Access **블랙리스트**, `credentials: 'include'`                                                                                                                      |
 | Tier Maker — 보드 UX             | ✅     | DnD·행 정렬·설정 모달·멀티 선택·캡처·라이트/다크·모바일                                                                                                                                                                                                                                                         |
-| Tier — 템플릿·이미지·결과 API + R2     | ✅     | `POST/GET templates`, **`GET /templates/mine`**(인증·본인 `creator_id`·`ACTIVE`만) **`/templates/mine`** 페이지 · **`PATCH/DELETE /templates/{id}`** **(2026-03-29)** — 메타만 PATCH·**소프트 삭제**(`template_status`/`@ColumnDefault('ACTIVE')`)·목록은 ACTIVE만·단건 GET은 삭제 포함 · **`forkTemplateId`** 파생 · `POST /images`→R2 등 나머지 동일 · **(2026-03-28)** 결과 `PATCH`/`DELETE`·피드·리믹스·**`/tier/feed`** · **(2026-03-30)** DB `status`→`template_status`, 파생·결과 저장 시 삭제된 템플릿 차단 · **티어 결과** `DELETE`는 **소프트**(`result_status`·비공개)·**피드·내 티어표 목록** 모두 `ACTIVE`만                                                                                                                                                                                    |
+| Tier — 템플릿·이미지·`tiers/results` API + R2     | ✅     | `POST/GET templates`, **`GET /templates/mine`**(인증·본인 `creator_id`·`ACTIVE`만) **`/templates/mine`** 페이지 · **`PATCH/DELETE /templates/{id}`** **(2026-03-29)** — 메타만 PATCH·**소프트 삭제**(`template_status`/`@ColumnDefault('ACTIVE')`)·목록은 ACTIVE만·단건 GET은 삭제 포함 · **`forkTemplateId`** 파생 · `POST /images`→R2 등 나머지 동일 · **(2026-03-28)** `tier_results` `PATCH`/`DELETE`·피드·리믹스·**`/tier/feed`** · **(2026-03-30)** DB `status`→`template_status`, 파생·**새 티어표 저장** 시 삭제된 템플릿 차단 · **`tier_results` `DELETE`**는 **소프트**(`result_status`·비공개)·**피드·내 티어표 목록** 모두 `ACTIVE`만                                                                                                                                                                                    |
 | Tier — 비회원 → 로그인/가입 **자동 저장**  | ✅(1차) | `tier-store` **sessionStorage persist** + `tierAutoSaveIntent` · `post-oauth-tier-flow` · 로그인/`auth/callback`/온보딩 후 `**POST /api/v1/tiers/results`** · 미리보기 PNG `**tier-autosave-thumbnail**` 스태시→인증 후 R2 업로드(수동 저장과 동일 보드 썸네일) · `/tier` 템플릿 진입 시 intent+`templateId` 일치하면 **서버 덮어쓰기 생략** |
 | 프론트 업로드 압축·한도 동기화              | ✅     | `uploadPicktyImages` **파일당 순차 POST**(벌크 아님) · `browser-image-compression` WebP·장변 1024·목표 **~0.5MB** — **Nginx·Spring multipart·Tomcat 요청당 8MB** 통일 **(2026-03-30)** · `pickty-upload-hint.ts` UI 안내                                                                                                                                                                                                        |
 | Ideal Type World Cup           | ⬜     | **최후순위** — 티어 코어가 거의 마무리된 뒤 착수. UI 비노출, 착수 미정. **스트리머 모드보다 뒤.**                                                                                                                                                                                                                                                                    |
 | Tier — 장기 과제 (일반)            | ✅(1차) | **이미 함**: 업로드 전 브라우저 압축. **(2026-03-31 1차 완료)**: `GET .../images/file/**` **`Cache-Control: public, max-age=31536000, immutable`** · **`next.config.ts`** `images.minimumCacheTTL` **31536000** · **`docs/DEPLOYMENT-CHECKLIST.md`** 「3.5 Cloudflare R2 및 CDN 캐시」. **(2026-03-30) 운영 검증**: `api.pickty.app` 프록시 경로에 대해 **`curl.exe -sI`** 2연속 → **`cf-cache-status` MISS then HIT**. **추후(선택)**: R2 `PutObject` **Cache-Control** 메타·**파생 해상도**·Cloudflare Images 등(트래픽·비용 보고 후).                                                                                                                                                                                                                                        |
 | 스트리머 모드 + 대규모 트래픽 방어        | ⬜     | **최후순위 축** — 대부분의 코어 기능 구현이 끝난 뒤 추가. Valkey 휘발성 쓰기·TTL·명시적 저장 시 DB **귀속** 등은 **이 기능 전제**(비회원 `sessionStorage` 자동 저장 ✅ 과 별개). **월드컵보다 앞.** 기획 요지는 바로 아래 절(확정).                                                                                                                                                                                        |
-| **P2 커뮤니티 — 반응·댓글 (1차)** **(2026-03-30)** | ✅(1차) | 다형성 `reactions`·`comments` + `tier_templates`/`tier_results` 역정규화 카운트. API: `POST /api/v1/community/reactions/toggle`(회원·비회원 IP 해시), 댓글 CRUD·페이지 `GET`·`DELETE`(비회원 비번). 프론트: `community-api`·`TemplateLikeButton`·`ResultVoteButtons`(낙관적 UI)·`CommentSection` — `/templates`·`/tier`·`/tier/feed`·`/tier/result/[id]` 연동. 마이그레이션 **`docs/migrations/2026-03-31-p2-community-unified.sql`** · **(2026-03-30) 새로고침 후 하이라이트 유지**: 로그인 시 템플릿/결과 GET 응답 **`myReaction`** + `ReactionRepository` **IN** bulk(`CommunityMyReactionService`) · 비회원은 **`reaction-store`**(`localStorage`) · **선택 상태 색**: 좋아요 **핑크**·추천 **빨강**·비추천 **파랑** · **회원+IP 하이브리드**: `guest_ip_hash`·부분 유니크(`user_id IS NULL`만) — **`docs/migrations/2026-03-30-reactions-member-ip-hash-hybrid.sql`**. · **남음**: 집계 티어·조회수 배치 등 기획 절 확장분. |
+| **P2 커뮤니티 — 반응·댓글 (1차)** **(2026-03-30)** | ✅(1차) | 다형성 `reactions`·`comments` + `tier_templates`/`tier_results` 역정규화 카운트. API: `POST /api/v1/community/reactions/toggle`(회원·비회원 IP 해시), 댓글 CRUD·페이지 `GET`·`DELETE`(비회원 비번). 프론트: `community-api`·`TemplateLikeButton`·`ResultVoteButtons`(낙관적 UI)·`CommentSection` — `/templates`·`/tier`·`/tier/feed`·`/tier/result/[id]` 연동. 마이그레이션 **`docs/migrations/2026-03-31-p2-community-unified.sql`** · **(2026-03-30) 새로고침 후 하이라이트 유지**: 로그인 시 템플릿·`tier_results` 단건/목록 GET 응답 **`myReaction`** + `ReactionRepository` **IN** bulk(`CommunityMyReactionService`) · 비회원은 **`reaction-store`**(`localStorage`) · **선택 상태 색**: 좋아요 **핑크**·추천 **빨강**·비추천 **파랑** · **회원+IP 하이브리드**: `guest_ip_hash`·부분 유니크(`user_id IS NULL`만) — **`docs/migrations/2026-03-30-reactions-member-ip-hash-hybrid.sql`**. · **(2026-03-31) 인기 티어표 Top3**: `GET .../tiers/results/popular` + **`popular-tier-results.tsx`**(`/tier` 템플릿 하단 가로 슬라이더). · **남음**: **집계 티어표**·**조회수**(Valkey 배치) 등. |
 
 
 ### 스트리머 모드 — 대규모 트래픽 방어 (기획 확정 · 구현은 후순위)
 
 - **착수 시점**: 코어 티어·주요 기능 마무리 후. 로드맵상 **월드컵보다 앞**, 둘 다 **최후순위** 축(위 표 참고).
 - **프론트엔드 (대기열 없음)**: 503·429·지연 시 무거운 대기열 UI 대신 **가벼운 로딩 스피너**; 백그라운드에서 **1~3초 랜덤 지터(Jitter)** 후 **조용히 API 자동 재시도**.
-- **백엔드 Read**: 수천 명이 같은 템플릿을 조회해도 `**GET /templates/{id}`** 결과를 Valkey에 **약 1분** 캐시해 DB 커넥션 고갈 완화.
+- **백엔드 Read**: 수천 명이 같은 템플릿을 조회해도 `**GET /templates/{id}`** 응답을 Valkey에 **약 1분** 캐시해 DB 커넥션 고갈 완화.
 - **백엔드 Write (휘발성 집계)**: 스트리머 모드 시청자 제출은 기본 **휘발성** — DB INSERT 없이 Valkey로 **실시간 집계만**, **TTL**로 폐기. **가입/로그인 후 명시적 「저장」** 요청 시에만 DB 영구 적재(**데이터 귀속**).
 
 ---
@@ -94,12 +101,13 @@
 - **라우팅**: 랜딩 → `**/templates`** → 카드 `**/tier?templateId=**` · 새 밀키트 `**/template/new**` · 템플릿 **제목/설명 수정**은 **모달**(목록·`/tier` 헤더 케밥) + **`PATCH /templates/{id}`** · **파생** `**/template/new?forkTemplateId=`**(`parentTemplateId` 기록) · **(2026-03-30)** 정적 **`/terms`** · **`/privacy`**(마크다운 렌더), 푸터·로그인 동의 링크.
 - **업로드·저장**: `**POST /api/v1/images`** → R2 `PutObject` · DB/JSON 메타는 `https://img.pickty.app/{uuid}.ext` 형(설정 `public-url`). 표시는 `**picktyImageDisplaySrc**` / `**GET /api/v1/images/file/{key}**`(CORS `*`) — **(2026-03-31)** 해당 GET 응답 **`Cache-Control: public, max-age=31536000, immutable`** · Next `**next/image**` 원격 최소 캐시 **`minimumCacheTTL: 31536000`** (`next.config.ts`). **(2026-03-30)** Cloudflare Cache Rule 적용 후 동 경로에 **`curl -sI`** 2회 시 **`Server: cloudflare`**, **`cf-cache-status`**: 첫 **`MISS`**·둘째 **`HIT`** (엣지 캐시 동작 확인). 키 샘플은 공개 **`GET /api/v1/templates`** 의 **`thumbnailUrl`** 파일명 부분 사용 가능.
 - **템플릿 썸네일**: DB `**tier_templates.thumbnail_url`** 단일. 2×2 `**template-thumbnail-composite.ts**`(Canvas). 마이그레이션: `docs/migrations/2026-03-25-p1-tier-template-user.sql`.
-- **티어 결과**: 저장 시 PNG·`**tier_results.thumbnail_url`** · 동적 OG `**/tier/result/[id]**` · **`pickty.app`** 워터마크는 **PNG 다운로드 시에만**(`tier-capture-png` `includeWatermark`) — 편집 화면·보내기 모달 **미리보기**·서버 썸네일에는 비포함 **(2026-03-28)**.
+- **저장 티어표** (`tier_results`): 저장 시 PNG·`**tier_results.thumbnail_url`** · 동적 OG `**/tier/result/[id]**` · **`pickty.app`** 워터마크는 **PNG 다운로드 시에만**(`tier-capture-png` `includeWatermark`) — 편집 화면·보내기 모달 **미리보기**·서버 썸네일에는 비포함 **(2026-03-28)**.
 - **내 티어표**: GNB **내 정보** → `**/tier/my`** · `GET .../tiers/results/mine` **ACTIVE만**(삭제한 건 목록에서 제외, 직접 URL·OG는 유지) · 카드 **수정/삭제/리믹스**.
 - **내 템플릿**: GNB **내 정보** → `**/templates/mine`**(로그인) · `GET /api/v1/templates/mine` — 본인이 만든 **ACTIVE** 템플릿만 · 카드는 전체 목록과 동일(티어 만들기·좋아요·수정/삭제). **`frontend/src/components/template/template-card.tsx`** 공통.
 - **글로벌 피드**: `**/tier/feed`** — `GET /api/v1/tiers/results` **ACTIVE만** **무한 스크롤** · 카드 권한: **수정=본인만**, **삭제=본인 또는 ADMIN**, **리믹스=항상** · **(2026-03-30)** 카드에 **추천/비추천**(낙관적 UI).
-- **P2 커뮤니티 (1차)**: 템플릿 **좋아요**(`/templates` 카드·`/tier`는 **`tier-board`** 저장\|다운로드 줄 **왼쪽** **(2026-03-30)**), 결과 **추천/비추천**(피드·결과 상세), **통합 댓글**(`/tier`·`/tier/result/[id]` 하단). 비회원 댓글은 닉네임(선택)·비번(필수)·표시 `익명 (IP 앞 두 마디)`; API는 `**/api/v1/community/**`**. 반응 UI는 **새로고침 후에도 유지** — 회원: 목록·상세 GET의 **`myReaction`**(JWT 시 bulk 조회); 비회원: **`pickty.community.reactions.v1`** `localStorage` · 버튼 **선택 색**: 좋아요 **핑크**·추천 **빨강**·비추천 **파랑** · **(2026-03-30)** 카드 추천/비추천 **상시 빨강·파랑**, 상세는 **글로우로 내 선택** — 위 **「추천/비추천·템플릿 좋아요 UI」** 절.
-- **비회원 저장→소셜**: export 모달 **「로그인하고 서버에 저장」** → 보드·intent **sessionStorage** · **ACTIVE** 즉시 결과 저장 후 `**/tier/result/[id]`** · **PENDING** 은 온보딩 후 저장·이동 · 비회원 시 **제목·설명 입력 없음**(기본 제목 등) — **메타 수정**은 `/tier/my`·결과 상세·피드 카드에서 가능.
+- **인기 티어표(템플릿별 Top3)** **(2026-03-31)**: `**/tier?templateId=**` 하단 — `GET .../tiers/results/popular` · **`PopularTierResults`** 가로 스크롤(모바일)·그리드(넓은 화면); 추천 수 상위 최대 3건, 없으면 섹션 미표시.
+- **P2 커뮤니티 (1차)**: 템플릿 **좋아요**(`/templates` 카드·`/tier`는 **`tier-board`** 저장\|다운로드 줄 **왼쪽** **(2026-03-30)**), **추천/비추천**(피드 카드·`/tier/result/[id]` 상세), **통합 댓글**(`/tier`·`/tier/result/[id]` 하단). 비회원 댓글은 닉네임(선택)·비번(필수)·표시 `익명 (IP 앞 두 마디)`; API는 `**/api/v1/community/**`**. 반응 UI는 **새로고침 후에도 유지** — 회원: 목록·상세 GET의 **`myReaction`**(JWT 시 bulk 조회); 비회원: **`pickty.community.reactions.v1`** `localStorage` · 버튼 **선택 색**: 좋아요 **핑크**·추천 **빨강**·비추천 **파랑** · **(2026-03-30)** 카드 추천/비추천 **상시 빨강·파랑**, 상세는 **글로우로 내 선택** — 위 **「추천/비추천·템플릿 좋아요 UI」** 절.
+- **비회원 저장→소셜**: export 모달 **「로그인하고 서버에 저장」** → 보드·intent **sessionStorage** · **ACTIVE** 즉시 티어표 저장 후 `**/tier/result/[id]`** · **PENDING** 은 온보딩 후 저장·이동 · 비회원 시 **제목·설명 입력 없음**(기본 제목 등) — **메타 수정**은 `/tier/my`·`/tier/result/[id]`·피드 카드에서 가능.
 - **공유·OG**: `generateMetadata` + `fetchTierResultForOpenGraph` / `fetchTemplateForOpenGraph`. **카톡 등 크롤러용 `og:image`** 는 R2 직링크 대신 `**resolvePicktyImageUrlForOpenGraph**` 로 `**https://api.pickty.app/api/v1/images/file/{key}**` 절대 URL 사용(`pickty-image-url.ts`). UI: `**sonner**` 토스트(클립보드) — `tier-page-client`(템플릿 링크), `tier-result-client-page`, `export-modal` 저장 완료 화면.
 - **이미지 업로드 한도**: `**uploadPicktyImages**` — 압축 후 **파일마다 별도 `POST /api/v1/images`**(순차, 단일 `files` 파트). **8MB** — `**deploy/lightsail/nginx.conf`** `client_max_body_size` · `**application.yaml`** `spring.servlet.multipart` + `server.tomcat` · `**TomcatMaxPostSizeCustomizer**` 동일. 브라우저 쪽 목표는 **~0.5MB/장**(장변 1024 WebP).
 - **Next 16**: 로컬 API URL `next/image` 시 `**dangerouslyAllowLocalIP: true`**.
@@ -109,7 +117,7 @@
 ## 티어 메이커 · GNB · 캡처 **(2026-03-28)**
 
 - **GNB**: 첫 탭 **「템플릿」**(`/templates`), 둘째 **「티어표」**(`/tier/feed`). **내 정보** 드롭다운: **내 계정**·**내 티어표**·**내 템플릿** (`/templates/mine`)·로그아웃 — **(2026-03-30)** 예전 드롭다운의 공개 피드 단축 링크는 **내 템플릿**으로 대체(피드는 상단 **티어표** 탭). 피드·내 티어표 페이지 제목/링크에서 「최신 피드」→「티어표」.
-- **피드·내 티어표 카드**(`tier-result-card`): 수정·삭제를 **세로 점 3개(⋮, `MoreVertical`)** 드롭다운으로 통일(결과 상세와 동일 패턴). **(2026-03-29)** 카드 `overflow-hidden` 제거·메뉴 `z-[100]` 로 클립 방지.
+- **피드·내 티어표 카드**(`tier-result-card`): 수정·삭제를 **세로 점 3개(⋮, `MoreVertical`)** 드롭다운으로 통일(`/tier/result/[id]` 상세와 동일 패턴). **(2026-03-29)** 카드 `overflow-hidden` 제거·메뉴 `z-[100]` 로 클립 방지.
 - **`/tier` 상단**: 스토어 `workspaceTemplateTitle` / `workspaceTemplateDescription` — **템플릿 제목·설명**·(권한 시) **케밥**·**🔗 템플릿 공유**·PC/터치·초기화. **파생(새 템플릿 만들기)** 링크는 **`tier-board`**의 **저장\|다운로드** 줄 **왼쪽** **(2026-03-29)**. **템플릿 좋아요**는 제목 옆이 아니라 같은 줄에서 **저장\|다운로드 버튼 왼쪽**(`templateLikeSlot`) **(2026-03-30)**. **타겟팅·단축키·일괄 이동** 안내 문구는 **티어 행(`captureRef`) 바로 아래** — PNG·저장용 캡처에는 **미포함**; 페이지 하단 전용 푸터는 제거 **(2026-03-30)**. 크롬 줄(`zinc-950`)과 한 덩어리로 표 판(`zinc-900`)과 시각 분리.
 - **워터마크**: 라이브 보드·export 미리보기 **비표시**; **이미지 다운로드**(export 모달·`/tier/result` PNG)에만 삽입. 글자 크기 티어 라벨 **`text-2xl` 급**.
 - **에이전트 규칙**: `**.cursor/rules/pickty-workflow-terms.mdc`** — **기록**=`PROGRESS.md` 갱신, **커밋**=Pickty `dev` + pickty-config `main`, **배포**=Pickty `dev` push·`main` 머지 + pickty-config `main` push; **커밋 로그 본문 한글**.
@@ -118,7 +126,7 @@
 
 ## 템플릿 UGC·검증·목록 UI **(2026-03-29)**
 
-- **백엔드**: 템플릿 **`TemplateStatus`** 컬럼명 **`template_status`**, 목록 **`ACTIVE`만**, **`DELETE` 소프트**(409·하드 삭제 폐기), **`PATCH .../templates/{id}`** — `UpdateTemplateMetaRequest`(제목·설명만, 아이템 불변). **`GET /templates/{id}`** 는 삭제된 템플릿도 반환(결과·OG 정합). `SecurityConfig` **PATCH** 허용. 제목·설명·아이템명 등 길이 **100 / 10000** 계열 정합. DB: **`@ColumnDefault('ACTIVE')`** + **`docs/migrations/2026-03-29-tier-templates-status-default.sql`** → 컬럼명 정리 **`docs/migrations/2026-03-30-rename-status-columns.sql`**. **(2026-03-30)** 소유자만 PATCH/DELETE·삭제된 템플릿을 **새 파생·새 결과 저장** 소스로 쓰지 못하게 **410 Gone** 처리.
+- **백엔드**: 템플릿 **`TemplateStatus`** 컬럼명 **`template_status`**, 목록 **`ACTIVE`만**, **`DELETE` 소프트**(409·하드 삭제 폐기), **`PATCH .../templates/{id}`** — `UpdateTemplateMetaRequest`(제목·설명만, 아이템 불변). **`GET /templates/{id}`** 는 삭제된 템플릿도 반환(저장된 티어표·OG 정합). `SecurityConfig` **PATCH** 허용. 제목·설명·아이템명 등 길이 **100 / 10000** 계열 정합. DB: **`@ColumnDefault('ACTIVE')`** + **`docs/migrations/2026-03-29-tier-templates-status-default.sql`** → 컬럼명 정리 **`docs/migrations/2026-03-30-rename-status-columns.sql`**. **(2026-03-30)** 소유자만 PATCH/DELETE·삭제된 템플릿을 **새 파생·새 티어표 저장** 소스로 쓰지 못하게 **410 Gone** 처리.
 - **프론트**: `template-edit-meta-modal` · `/templates` 케밥→모달 · `/tier` 헤더 케밥·**「이 템플릿을 바탕으로 새 템플릿 만들기」**는 **`tier-board`** 저장\|다운로드 줄 **왼쪽** · 삭제 확인 문구(소프트) · `export-modal` 등 **maxLength·한도 100/10000** 정리.
 - **`/templates` 카드**: 설명 영역 **두 줄 분량 고정 높이**·푸터 **`h-11`** 로 줄 높이 고정.
 - **다음 작업(예정)**: 위 **파생(복제) 버튼**의 **카피·시각·문구 등 디테일** 손보기.
@@ -126,7 +134,7 @@
 
 ---
 
-## 티어 결과 소프트 삭제·마이그레이션·공통 정책 **(2026-03-30)**
+## `tier_results` 소프트 삭제·마이그레이션·공통 정책 **(2026-03-30)**
 
 - **백엔드**: `ResultStatus` · `TierResult.result_status`. **`DELETE /api/v1/tiers/results/{id}`** 는 **`DELETE FROM` 없음** — `markDeleted()`로 `DELETED` + **`is_public = false`**. **`GET .../tiers/results`**(피드)·**`GET .../tiers/results/mine`**(내 티어표) 모두 **`ACTIVE`만** 반환; 삭제 후에도 **단건 `GET .../{id}`**·직접 URL·OG는 유지. 저장소: `findByUserIdAndResultStatusWithTemplateOrderByCreatedAtDesc` 등.
 - **프론트**: `tier-api` `resultStatus` 파싱·응답 타입 · `tier-result-card` / **`/tier/result/[id]`** 삭제·삭제됨 표시 · **`tier-result-delete-confirm-dialog`** 문구(소프트·비공개·피드 숨김, 링크 유지). 삭제 성공 시 상세는 **`reloadResult`** 로 상태 반영.
@@ -137,8 +145,8 @@
 
 ## 추천/비추천·템플릿 좋아요 UI **(2026-03-30)**
 
-- **`ResultVoteButtons`** (`**frontend/src/components/community/result-vote-buttons.tsx**`): **`size="sm"`**(카드·피드 등) — **회색 비선택 없음**; 추천·비추천 **항상 빨강·파랑**(아이콘·숫자). **`size="lg"`**(결과 상세) — 동일하게 **빨강·파랑 톤 고정**(옅은 테두리·배경); **내가 선택한 쪽만** 테두리 **글로우**(`box-shadow`)로 강조. 반응 **토글**은 **`/tier`**·**`/tier/result/…`** 만(`**useReactionsInteractiveSurface**`) — 그 외 경로는 수치만.
-- **`TemplateLikeButton`**: **`appearance="plain"`** — 템플릿 **카드** 등 테두리 없음 · **`boxed`** — 티어 보드 헤더 등 **라운드·보더** 유지(`**template-card.tsx**`는 `plain`).
+- **`ResultVoteButtons`** (`**frontend/src/components/community/result-vote-buttons.tsx**`): **`size="sm"`**(카드·피드 등) — **회색 비선택 없음**; 추천·비추천 **항상 빨강·파랑**(아이콘·숫자). **`size="lg"`**(`**/tier/result/…`** 상세) — 동일하게 **빨강·파랑 톤 고정**(옅은 테두리·배경); **내가 선택한 쪽만** 테두리 **글로우**(`box-shadow`)로 강조. 반응 **토글**은 **`/tier`**·**`/tier/result/…`** 만(`**useReactionsInteractiveSurface**`) — 그 외 경로는 수치만.
+- **`TemplateLikeButton`**: **`appearance="plain"`** — 템플릿 **카드** 등 **테두리·글로우 없음**·핑크 글자 · **`boxed`** — 티어 보드 헤더 **라운드·보더**·선택 시 글로우(`**template-card.tsx**`는 `plain`). **(2026-03-31)** 상세는 위 **「진행 메모」** 절.
 
 ---
 
@@ -149,6 +157,7 @@
 - **링크**: 레이아웃 **`SiteFooter`**, **`/login`** 소셜 버튼 아래 동의 문구.
 - **탈퇴 UX**: **`/account`** 회원 탈퇴 모달 — 개인정보 즉시 파기·**「서비스에 게시·작성하신 모든 콘텐츠」** 탈퇴 후 수정·삭제 불가·탈퇴 전 직접 삭제 안내 · 계정·연동 정보 복구 불가 한 줄.
 - **(2026-03-31) 약관·개인정보처리방침 보강** (디시인사이드 벤치마킹·약관·방침 정합): **`TERMS_OF_SERVICE_KO.md`** — 제2조 **「비회원」**에 비회원 **댓글 등**에 **닉네임(또는 익명) 뒤 접속 IP 일부(예: 118.235) 화면 공개 표기**(건전한 운영·어뷰징 방지 취지) 명시; 제7조(금지)에 **자동화 수단(크롤링·스크래핑 등)으로 콘텐츠·메타데이터 무단 수집** 및 **AI 학습 등 사전 동의 없는 이용** 금지 보강. **`PRIVACY_POLICY_KO.md`** — 서두 **최소 수집·안전 처리** 쉬운 문장 추가; **2. 나. 비회원** 표에 **처리·이용 목적** 열·**IP 일부 마스킹 후 화면 노출**(이용약관 제2조와 동일 취지) 명시. 커밋: `docs: 이용약관 및 개인정보처리방침에 비회원 IP 노출 및 AI 크롤링 방어 조항 보강`.
+- **(2026-03-31) 약관·방침 용어**: 제2조 **「서비스」**·**「콘텐츠」** 및 방침 **처리 목적**에서 **결과표·결과물** 제거 — 사용자 노출 용어 **티어표**·**템플릿**로 통일(위 **「제품 용어」**·**「진행 메모」** 와 맞춤).
 - **보관**: **`progress/PROGRESS_20260330.md`**(당일 본문) · 위 **(2026-03-31)** 줄은 동 보관본에도 후속으로 요약됨.
 
 ---
@@ -168,7 +177,7 @@
 
 - **스토어**: `useTierStore`에 `**persist`(sessionStorage, `pickty-tier-board`)** — `tiers`·`pool`·`templateId`·`tierAutoSaveIntent`·자동 저장용 제목/설명 메타. `beginTierAutoSaveFlow` / `clearTierAutoSaveIntent` · 초기화 시 썸네일 스태시도 정리(`tier-autosave-thumbnail`).
 - **썸네일**: 비로그인은 업로드 불가 → 모달 **미리보기 blob URL**을 Data URL로 `**sessionStorage`**(`pickty-tier-autosave-thumb-dataurl`)에 두고, `**runPersistedTierAutoSave**` 안에서 토큰으로 업로드 후 `createTierResult.thumbnailUrl` 설정(`thumbnailUrl: null`이면 백엔드가 첫 아이템 등 폴백).
-- **라우팅**: `resolvePostOAuthTierFlow` — intent 있을 때 **PENDING** → `/signup/profile`만(API 저장 안 함) · **ACTIVE** → 즉시 저장·결과 페이지 · 실패 시 intent·스태시 정리 후 기본 `returnTo` 경로 + 토스트(로그인 페이지 등).
+- **라우팅**: `resolvePostOAuthTierFlow` — intent 있을 때 **PENDING** → `/signup/profile`만(API 저장 안 함) · **ACTIVE** → 즉시 저장·`**/tier/result/[id]**` · 실패 시 intent·스태시 정리 후 기본 `returnTo` 경로 + 토스트(로그인 페이지 등).
 - **온보딩**: `signup/profile` 제출 성공 직후 intent 있으면 **온보딩 PATCH 다음** `runPersistedTierAutoSave` → 성공 시 `**/tier/result/[id]`**, 아니면 `/account`.
 - **템플릿 재진입**: `tier-page-client` — persist 하이드 후 `**tierAutoSaveIntent` + URL `templateId` === 스토어 `templateId`** 이면 `**getTemplate`/`loadTemplateWorkspace` 생략**(로컬 이어쓰기).
 - **하이드레이션**: `use-tier-persist-hydrated` — 템플릿 로드 effect가 persist 복원 전에 도는 것 방지.
@@ -193,7 +202,7 @@
   - **사유**: 초기 유저 데이터로 **어떤 주제의 티어표가 많이 올라오는지** 관찰한 뒤, **1-depth 카테고리**가 맞을지 **해시태그(Tag) 다대다**가 맞을지 **추후 결정**. 필요 시점의 **데이터 마이그레이션은 충분히 수행 가능**하다는 전제.
 - **P3 커뮤니티 게시판·리치 에디터 (착수 전 기획 확정, 2026-03-30)**  
   - **에디터 스택**: **TipTap** 도입 예정 — React 컴포넌트 삽입·커스텀이 용이한 쪽으로 정함.  
-  - **핵심 요구 기능**: (1) 본문에 **픽티 템플릿/결과표 URL**을 넣으면 **미리보기 카드(Link Card)** 로 렌더되거나, **모달에서 내 결과표 불러오기** 등으로 카드 삽입. (2) **유튜브 URL 붙여넣기 시 iframe 자동 임베드(재생)**.  
+  - **핵심 요구 기능**: (1) 본문에 **픽티 템플릿·티어표 URL**을 넣으면 **미리보기 카드(Link Card)** 로 렌더되거나, **모달에서 내 티어표 불러오기** 등으로 카드 삽입. (2) **유튜브 URL 붙여넣기 시 iframe 자동 임베드(재생)**.  
   - **착수 시점**: **P2 커뮤니티**(반응·댓글·조회수·인기 슬라이더 등)가 **100% 완료된 뒤** P3로 착수.
 - **댓글 멘션(@)·익명 네이밍·알림 (정책 확정, 2026-03-30)**  
   - **익명 표시**: 현행 **`익명 (IP 앞 두 마디)`** 유지 — UGC 커뮤니티에서 **최소한의 식별성**을 주는 방향.  
@@ -220,7 +229,7 @@
 
 - **지표 (조회수·평가 분리)**  
   - **템플릿**: **좋아요(Like)** 단일 버튼.  
-  - **개별 결과 티어표**: **추천/비추천(Up/Downvote)**.  
+  - **개별 티어표** (`tier_results`): **추천/비추천(Up/Downvote)**.  
   - **조회수**: 실시간 DB 갱신 대신 Valkey에 모았다가 **주기적 배치(Batch)** 로 DB 반영.
 - **댓글 (모바일·익명)**  
   - **뎁스·멘션**: 무한 계단형 대신 **1-depth** + **`@닉네임` 또는 `@익명(IP)`** 입력창 자동 삽입 (유튜브/인스타류 UX) — **1차 구현** 범위. 상세·알림 로드맵은 위 **「기획 요약」** 「댓글 멘션·익명·알림」절.  
@@ -228,12 +237,12 @@
   - **비회원**: 작성 허용 — **닉네임 + 짧은 비밀번호 + IP 해시** 저장으로 관리.  
   - **글로벌 알림(🔔)**: 멘션 즉시 알림은 **보류** — Phase 4~5에서 회원 알림 우선·비회원(localStorage) 순차 확장(위 「기획 요약」 참고).
 - **통계·전시 (참여 유도)**  
-  - **평균 티어표**: 다수 유저 배치를 취합해 “사람들은 주로 어디에 뒀을까?”를 보여주는 **집계 티어표**.  
-  - **인기(대표) 티어표**: 추천 상위 **Top 1~3** 결과를 템플릿 하단·댓글 상단 **가로 슬라이더**로 고정 노출.
+  - **평균 티어표**: 다수 유저 배치를 취합해 “사람들은 주로 어디에 뒀을까?”를 보여주는 **집계 티어표**(미구현).  
+  - **인기(대표) 티어표**: 추천 상위 **Top 1~3** 티어표를 템플릿 하단 **가로 슬라이더**로 노출 — **구현됨 (2026-03-31)** · `popular-tier-results.tsx` · 댓글 상단 배치는 미적용.
 
 ### Phase 3 — 구현
 
-- 티어 템플릿·이미지·결과·프론트(R2)
+- 티어 템플릿·이미지·`tiers/results`·프론트(R2)
 - World Cup — **최후순위**(스트리머보다 뒤)
 - 스트리머 모드 — **최후순위**(월드컵보다 앞)
 
@@ -256,12 +265,12 @@
 - **완료** — (2026-03-29) 텍스트·JSONB·PATCH·`export-modal`·이미지 `accept`·Bean Validation·`GlobalExceptionHandler` 정합. (2026-03-30) **이미지 업로드 8MB 통일**(Nginx·Spring·Tomcat)·순차 단일 파일 POST 문서화·UI 안내·413 메시지.
 
 **P0 다음 (코어 티어·제품)**  
-1. ~~결과 **제목·설명** 수정~~ → **완료 (2026-03-28)** — `/tier/my`·`/tier/result/[id]`·`/tier/feed` + PATCH API. (**썸네일만** 별도 수정 UI는 미구현 시 선택 과제.)  
-2. **템플릿 역할·용어 정리** — **(2026-03-30)** `PROGRESS.md` 「제품 용어」·DB **`template_status`** 반영·권한·삭제 템플릿 파생/결과 차단 점검 완료. **남음**: UI·문서 전반 라벨 통일, **비공개 템플릿** 등 공개 범위 제품 스펙 확정·구현(보관본 `progress/PROGRESS_20260327.md` 「다음 작업 예정」1번).  
+1. ~~티어표 **제목·설명** 수정~~ → **완료 (2026-03-28)** — `/tier/my`·`/tier/result/[id]`·`/tier/feed` + PATCH API. (**썸네일만** 별도 수정 UI는 미구현 시 선택 과제.)  
+2. **템플릿 역할·용어** — **(2026-03-30)** `PROGRESS.md` 「제품 용어」·DB **`template_status`**·권한·삭제 템플릿 파생·**`tier_results` 저장** 차단 **반영 완료**. **공개 목록에서 빼기**: 템플릿은 별도 비공개 토글 없이 **`DELETED` 소프트 삭제** 한 가지(유저에게는 삭제 UX); **`GET /templates/mine`도 `ACTIVE`만**이라 삭제된 템플릿은 **본인 목록에서도 숨김**. **`tier_results`** 는 `is_public` + 소프트 삭제가 별도(삭제 후에도 링크 접근 등은 해당 API·화면 정책 따름). **남음(선택)**: UI·도움말만 더 다듬기, **삭제 템플릿을 본인에게만 보이게(휴지통)** 할지 등 제품 결정.  
 3. ~~**이미지 인프라(서버·CDN) 1차**~~ — **완료 (2026-03-31)** — API 이미지 프록시 **장기 캐시 헤더** · Next **`remotePatterns`**(`img.pickty.app` 등) 유지 + **`minimumCacheTTL` 1년** · 배포 체크리스트 **CF R2/CDN 가이드** · **(2026-03-30)** CF 대시보드 Cache Rule + **`curl` MISS→HIT** 운영 검증(아래 「배포·운영」). **Soft Launch 이후 선택**: R2 객체 메타 캐시·**파생 해상도**(썸네일 전용)·CF Images — 당장 필수 아님(프론트 WebP + CDN·브라우저 캐시로 1차 충분).
 
 **그다음**  
-4. **P2 커뮤니티** — **(2026-03-30) 1차 완료** + **동일일** 목록·상세 **`myReaction`**·비회원 `localStorage`로 **반응 하이라이트 영속**. **남음**: 집계 티어·인기 결과 슬라이더·조회수(Valkey 배치) 등 「커뮤니티 확장」절 나머지.  
+4. **P2 커뮤니티** — **(2026-03-30) 1차 완료** + **동일일** 목록·상세 **`myReaction`**·비회원 `localStorage`로 **반응 하이라이트 영속** · **(2026-03-31) 인기 티어표 Top3 슬라이더**(`/tier`). **남음**: **집계 티어표**·**조회수**(Valkey 배치) 등 「커뮤니티 확장」절 나머지.  
 5. **배포·운영** 지속 점검(`DEPLOYMENT-CHECKLIST`) · **Phase 5 Ops**(헬스 알림·Docker 재시작 정책 등 — MVP 이후 병행 가능).
 
 **최후순위 축 (순서 고정)**  
@@ -311,9 +320,9 @@
 | `frontend/src/app/templates/mine/page.tsx`, `frontend/src/components/template/template-card.tsx` | **내 템플릿** 목록·카드 공통 컴포넌트                                   |
 | `frontend/src/app/tier/feed/page.tsx`                                                  | 글로벌 피드·무한 스크롤                                                |
 | `frontend/src/components/tier/tier-result-card.tsx`                                    | 내 티어표·피드 공통 카드(수정/삭제/리믹스 권한)                                |
-| `frontend/src/components/tier/tier-result-edit-meta-modal.tsx` 등                      | 결과 메타 PATCH 모달·삭제 확인                                           |
-| `backend/.../domain/tier/TierResultController.kt` 등                                   | 결과 POST/GET/PATCH/DELETE·**GET 페이징 목록**·`SecurityUtils`·`SecurityConfig` |
-| `backend/.../domain/tier/`, `upload/`                                                  | 템플릿·결과·R2·`ImageUploadController`                          |
+| `frontend/src/components/tier/tier-result-edit-meta-modal.tsx` 등                      | 티어표 메타 PATCH 모달·삭제 확인                                           |
+| `backend/.../domain/tier/TierResultController.kt` 등                                   | `tiers/results` POST/GET/PATCH/DELETE·**GET 페이징 목록**·`SecurityUtils`·`SecurityConfig` |
+| `backend/.../domain/tier/`, `upload/`                                                  | 템플릿·`tier_results`·R2·`ImageUploadController`                          |
 | `backend/.../domain/community/`, `frontend/src/lib/api/community-api.ts`, `frontend/src/components/community/` | P2 반응·댓글 API·UI |
 | `backend/.../community/CommunityMyReactionService.kt`, `frontend/src/lib/store/reaction-store.ts` | 로그인 **`myReaction`** bulk · 비회원 반응 **`localStorage`** |
 

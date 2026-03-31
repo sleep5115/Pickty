@@ -18,6 +18,8 @@ pickty-config/
 # ========================
 # Frontend (Next.js)
 # ========================
+# 루트에 package.json 없이 npm 이 생긴 lockfile만 두면 Next Turbopack 이 워크스페이스 루트를 잘못 잡음
+/package-lock.json
 **/node_modules/
 **/.next/
 **/out/

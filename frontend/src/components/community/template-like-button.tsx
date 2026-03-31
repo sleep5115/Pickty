@@ -116,6 +116,13 @@ export function TemplateLikeButton({
 
   const locked = !surfaceInteractive;
   const isPlain = appearance === 'plain';
+  const canInteract = !locked && !busy && templateId;
+
+  /** 박스형 — 비선택은 옅은 핑크 테두리·배경, 선택 시 진한 테두리 + 핑크 글로우 (추천/비추천 lg와 동일 패턴) */
+  const boxedIdle =
+    'border-pink-200 bg-pink-50 text-pink-800 dark:border-pink-800 dark:bg-pink-950/35 dark:text-pink-200';
+  const boxedLit =
+    'border-pink-500 bg-pink-50 text-pink-800 shadow-[0_0_0_1px_rgb(236,72,153),0_0_16px_5px_rgba(236,72,153,0.45)] dark:border-pink-400 dark:bg-pink-950/45 dark:text-pink-100 dark:shadow-[0_0_0_1px_rgb(244,114,182),0_0_18px_6px_rgba(244,114,182,0.4)]';
 
   return (
     <button
@@ -128,27 +135,24 @@ export function TemplateLikeButton({
       title={locked ? '티어 만들기 화면에서만 좋아요할 수 있어요' : undefined}
       className={[
         'inline-flex items-center gap-1.5 text-xs font-medium tabular-nums transition-colors disabled:cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500/35 focus-visible:ring-offset-1 focus-visible:ring-offset-white dark:focus-visible:ring-offset-zinc-900',
+        !isPlain ? 'transition-shadow duration-200' : '',
         isPlain
           ? [
               'border-0 bg-transparent px-0 py-0.5 rounded-sm',
-              liked
-                ? 'text-pink-600 dark:text-pink-400'
-                : 'text-slate-600 dark:text-zinc-400',
-              !locked && !busy && templateId
+              'text-pink-600 dark:text-pink-400',
+              canInteract
                 ? liked
-                  ? 'cursor-pointer hover:opacity-90'
-                  : 'cursor-pointer hover:text-pink-600 dark:hover:text-pink-400'
+                  ? 'cursor-pointer hover:opacity-95'
+                  : 'cursor-pointer hover:text-pink-700 dark:hover:text-pink-300'
                 : '',
             ].join(' ')
           : [
               'rounded-lg border px-2.5 py-1.5',
-              liked
-                ? 'border-pink-500 bg-pink-50 text-pink-800 dark:border-pink-600 dark:bg-pink-950/40 dark:text-pink-200'
-                : 'border-slate-200 text-slate-600 dark:border-zinc-600 dark:text-zinc-300',
-              !locked && !busy && templateId
+              liked ? boxedLit : boxedIdle,
+              canInteract
                 ? liked
-                  ? 'cursor-pointer hover:opacity-90'
-                  : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800'
+                  ? 'cursor-pointer hover:opacity-95'
+                  : 'cursor-pointer hover:border-pink-300 hover:bg-pink-100/90 dark:hover:border-pink-600 dark:hover:bg-pink-950/50'
                 : '',
             ].join(' '),
         busy ? 'opacity-60' : '',
