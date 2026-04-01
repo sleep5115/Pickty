@@ -67,6 +67,17 @@
 - **`tier-capture-png`**: 클론에서 `data-capture-ignore` 노드 제거 후 `[data-tier-board-surface]` 풀블리드 — 다운로드·저장 썸네일에서 크롬 열 제외·빈 띠 방지.
 - **`TierRow`**: 템플릿 미리보기용 ⚙·핸들 placeholder에도 `data-capture-ignore`.
 - **백엔드** `TierResult.kt` KDoc — `snapshotData`에 `workspaceBoardSurface` 선택 키 명시.
+- **`/template/new` 도화지** **(2026-04-01)**: 표배경 점선 영역 — 빈 상태 시 중앙 힌트(이미지 업로드), 우측 상단 노션형 플로팅 도구(`배경색` / 적용 후 `배경 변경`·`배경색`·`지우기`). `workspaceBoardSurface.backgroundColor`·`backgroundUrl`과 연동.
+
+---
+
+## 진행 메모 **(2026-04-02)**
+
+- **`/template/new` 도화지**: `배경색` → 티어 설정과 동일 **`TIER_COLOR_PRESETS`** 팔레트 먼저, **`+`** 에서만 시스템 색 창(스포이드 등). 프리셋은 **`frontend/src/lib/tier-color-presets.ts`** 공유.
+- **티어 설정 모달**: **누끼 뒤 매트** 체크박스·긴 설명 제거 — 라벨 이미지 있을 때 적용은 항상 `paintLabelColorUnderImage: true`로 단순화.
+- **티어 설정 모달**: 라벨 배경 팔레트 맨 앞 **「없음」**(점선·`−`) — `showLabelColor: false`로 표배경만 비침.
+- **티어 설정 모달**: 라벨 이미지 업로드 **압축·시간 안내** 문구(`PICKTY_IMAGE_UPLOAD_HINT`) 제거.
+- **티어 설정 모달**: 라벨 미리보기(헤더·스와치·입력 옆)는 **실제 표배경 미사용** — 중립 회색(`MODAL_LABEL_PREVIEW_BG_CLASS`). 작은 박스에 보드 이미지 cover 시 본문·라벨 누끼가 겹쳐 보이던 문제 해소.
 
 ---
 

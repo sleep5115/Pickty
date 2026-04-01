@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import {
   DndContext,
   DragEndEvent,
@@ -11,7 +11,7 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ImagePlus, Plus } from 'lucide-react';
+import { Image as ImageIcon, ImagePlus, Palette, Plus, Trash2 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { type Tier, type TierItem, useTierStore } from '@/lib/store/tier-store';
 import { uploadPicktyImages } from '@/lib/image-upload-api';
@@ -21,6 +21,7 @@ import {
   type TemplateBoardSurface,
 } from '@/lib/template-board-config';
 import { PICKTY_IMAGE_ACCEPT } from '@/lib/pickty-image-accept';
+import { TIER_COLOR_PRESETS } from '@/lib/tier-color-presets';
 import {
   getTierLabelSolidCellStyle,
   getTierLabelTextStyle,
@@ -287,13 +288,21 @@ export function TemplateBoardCanvasEditor({
   const setWorkspaceBoardSurface = useTierStore((s) => s.setWorkspaceBoardSurface);
 
   const boardInputRef = useRef<HTMLInputElement>(null);
+  const boardColorInputRef = useRef<HTMLInputElement>(null);
+  const boardBgPaletteWrapRef = useRef<HTMLDivElement>(null);
   const boardInputId = useId();
   const [boardBusy, setBoardBusy] = useState(false);
   const [boardErr, setBoardErr] = useState<string | null>(null);
+  const [boardBgPaletteOpen, setBoardBgPaletteOpen] = useState(false);
 
   const bu = workspaceBoardSurface?.backgroundUrl?.trim();
   const bc = workspaceBoardSurface?.backgroundColor?.trim();
   const hasBoardImage = Boolean(bu);
+  const hasBoardColor = Boolean(bc);
+  const hasBoardVisual = hasBoardImage || hasBoardColor;
+  const isEmptyBoardSurface = !hasBoardVisual;
+  const colorInputValue =
+    bc && /^#[0-9A-Fa-f]{6}$/.test(bc.trim()) ? bc.trim() : '#f1f5f9';
 
   const surfaceStyle: React.CSSProperties = {};
   if (bc) surfaceStyle.backgroundColor = bc;
@@ -333,12 +342,41 @@ export function TemplateBoardCanvasEditor({
     }
   };
 
-  const clearBoardImage = useCallback(() => {
-    const prev = useTierStore.getState().workspaceBoardSurface;
-    if (!prev) return;
-    const color = prev.backgroundColor?.trim();
-    setWorkspaceBoardSurface(color ? { backgroundColor: color } : null);
+  const clearBoardSurface = useCallback(() => {
+    setWorkspaceBoardSurface(null);
   }, [setWorkspaceBoardSurface]);
+
+  const applyBoardBackgroundColor = useCallback(
+    (hex: string) => {
+      const t = hex.trim();
+      if (!/^#[0-9A-Fa-f]{6}$/.test(t)) return;
+      setWorkspaceBoardSurface(
+        mergeBoardSurface(useTierStore.getState().workspaceBoardSurface, {
+          backgroundColor: t,
+        }),
+      );
+    },
+    [setWorkspaceBoardSurface],
+  );
+
+  useEffect(() => {
+    if (!boardBgPaletteOpen) return;
+    const onDocMouseDown = (e: MouseEvent) => {
+      const el = boardBgPaletteWrapRef.current;
+      if (el && !el.contains(e.target as Node)) {
+        setBoardBgPaletteOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setBoardBgPaletteOpen(false);
+    };
+    document.addEventListener('mousedown', onDocMouseDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocMouseDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [boardBgPaletteOpen]);
 
   const onResetDefaults = () => {
     initTemplateBoardEditor(createDefaultTemplateBoardConfig({ revealLabelColors: true }));
@@ -357,7 +395,8 @@ export function TemplateBoardCanvasEditor({
           도화지
         </h2>
         <p className="mt-0.5 text-xs text-slate-500 dark:text-zinc-500">
-          가운데 영역을 눌러 표 배경 · 행마다 아이콘으로 행 배경을 올릴 수 있어요.
+          가운데 영역을 눌러 표배경 이미지를 올리거나, 우측 상단에서 배경색을 고를 수 있어요. 행마다 아이콘으로
+          라벨배경을 올릴 수 있어요.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <button
@@ -381,28 +420,192 @@ export function TemplateBoardCanvasEditor({
             className="pointer-events-none absolute left-0 right-16 top-0 bottom-[3.25rem] z-[10] overflow-hidden rounded-xl"
             style={surfaceStyle}
           >
-            {!hasBoardImage && !bc ? (
+            {!hasBoardVisual ? (
               <div className="absolute inset-0 bg-slate-50/80 dark:bg-zinc-900/50" />
             ) : null}
           </div>
 
-          {/* 클릭 타깃: z-20. 행 레이어(z-30)가 pointer-events-none 이라 가운데는 여기로 이벤트가 내려옴 */}
-          {boardBusy || !accessToken ? (
+          {/* 표 영역 우측 상단 — 노션 스타일 플로팅 도구 (pointer-events-auto) */}
+          {!boardBusy ? (
             <div
-              className="absolute left-0 right-16 top-0 bottom-[3.25rem] z-[20] cursor-not-allowed rounded-xl bg-transparent"
+              className="pointer-events-none absolute left-0 right-16 top-0 bottom-[3.25rem] z-[40]"
+              aria-label="표 배경 도구"
+            >
+              <div
+                className={[
+                  'pointer-events-auto absolute top-2 right-2 flex max-w-[min(100%,18rem)] flex-wrap items-center justify-end gap-0.5 rounded-xl border px-1 py-1 shadow-md backdrop-blur-md',
+                  'border-slate-200/90 bg-white/90 dark:border-zinc-600/90 dark:bg-zinc-900/90',
+                ].join(' ')}
+                onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                {hasBoardVisual ? (
+                  <>
+                    <button
+                      type="button"
+                      disabled={!accessToken}
+                      title={accessToken ? '표 배경 이미지 바꾸기' : '로그인 후 이미지 업로드'}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (accessToken) boardInputRef.current?.click();
+                      }}
+                      className={[
+                        'inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[0.7rem] font-medium transition-colors',
+                        accessToken
+                          ? 'text-slate-700 hover:bg-slate-100 dark:text-zinc-200 dark:hover:bg-zinc-800'
+                          : 'cursor-not-allowed text-slate-400 dark:text-zinc-600',
+                      ].join(' ')}
+                    >
+                      <ImageIcon className="h-3.5 w-3.5 shrink-0 opacity-90" strokeWidth={2} aria-hidden />
+                      배경 변경
+                    </button>
+                    <span
+                      className="mx-0.5 h-3 w-px shrink-0 bg-slate-200 dark:bg-zinc-600"
+                      aria-hidden
+                    />
+                  </>
+                ) : null}
+                <div ref={boardBgPaletteWrapRef} className="relative">
+                  <button
+                    type="button"
+                    title="표 배경 색상"
+                    aria-expanded={boardBgPaletteOpen}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setBoardBgPaletteOpen((v) => !v);
+                    }}
+                    className={[
+                      'inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[0.7rem] font-medium transition-colors',
+                      boardBgPaletteOpen
+                        ? 'bg-slate-200 text-slate-900 dark:bg-zinc-700 dark:text-zinc-50'
+                        : 'text-slate-700 hover:bg-slate-100 dark:text-zinc-200 dark:hover:bg-zinc-800',
+                    ].join(' ')}
+                  >
+                    <Palette className="h-3.5 w-3.5 shrink-0 opacity-90" strokeWidth={2} aria-hidden />
+                    배경색
+                  </button>
+                  {boardBgPaletteOpen ? (
+                    <div
+                      role="dialog"
+                      aria-label="표 배경 색 팔레트"
+                      className="absolute top-full right-0 z-[50] mt-1.5 min-w-[11rem] max-w-[15rem] rounded-xl border border-slate-200/95 bg-white/98 p-2.5 shadow-xl backdrop-blur-md dark:border-zinc-600 dark:bg-zinc-900/98"
+                      onClick={(e) => e.stopPropagation()}
+                      onPointerDown={(e) => e.stopPropagation()}
+                    >
+                      <p className="mb-2 text-[0.65rem] font-medium uppercase tracking-wider text-slate-500 dark:text-zinc-500">
+                        팔레트
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {TIER_COLOR_PRESETS.map((preset) => {
+                          const active =
+                            Boolean(bc) && preset.toLowerCase() === (bc as string).toLowerCase();
+                          return (
+                            <button
+                              type="button"
+                              key={preset}
+                              title={preset}
+                              onClick={() => applyBoardBackgroundColor(preset)}
+                              className={[
+                                'h-7 w-7 rounded-full transition-all duration-100',
+                                'border-2 hover:scale-110 active:scale-95',
+                                active
+                                  ? 'scale-110 border-slate-900 shadow-lg dark:border-white'
+                                  : 'border-transparent hover:border-black/20 dark:hover:border-white/40',
+                              ].join(' ')}
+                              style={{ backgroundColor: preset }}
+                            />
+                          );
+                        })}
+                        <label
+                          className="relative flex h-7 w-7 cursor-pointer items-center justify-center overflow-hidden rounded-full border-2 border-slate-400 transition-colors hover:border-slate-600 dark:border-zinc-600 dark:hover:border-zinc-400"
+                          title="직접 선택 · 스포이드(브라우저 지원 시)"
+                        >
+                          <input
+                            ref={boardColorInputRef}
+                            type="color"
+                            value={colorInputValue}
+                            onChange={(e) => applyBoardBackgroundColor(e.target.value)}
+                            className="absolute h-0 w-0 opacity-0"
+                            aria-label="표 배경 직접 색 선택"
+                          />
+                          <span className="pointer-events-none text-xs text-slate-500 dark:text-zinc-400">
+                            +
+                          </span>
+                        </label>
+                      </div>
+                      <p className="mt-2 text-[0.6rem] leading-snug text-slate-400 dark:text-zinc-500">
+                        + 를 누르면 시스템 색 창(스포이드 등)이 열려요
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+                {hasBoardVisual ? (
+                  <>
+                    <span
+                      className="mx-0.5 h-3 w-px shrink-0 bg-slate-200 dark:bg-zinc-600"
+                      aria-hidden
+                    />
+                    <button
+                      type="button"
+                      title="표 배경(이미지·색) 모두 지우기"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        clearBoardSurface();
+                      }}
+                      className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[0.7rem] font-medium text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 shrink-0 opacity-90" strokeWidth={2} aria-hidden />
+                      지우기
+                    </button>
+                  </>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
+          {/* 클릭 타깃: z-20. 행 레이어(z-30)가 pointer-events-none 이라 가운데는 여기로 이벤트가 내려옴. 플로팅(z-40) 아래는 비어 있어야 함 → z-25 */}
+          {boardBusy ? (
+            <div
+              className="absolute left-0 right-16 top-0 bottom-[3.25rem] z-[25] cursor-wait rounded-xl bg-transparent"
               aria-hidden
             />
+          ) : !accessToken ? (
+            <div
+              className={[
+                'absolute left-0 right-16 top-0 bottom-[3.25rem] z-[25] flex cursor-default flex-col items-center justify-center rounded-xl px-4 text-center transition-colors',
+                isEmptyBoardSurface
+                  ? 'border-2 border-dashed border-slate-300/90 dark:border-zinc-600'
+                  : 'border-2 border-transparent',
+              ].join(' ')}
+              aria-hidden={!isEmptyBoardSurface}
+            >
+              {isEmptyBoardSurface ? (
+                <span className="pointer-events-none flex max-w-[16rem] flex-col items-center gap-2 text-slate-400 dark:text-zinc-500">
+                  <ImageIcon className="h-8 w-8 opacity-70" strokeWidth={1.5} aria-hidden />
+                  <span className="text-sm font-medium leading-snug">표 배경 이미지 업로드</span>
+                  <span className="text-xs font-normal text-slate-400/90 dark:text-zinc-600">
+                    로그인 후 이용할 수 있어요
+                  </span>
+                </span>
+              ) : null}
+            </div>
           ) : (
             <label
               htmlFor={boardInputId}
               className={[
-                'absolute left-0 right-16 top-0 bottom-[3.25rem] z-[20] flex cursor-pointer rounded-xl transition-colors',
-                hasBoardImage
-                  ? 'bg-transparent hover:bg-black/[0.04] dark:hover:bg-white/[0.05]'
+                'absolute left-0 right-16 top-0 bottom-[3.25rem] z-[25] flex cursor-pointer items-center justify-center rounded-xl transition-colors',
+                hasBoardVisual
+                  ? 'border-2 border-transparent bg-transparent hover:bg-black/[0.04] dark:hover:bg-white/[0.05]'
                   : 'border-2 border-dashed border-slate-300/90 bg-transparent hover:border-violet-400/80 dark:border-zinc-600 dark:hover:border-violet-500/70',
               ].join(' ')}
             >
               <span className="sr-only">표 전체 배경 이미지 업로드</span>
+              {isEmptyBoardSurface ? (
+                <span className="pointer-events-none flex flex-col items-center gap-2 text-slate-400/90 dark:text-zinc-500">
+                  <ImageIcon className="h-8 w-8 opacity-70" strokeWidth={1.5} aria-hidden />
+                  <span className="text-sm font-medium">표 배경 이미지 업로드</span>
+                </span>
+              ) : null}
             </label>
           )}
 
@@ -444,28 +647,6 @@ export function TemplateBoardCanvasEditor({
             )}
           </div>
         </div>
-
-        {hasBoardImage ? (
-          <div className="relative z-20 mt-3 flex flex-wrap justify-center gap-2">
-            <button
-              type="button"
-              disabled={boardBusy || !accessToken}
-              onClick={() => boardInputRef.current?.click()}
-              className="text-xs font-medium text-violet-600 hover:underline dark:text-violet-400"
-            >
-              표 배경 바꾸기
-            </button>
-            <span className="text-xs text-slate-300 dark:text-zinc-600">·</span>
-            <button
-              type="button"
-              disabled={boardBusy}
-              onClick={clearBoardImage}
-              className="text-xs font-medium text-red-600 hover:underline dark:text-red-400"
-            >
-              표 배경 삭제
-            </button>
-          </div>
-        ) : null}
 
         {boardErr ? (
           <p className="relative z-20 mt-2 text-center text-xs text-red-600 dark:text-red-400">

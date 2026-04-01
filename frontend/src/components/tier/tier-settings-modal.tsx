@@ -2,20 +2,19 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { Minus } from 'lucide-react';
 import { Tier, useTierStore } from '@/lib/store/tier-store';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { uploadPicktyImages } from '@/lib/image-upload-api';
 import {
-  buildWorkspaceBoardSurfaceStyle,
   contrastTextForHex,
   shouldResetPaintMatWhenAddingFirstLabelImage,
   tierHasBackgroundImage,
-  workspaceBoardSurfaceIsVisual,
 } from '@/lib/tier-label-surface';
 import { TierLabelCellView } from '@/components/tier/tier-label-cell-view';
 import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
 import { PICKTY_IMAGE_ACCEPT } from '@/lib/pickty-image-accept';
-import { PICKTY_IMAGE_UPLOAD_HINT } from '@/lib/pickty-upload-hint';
+import { TIER_COLOR_PRESETS } from '@/lib/tier-color-presets';
 
 /** 한글/CJK 포함 시 최대 3자, 영어·숫자만이면 최대 5자 */
 function isWithinLabelLimit(s: string): boolean {
@@ -23,32 +22,13 @@ function isWithinLabelLimit(s: string): boolean {
   return s.length <= (hasCJK ? 3 : 5);
 }
 
-/** 배경·글자 색 공용 팔레트 */
-const COLOR_PRESETS = [
-  '#FF7F7F',
-  '#FFBF7F',
-  '#FFDF7F',
-  '#BFFF7F',
-  '#7FFF7F',
-  '#7FFFFF',
-  '#7FBFFF',
-  '#BF7FFF',
-  '#FF7FBF',
-  '#FF4444',
-  '#FFAA00',
-  '#44DD44',
-  '#16a34a',
-  '#2563eb',
-  '#7c3aed',
-  '#FFFFFF',
-  '#f9fafb',
-  '#AAAAAA',
-  '#555555',
-  '#111827',
-  '#000000',
-];
-
 const HEX6 = /^#[0-9A-Fa-f]{6}$/;
+
+/**
+ * 모달 안 라벨 미리보기 박스 배경 — 실제 표배경(`workspaceBoardSurface`)을 쓰지 않음.
+ * 작은 영역에 보드 배경 이미지를 cover로 넣으면 본문 캐릭터가 축소돼 라벨 이미지와 겹쳐 보임.
+ */
+const MODAL_LABEL_PREVIEW_BG_CLASS = 'bg-slate-200 dark:bg-zinc-700';
 
 /** 저장된 글자색이 없을 때 모달 초기값(한 번 고르면 그대로 저장됨) */
 function initialLabelTextColor(tier: Tier): string {
@@ -66,7 +46,6 @@ interface TierSettingsModalProps {
 export function TierSettingsModal({ tier, onClose }: TierSettingsModalProps) {
   const accessToken = useAuthStore((s) => s.accessToken);
   const { updateTier, addTierRow, deleteTierRow, clearTierRow } = useTierStore();
-  const workspaceBoardSurface = useTierStore((s) => s.workspaceBoardSurface);
   const [label, setLabel] = useState(tier.label);
   const [color, setColor] = useState(tier.color);
   const [textColor, setTextColor] = useState(() => initialLabelTextColor(tier));
@@ -74,24 +53,26 @@ export function TierSettingsModal({ tier, onClose }: TierSettingsModalProps) {
   const [colorEditTab, setColorEditTab] = useState<'background' | 'text'>('background');
   const [uploadBusy, setUploadBusy] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [paintMat, setPaintMat] = useState(() => tier.paintLabelColorUnderImage !== false);
+  /** false면 라벨 칸 단색/이미지 아래 매트 없음(표배경만) — 팔레트 첫 칸「없음」 */
+  const [showLabelSolid, setShowLabelSolid] = useState(() => tier.showLabelColor !== false);
   /** 같은 hex를 다시 고를 때(특히 첫 프리셋)에도 라벨 배경 켜짐을 반영하기 위함 */
   const [labelBgPaletteInteracted, setLabelBgPaletteInteracted] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const bgFileRef = useRef<HTMLInputElement>(null);
 
-  const previewShowsLabelFill =
-    tier.showLabelColor !== false ||
-    color !== tier.color ||
-    (tierHasBackgroundImage(tier) && paintMat) ||
-    labelBgPaletteInteracted;
+  const previewShowsLabelFill = showLabelSolid
+    ? tier.showLabelColor !== false ||
+      color !== tier.color ||
+      tierHasBackgroundImage(tier) ||
+      labelBgPaletteInteracted
+    : false;
 
   const previewTier: Tier = {
     ...tier,
     label,
     color,
     textColor,
-    paintLabelColorUnderImage: paintMat,
+    paintLabelColorUnderImage: tierHasBackgroundImage(tier) ? true : tier.paintLabelColorUnderImage,
     showLabelColor: previewShowsLabelFill,
   };
 
@@ -113,7 +94,7 @@ export function TierSettingsModal({ tier, onClose }: TierSettingsModalProps) {
     setLabel(tier.label);
     setColor(tier.color);
     setTextColor(initialLabelTextColor(tier));
-    setPaintMat(tier.paintLabelColorUnderImage !== false);
+    setShowLabelSolid(tier.showLabelColor !== false);
     setColorEditTab('background');
     setLabelBgPaletteInteracted(false);
   }, [tier.id]);
@@ -121,17 +102,18 @@ export function TierSettingsModal({ tier, onClose }: TierSettingsModalProps) {
   const handleApply = () => {
     const trimmed = label.trim();
     if (trimmed) {
-      const showLabelColor =
-        tier.showLabelColor !== false ||
-        color !== tier.color ||
-        (tierHasBackgroundImage(tier) && paintMat) ||
-        labelBgPaletteInteracted;
+      const showLabelColor = showLabelSolid
+        ? tier.showLabelColor !== false ||
+          color !== tier.color ||
+          tierHasBackgroundImage(tier) ||
+          labelBgPaletteInteracted
+        : false;
       updateTier(tier.id, {
         label: trimmed,
         color,
         textColor,
         showLabelColor,
-        paintLabelColorUnderImage: tierHasBackgroundImage(tier) ? paintMat : undefined,
+        paintLabelColorUnderImage: tierHasBackgroundImage(tier) ? true : undefined,
       });
     }
     onClose();
@@ -212,13 +194,8 @@ export function TierSettingsModal({ tier, onClose }: TierSettingsModalProps) {
             <div
               className={[
                 'relative h-5 w-5 shrink-0 overflow-hidden rounded-sm border border-black/10 dark:border-white/10',
-                !workspaceBoardSurfaceIsVisual(workspaceBoardSurface) ? 'bg-white dark:bg-zinc-900' : '',
+                MODAL_LABEL_PREVIEW_BG_CLASS,
               ].join(' ')}
-              style={
-                workspaceBoardSurfaceIsVisual(workspaceBoardSurface)
-                  ? buildWorkspaceBoardSurfaceStyle(workspaceBoardSurface)
-                  : undefined
-              }
             >
               <TierLabelCellView
                 tier={{ ...previewTier, label: label.slice(0, 1) || '?' }}
@@ -290,13 +267,8 @@ export function TierSettingsModal({ tier, onClose }: TierSettingsModalProps) {
               <div
                 className={[
                   'relative h-11 w-11 shrink-0 overflow-hidden rounded-lg border border-black/15 dark:border-white/15 shadow-inner',
-                  !workspaceBoardSurfaceIsVisual(workspaceBoardSurface) ? 'bg-white dark:bg-zinc-900' : '',
+                  MODAL_LABEL_PREVIEW_BG_CLASS,
                 ].join(' ')}
-                style={
-                  workspaceBoardSurfaceIsVisual(workspaceBoardSurface)
-                    ? buildWorkspaceBoardSurfaceStyle(workspaceBoardSurface)
-                    : undefined
-                }
                 aria-hidden
               >
                 <TierLabelCellView
@@ -333,15 +305,34 @@ export function TierSettingsModal({ tier, onClose }: TierSettingsModalProps) {
               팔레트
             </p>
             <div className="flex flex-wrap gap-2">
-              {COLOR_PRESETS.map((preset) => {
+              {colorEditTab === 'background' && (
+                <button
+                  type="button"
+                  title="라벨 배경 없음 (표배경만)"
+                  onClick={() => setShowLabelSolid(false)}
+                  className={[
+                    'flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-100',
+                    'border-dashed bg-slate-100/90 dark:bg-zinc-800/90',
+                    !showLabelSolid
+                      ? 'scale-110 border-slate-900 shadow-md dark:border-white'
+                      : 'border-slate-400 hover:border-slate-600 dark:border-zinc-600 dark:hover:border-zinc-400',
+                  ].join(' ')}
+                >
+                  <Minus className="h-3.5 w-3.5 text-slate-600 dark:text-zinc-400" strokeWidth={2.5} aria-hidden />
+                </button>
+              )}
+              {TIER_COLOR_PRESETS.map((preset) => {
                 const active =
-                  colorEditTab === 'text' && textColor === preset;
+                  colorEditTab === 'background'
+                    ? showLabelSolid && color.toLowerCase() === preset.toLowerCase()
+                    : colorEditTab === 'text' && textColor === preset;
                 return (
                   <button
                     type="button"
                     key={preset}
                     onClick={() => {
                       if (colorEditTab === 'background') {
+                        setShowLabelSolid(true);
                         setLabelBgPaletteInteracted(true);
                         setColor(preset);
                       } else {
@@ -369,6 +360,7 @@ export function TierSettingsModal({ tier, onClose }: TierSettingsModalProps) {
                   value={colorEditTab === 'background' ? color : textColor}
                   onChange={(e) => {
                     if (colorEditTab === 'background') {
+                      setShowLabelSolid(true);
                       setLabelBgPaletteInteracted(true);
                       setColor(e.target.value);
                     } else {
@@ -438,32 +430,8 @@ export function TierSettingsModal({ tier, onClose }: TierSettingsModalProps) {
                   로그인한 계정에서만 업로드할 수 있습니다.
                 </p>
               )}
-              {accessToken && (
-                <p className="text-xs text-slate-500 dark:text-zinc-500 leading-relaxed">
-                  {PICKTY_IMAGE_UPLOAD_HINT}
-                </p>
-              )}
               {uploadError && (
                 <p className="text-xs text-red-600 dark:text-red-400">{uploadError}</p>
-              )}
-              {tierHasBackgroundImage(tier) && (
-                <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-slate-200 px-3 py-2.5 dark:border-zinc-700">
-                  <input
-                    type="checkbox"
-                    checked={paintMat}
-                    onChange={(e) => setPaintMat(e.target.checked)}
-                    className="mt-0.5 rounded border-slate-300 dark:border-zinc-600"
-                  />
-                  <span className="text-xs leading-snug text-slate-600 dark:text-zinc-400">
-                    <span className="font-medium text-slate-800 dark:text-zinc-300">
-                      누끼 뒤에 라벨 배경색 깔기
-                    </span>
-                    <span className="mt-0.5 block text-slate-500 dark:text-zinc-500">
-                      기본은 켜 둠 — 라벨 팔레트 색이 이미지 아래(표 배경 위)에 깔립니다. 끄면 누끼 투명 구간에 표
-                      배경만 비칩니다.
-                    </span>
-                  </span>
-                </label>
               )}
             </div>
           </div>
@@ -474,13 +442,8 @@ export function TierSettingsModal({ tier, onClose }: TierSettingsModalProps) {
               <div
                 className={[
                   'relative h-8 w-8 shrink-0 overflow-hidden rounded border border-black/10 dark:border-white/10',
-                  !workspaceBoardSurfaceIsVisual(workspaceBoardSurface) ? 'bg-white dark:bg-zinc-900' : '',
+                  MODAL_LABEL_PREVIEW_BG_CLASS,
                 ].join(' ')}
-                style={
-                  workspaceBoardSurfaceIsVisual(workspaceBoardSurface)
-                    ? buildWorkspaceBoardSurfaceStyle(workspaceBoardSurface)
-                    : undefined
-                }
               >
                 <TierLabelCellView
                   tier={{ ...previewTier, label: label.slice(0, 2) || '?' }}
