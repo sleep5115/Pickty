@@ -188,6 +188,8 @@ interface TierState {
     pool: TierItem[];
     workspaceTemplateTitle?: string | null;
     workspaceTemplateDescription?: string | null;
+    /** 스냅샷에 없으면 null(구 저장본) */
+    workspaceBoardSurface?: TemplateBoardSurface | null;
   }) => void;
 
   setPreviewItem: (item: PicktyItem | null) => void;
@@ -362,8 +364,18 @@ export const useTierStore = create<TierState>()(
         pool,
         workspaceTemplateTitle,
         workspaceTemplateDescription,
+        workspaceBoardSurface: surfaceFromSnapshot,
       }) => {
         clearTierAutoSaveThumbnailStash();
+        const bc = surfaceFromSnapshot?.backgroundColor?.trim();
+        const bu = surfaceFromSnapshot?.backgroundUrl?.trim();
+        const workspaceBoardSurface =
+          bc || bu
+            ? {
+                ...(bc ? { backgroundColor: bc } : {}),
+                ...(bu ? { backgroundUrl: bu } : {}),
+              }
+            : null;
         set({
           templateId,
           workspaceTemplateTitle: workspaceTemplateTitle ?? null,
@@ -374,7 +386,7 @@ export const useTierStore = create<TierState>()(
           })),
           pool: pool.map((i) => ({ ...i })),
           templateBoardDefaults: null,
-          workspaceBoardSurface: null,
+          workspaceBoardSurface,
           selectedItemIds: [],
           targetTierId: null,
           previewItem: null,

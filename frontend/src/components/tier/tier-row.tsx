@@ -126,6 +126,7 @@ export function TierRow({
               'text-sm text-slate-300 dark:text-zinc-700 pointer-events-none select-none',
             ].join(' ')}
             aria-hidden
+            data-capture-ignore="true"
           >
             ⚙
           </span>
@@ -160,6 +161,7 @@ export function TierRow({
               'text-slate-300 dark:text-zinc-700 pointer-events-none select-none',
             ].join(' ')}
             aria-hidden
+            data-capture-ignore="true"
           >
             <DragHandleIcon />
           </span>

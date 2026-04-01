@@ -166,7 +166,11 @@ export function ExportModal({ captureRef, onClose }: ExportModalProps) {
       const uploaded = await uploadPicktyImages([file], accessToken);
       const thumbnailUrl = uploaded[0] ?? null;
 
-      const snapshot = buildTierSnapshot(tiers, pool);
+      const snapshot = buildTierSnapshot(
+        tiers,
+        pool,
+        useTierStore.getState().workspaceBoardSurface,
+      );
       const result = await createTierResult(
         {
           templateId: tid,

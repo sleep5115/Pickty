@@ -20,7 +20,7 @@ import java.util.UUID
 /**
  * 유저(또는 익명)의 티어 배치 스냅샷.
  * - isTemporary: 익명 제출 등 휘발성 — 추후 TTL/배치 삭제 대상
- * - snapshotData: `{ "schemaVersion": 1, "tiers": [...], "pool": [...] }`
+ * - snapshotData: `{ "schemaVersion": 1, "tiers": [...], "pool": [...], "workspaceBoardSurface"?: { ... } }`
  */
 @Entity
 @Table(name = "tier_results")

@@ -32,11 +32,8 @@ export const TierBoardReadonly = forwardRef<HTMLDivElement, TierBoardReadonlyPro
           {hasBoard ? (
             <div
               aria-hidden
-              className="pointer-events-none absolute bottom-0 left-0 top-0 z-0"
-              style={{
-                width: 'calc(100% - 4rem)',
-                ...boardStyle,
-              }}
+              className="pointer-events-none absolute inset-0 z-0"
+              style={boardStyle}
             />
           ) : null}
           <div className="relative z-[5]">
@@ -53,8 +50,6 @@ export const TierBoardReadonly = forwardRef<HTMLDivElement, TierBoardReadonlyPro
                     <StaticItemCard key={item.id} item={item} />
                   ))}
                 </div>
-                <div className="w-8 shrink-0 bg-transparent" aria-hidden />
-                <div className="w-8 shrink-0 bg-transparent" aria-hidden />
               </div>
             ))}
           </div>

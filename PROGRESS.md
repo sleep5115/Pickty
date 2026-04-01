@@ -44,6 +44,8 @@
 
 **계정 상태**와 구분: 유저는 **`users.account_status`** (`AccountStatus`), 템플릿은 **`template_status`** (`TemplateStatus`).
 
+- **배경 용어 (2026-04-01)** — 지금 도메인은 티어뿐이라 접두어 생략 가능. **라벨배경**: S/A/B **라벨 칸** 단색·이미지 등. **표배경**: 라벨열+아이템열이 있는 **표 본문** 뒤의 전체 배경(색·이미지). ⚙·행 순서 **핸들** 열은 UI 크롬이라 표배경·PNG·썸네일에 포함하지 않음.
+
 ---
 
 ## 진행 메모 **(2026-03-31)**
@@ -53,6 +55,18 @@
 - **좋아요 UI** (`**TemplateLikeButton**`): **`appearance="boxed"`** (`/tier` 헤더) — 연한 핑크 박스·선택 시 **테두리 글로우**(추천/비추천 `size="lg"`와 같은 패턴). **`plain`**(템플릿 목록 카드) — **글로우 없음**·항상 **핑크** 글자·테두리 없음(잠금 카드는 수치만).
 - **용어·문서**: `PROGRESS.md`에서 **결과/결과표**라는 별도 사용자 용어 안내 삭제 — 화면·카피는 **티어표**, 기술 구분은 **`tier_results`**·라우트 등으로 기술. **법무** — `TERMS_OF_SERVICE_KO.md`·`PRIVACY_POLICY_KO.md`에서 **결과표**·**결과물** 제거·**티어표** 등으로 정리. **커서룰** — `pickty-project-context.mdc` UGC 예시 문장을 **`tier_results`** 기준으로 수정.
 - **PROGRESS 동기화**: P2 표·「다음 작업」에 **인기 티어표 Top3** API·슬라이더 반영, 템플릿 **비공개** backlog를 **소프트 삭제·`mine` ACTIVE만** 등 실제 구현에 맞게 정리.
+
+---
+
+## 진행 메모 **(2026-04-01)**
+
+- **라벨배경·표배경** 사용자·문서 용어: 위 「제품 용어」 절 — ⚙·행 순서 핸들 열은 UI 크롬(표배경·PNG·썸네일에 넣지 않음).
+- **티어 결과 스냅샷** `workspaceBoardSurface` 선택 필드 — 저장·자동저장 시 포함, **`/tier/result`**·**리믹스**(`hydrateFromResultSnapshot`)에서 표배경 복원. **구 저장본**은 필드 없어 표배경 없을 수 있음.
+- **`TierBoardReadonly`**: 읽기 전용 행에서 ⚙·핸들용 빈 열 제거, 표배경 `inset` 전체(콘텐츠 너비만 존재).
+- **`/tier` `TierBoard`**: 표배경 레이어 `calc(100% - 4rem)` + `data-tier-board-surface` — 화면에서는 크롬 열에 표배경 미적용.
+- **`tier-capture-png`**: 클론에서 `data-capture-ignore` 노드 제거 후 `[data-tier-board-surface]` 풀블리드 — 다운로드·저장 썸네일에서 크롬 열 제외·빈 띠 방지.
+- **`TierRow`**: 템플릿 미리보기용 ⚙·핸들 placeholder에도 `data-capture-ignore`.
+- **백엔드** `TierResult.kt` KDoc — `snapshotData`에 `workspaceBoardSurface` 선택 키 명시.
 
 ---
 

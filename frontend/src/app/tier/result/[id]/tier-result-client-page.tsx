@@ -15,15 +15,9 @@ import { getTierResult, type TierResultStatus } from '@/lib/tier-api';
 import { apiFetch } from '@/lib/api-fetch';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { captureTierElementToPng, formatImageCaptureError } from '@/lib/tier-capture-png';
+import { parseSnapshotDataToBoard } from '@/lib/tier-snapshot';
+import type { TemplateBoardSurface } from '@/lib/template-board-config';
 import type { Tier, TierItem } from '@/lib/store/tier-store';
-
-function parseSnapshot(data: Record<string, unknown>): { tiers: Tier[]; pool: TierItem[] } | null {
-  if (data.schemaVersion !== 1) return null;
-  const tiers = data.tiers;
-  const pool = data.pool;
-  if (!Array.isArray(tiers) || !Array.isArray(pool)) return null;
-  return { tiers: tiers as Tier[], pool: pool as TierItem[] };
-}
 
 export function TierResultClientPage() {
   const params = useParams();
@@ -42,6 +36,7 @@ export function TierResultClientPage() {
   const [resultStatus, setResultStatus] = useState<TierResultStatus>('ACTIVE');
   const [tiers, setTiers] = useState<Tier[]>([]);
   const [pool, setPool] = useState<TierItem[]>([]);
+  const [boardSurface, setBoardSurface] = useState<TemplateBoardSurface | null>(null);
   const [downloadBusy, setDownloadBusy] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [me, setMe] = useState<{ id: number; role: string } | null>(null);
@@ -56,7 +51,7 @@ export function TierResultClientPage() {
   const reloadResult = useCallback(async () => {
     if (!id) return;
     const res = await getTierResult(id, accessToken ?? null);
-    const snap = parseSnapshot(res.snapshotData as Record<string, unknown>);
+    const snap = parseSnapshotDataToBoard(res.snapshotData as Record<string, unknown>);
     if (!snap) {
       setError('지원하지 않는 스냅샷 형식입니다.');
       throw new Error('unsupported snapshot');
@@ -73,6 +68,7 @@ export function TierResultClientPage() {
     setResultMyReaction(res.myReaction ?? null);
     setTiers(snap.tiers);
     setPool(snap.pool);
+    setBoardSurface(snap.workspaceBoardSurface);
   }, [id, accessToken]);
 
   useEffect(() => {
@@ -328,7 +324,12 @@ export function TierResultClientPage() {
         </p>
       )}
 
-      <TierBoardReadonly ref={captureRef} tiers={tiers} pool={pool} />
+      <TierBoardReadonly
+        ref={captureRef}
+        tiers={tiers}
+        pool={pool}
+        boardSurface={boardSurface}
+      />
 
       {!isResultDeleted && id ? (
         <div className="flex w-full justify-center py-5 sm:py-6">

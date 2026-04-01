@@ -197,7 +197,7 @@ export function TierBoard({
   }
 
   const hasBoardSurface = Boolean(bc || bu);
-  /** 캡처 영역 바탕 — 우측 레일(⚙·핸들)은 표 배경에서 제외되므로 항상 이 색으로 유지 */
+  /** 캡처 루트 바탕 — 표배경은 라벨·아이템 열만 덮고, ⚙·핸들 열은 이 색 유지 */
   const captureChromeClass = 'bg-white dark:bg-zinc-900';
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -248,6 +248,7 @@ export function TierBoard({
             {hasBoardSurface ? (
               <div
                 aria-hidden
+                data-tier-board-surface
                 className="pointer-events-none absolute left-0 top-0 bottom-0 z-0"
                 style={{
                   width: 'calc(100% - 4rem)',

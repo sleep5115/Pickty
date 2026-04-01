@@ -69,7 +69,7 @@ export async function runPersistedTierAutoSave(accessToken: string): Promise<Tie
       }
     }
 
-    const snapshot = buildTierSnapshot(tiers, pool);
+    const snapshot = buildTierSnapshot(tiers, pool, state.workspaceBoardSurface);
     const result = await createTierResult(
       {
         templateId: tid,

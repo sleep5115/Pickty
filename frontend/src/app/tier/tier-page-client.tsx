@@ -173,6 +173,7 @@ function TierPageInner() {
             pool: board.pool,
             workspaceTemplateTitle: res.templateTitle,
             workspaceTemplateDescription: null,
+            workspaceBoardSurface: board.workspaceBoardSurface,
           });
           setTemplateBanner(null);
           void getTemplate(res.templateId, useAuthStore.getState().accessToken ?? null)

@@ -2,6 +2,24 @@ import { toPng } from 'html-to-image';
 
 const DEFAULT_WIDTH = 800;
 
+/**
+ * 화면에서는 표배경이 ⚙·핸들 열을 덮지 않도록 `calc(100% - 4rem)` 이다.
+ * PNG/썸네일용 클론에서는 크롬 노드를 제거한 뒤 표배경만 콘텐츠 너비에 맞게 전체 덮기.
+ */
+function prepareTierBoardCloneForImageCapture(clone: HTMLElement): void {
+  clone.querySelectorAll('[data-capture-ignore="true"]').forEach((node) => {
+    node.parentNode?.removeChild(node);
+  });
+  clone.querySelectorAll<HTMLElement>('[data-tier-board-surface]').forEach((el) => {
+    el.style.width = '100%';
+    el.style.inset = '0';
+    el.style.left = '0';
+    el.style.top = '0';
+    el.style.right = '0';
+    el.style.bottom = '0';
+  });
+}
+
 /** 티어 라벨(S/A/B…)과 동일 계열 — `text-2xl font-black` */
 function appendPicktyWatermark(root: HTMLElement): void {
   const computed = window.getComputedStyle(root);
@@ -82,6 +100,8 @@ export async function captureTierElementToPng(
   clone.style.overflow = 'visible';
   container.appendChild(clone);
 
+  prepareTierBoardCloneForImageCapture(clone);
+
   if (includeWatermark) {
     appendPicktyWatermark(clone);
   }
@@ -104,12 +124,9 @@ export async function captureTierElementToPng(
         minWidth: `${width}px`,
         height: `${captureHeight}px`,
       },
-      filter: (node) => {
-        if (node instanceof Element && node.getAttribute('data-capture-ignore') === 'true') {
-          return false;
-        }
-        return true;
-      },
+      // 클론에서 `data-capture-ignore` 노드는 이미 제거됨 — 이중 방어
+      filter: (node) =>
+        !(node instanceof Element && node.getAttribute('data-capture-ignore') === 'true'),
     });
   } finally {
     document.body.removeChild(container);
