@@ -39,6 +39,8 @@ interface TierBoardProps {
   templateLikeSlot?: ReactNode;
   /** `/template/new` 하단 — 저장·보내기 없이 풀·DnD만 */
   variant?: 'full' | 'template-preview';
+  /** false: `/tier` — 티어 설정에서 라벨 이미지 업로드 비노출 */
+  allowLabelImageUpload?: boolean;
 }
 
 export function TierBoard({
@@ -46,6 +48,7 @@ export function TierBoard({
   pointerModeReady = true,
   templateLikeSlot,
   variant = 'full',
+  allowLabelImageUpload = true,
 }: TierBoardProps) {
   const {
     tiers,
@@ -270,6 +273,7 @@ export function TierBoard({
                     onClickItem={handleClickItem}
                     disableTierSettings={isTemplatePreview}
                     disableRowReorder={isTemplatePreview}
+                    allowLabelImageUpload={allowLabelImageUpload}
                   />
                 ))}
               </SortableContext>

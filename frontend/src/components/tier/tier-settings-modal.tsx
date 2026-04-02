@@ -41,9 +41,18 @@ function initialLabelTextColor(tier: Tier): string {
 interface TierSettingsModalProps {
   tier: Tier;
   onClose: () => void;
+  /**
+   * false: 티어표 플레이(`/tier`) — 라벨 칸 이미지 업로드·제거 UI 숨김(텍스트·프리셋 색만).
+   * true: 템플릿 도화지 등 제작 맥락 — 기존과 동일.
+   */
+  allowLabelImageUpload?: boolean;
 }
 
-export function TierSettingsModal({ tier, onClose }: TierSettingsModalProps) {
+export function TierSettingsModal({
+  tier,
+  onClose,
+  allowLabelImageUpload = true,
+}: TierSettingsModalProps) {
   const accessToken = useAuthStore((s) => s.accessToken);
   const { updateTier, addTierRow, deleteTierRow, clearTierRow } = useTierStore();
   const [label, setLabel] = useState(tier.label);
@@ -374,67 +383,69 @@ export function TierSettingsModal({ tier, onClose }: TierSettingsModalProps) {
             </div>
           </div>
 
-          {/* 배경 이미지 */}
-          <div>
-            <p className="text-xs font-medium text-slate-500 dark:text-zinc-500 uppercase tracking-wider mb-2.5">
-              배경 이미지
-            </p>
-            {tierHasBackgroundImage(tier) && (
-              <div className="mb-2 rounded-lg border border-slate-200 dark:border-zinc-700 overflow-hidden h-16 bg-slate-100 dark:bg-zinc-800">
-                <img
-                  src={picktyImageDisplaySrc(tier.backgroundUrl!.trim())}
-                  alt=""
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            )}
-            <div className="flex flex-col gap-2">
-              <input
-                ref={bgFileRef}
-                type="file"
-                accept={PICKTY_IMAGE_ACCEPT}
-                className="hidden"
-                disabled={uploadBusy || !accessToken}
-                onChange={handleBackgroundFile}
-              />
-              <button
-                type="button"
-                disabled={uploadBusy || !accessToken}
-                onClick={() => bgFileRef.current?.click()}
-                className={[
-                  'w-full py-2 rounded-lg text-sm font-medium border transition-colors',
-                  uploadBusy || !accessToken
-                    ? 'opacity-50 cursor-not-allowed border-slate-200 dark:border-zinc-700 text-slate-400'
-                    : 'border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800',
-                ].join(' ')}
-              >
-                {uploadBusy ? '업로드 중…' : '이미지 파일 선택'}
-              </button>
+          {/* 라벨 칸 이미지 — 템플릿 제작 맥락에서만 */}
+          {allowLabelImageUpload ? (
+            <div>
+              <p className="text-xs font-medium text-slate-500 dark:text-zinc-500 uppercase tracking-wider mb-2.5">
+                배경 이미지
+              </p>
               {tierHasBackgroundImage(tier) && (
+                <div className="mb-2 rounded-lg border border-slate-200 dark:border-zinc-700 overflow-hidden h-16 bg-slate-100 dark:bg-zinc-800">
+                  <img
+                    src={picktyImageDisplaySrc(tier.backgroundUrl!.trim())}
+                    alt=""
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+              <div className="flex flex-col gap-2">
+                <input
+                  ref={bgFileRef}
+                  type="file"
+                  accept={PICKTY_IMAGE_ACCEPT}
+                  className="hidden"
+                  disabled={uploadBusy || !accessToken}
+                  onChange={handleBackgroundFile}
+                />
                 <button
                   type="button"
-                  disabled={uploadBusy}
-                  onClick={handleRemoveBackground}
+                  disabled={uploadBusy || !accessToken}
+                  onClick={() => bgFileRef.current?.click()}
                   className={[
                     'w-full py-2 rounded-lg text-sm font-medium border transition-colors',
-                    'border-slate-300 dark:border-zinc-600 text-slate-600 dark:text-zinc-400',
-                    'hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-700 dark:hover:text-red-300 hover:border-red-200 dark:hover:border-red-900',
-                    uploadBusy ? 'opacity-50 cursor-not-allowed' : '',
+                    uploadBusy || !accessToken
+                      ? 'opacity-50 cursor-not-allowed border-slate-200 dark:border-zinc-700 text-slate-400'
+                      : 'border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800',
                   ].join(' ')}
                 >
-                  배경 이미지 제거
+                  {uploadBusy ? '업로드 중…' : '이미지 파일 선택'}
                 </button>
-              )}
-              {!accessToken && (
-                <p className="text-xs text-amber-700 dark:text-amber-300/90">
-                  로그인한 계정에서만 업로드할 수 있습니다.
-                </p>
-              )}
-              {uploadError && (
-                <p className="text-xs text-red-600 dark:text-red-400">{uploadError}</p>
-              )}
+                {tierHasBackgroundImage(tier) && (
+                  <button
+                    type="button"
+                    disabled={uploadBusy}
+                    onClick={handleRemoveBackground}
+                    className={[
+                      'w-full py-2 rounded-lg text-sm font-medium border transition-colors',
+                      'border-slate-300 dark:border-zinc-600 text-slate-600 dark:text-zinc-400',
+                      'hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-700 dark:hover:text-red-300 hover:border-red-200 dark:hover:border-red-900',
+                      uploadBusy ? 'opacity-50 cursor-not-allowed' : '',
+                    ].join(' ')}
+                  >
+                    배경 이미지 제거
+                  </button>
+                )}
+                {!accessToken && (
+                  <p className="text-xs text-amber-700 dark:text-amber-300/90">
+                    로그인한 계정에서만 업로드할 수 있습니다.
+                  </p>
+                )}
+                {uploadError && (
+                  <p className="text-xs text-red-600 dark:text-red-400">{uploadError}</p>
+                )}
+              </div>
             </div>
-          </div>
+          ) : null}
 
           {/* 라벨 입력 */}
           <div>

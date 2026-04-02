@@ -21,6 +21,8 @@ interface TierRowProps {
   disableTierSettings?: boolean;
   /** true면 행 순서 핸들 비활성(미리보기 전용) */
   disableRowReorder?: boolean;
+  /** false면 티어 설정 모달에서 라벨 칸 이미지 업로드 숨김 (`/tier` 플레이) */
+  allowLabelImageUpload?: boolean;
 }
 
 export function TierRow({
@@ -33,6 +35,7 @@ export function TierRow({
   onClickItem,
   disableTierSettings = false,
   disableRowReorder = false,
+  allowLabelImageUpload = true,
 }: TierRowProps) {
   const selectedSet = new Set(selectedItemIds);
   const targetItemIds = new Set(tier.items.map((i) => i.id));
@@ -193,6 +196,7 @@ export function TierRow({
         <TierSettingsModal
           tier={tier}
           onClose={() => setSettingsOpen(false)}
+          allowLabelImageUpload={allowLabelImageUpload}
         />
       )}
     </>

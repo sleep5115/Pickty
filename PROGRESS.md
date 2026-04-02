@@ -78,6 +78,7 @@
 - **티어 설정 모달**: 라벨 배경 팔레트 맨 앞 **「없음」**(점선·`−`) — `showLabelColor: false`로 표배경만 비침.
 - **티어 설정 모달**: 라벨 이미지 업로드 **압축·시간 안내** 문구(`PICKTY_IMAGE_UPLOAD_HINT`) 제거.
 - **티어 설정 모달**: 라벨 미리보기(헤더·스와치·입력 옆)는 **실제 표배경 미사용** — 중립 회색(`MODAL_LABEL_PREVIEW_BG_CLASS`). 작은 박스에 보드 이미지 cover 시 본문·라벨 누끼가 겹쳐 보이던 문제 해소.
+- **`/tier` 플레이 vs 템플릿 제작**: `TierSettingsModal`에 **`allowLabelImageUpload`** — 플레이 화면(`tier-page-client` → `TierBoard`)에서는 **false**로 라벨 칸 **이미지 업로드·제거 UI만 숨김**. 텍스트·프리셋 색·행 편집은 유지. `/template/new` 도화지·기본값은 제한 없음.
 
 ---
 

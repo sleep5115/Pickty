@@ -388,6 +388,7 @@ function TierPageInner() {
       <TierBoard
         dragSelectRef={dragSelectRef}
         pointerModeReady={deviceReady}
+        allowLabelImageUpload={false}
         templateLikeSlot={
           templateId ? (
             <TemplateLikeButton
