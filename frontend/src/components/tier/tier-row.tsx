@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useSortable } from '@dnd-kit/sortable';
+import { SortableContext, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { type Tier, useTierStore } from '@/lib/store/tier-store';
 import { TierLabelCellView } from '@/components/tier/tier-label-cell-view';
@@ -102,23 +102,27 @@ export function TierRow({
           <TierLabelCellView tier={tier} />
         </button>
 
-        <div
-          className={[
-            'flex flex-row flex-wrap gap-1 p-1.5 flex-1 min-h-20 transition-colors duration-150',
-            itemStripSurface,
-          ].join(' ')}
-        >
-          {tier.items.map((item) => (
-            <ItemCard
-              key={item.id}
-              item={item}
-              isSelected={selectedSet.has(item.id)}
-              targetingActive={targetingActive && !isTarget}
-              alreadyInTarget={isTarget && targetItemIds.has(item.id)}
-              onClick={(e) => onClickItem(item.id, e)}
-            />
-          ))}
-        </div>
+        <SortableContext items={tier.items.map((i) => i.id)} strategy={rectSortingStrategy}>
+          <div
+            className={[
+              'flex flex-row flex-wrap gap-1 p-1.5 flex-1 min-h-20 transition-colors duration-150',
+              itemStripSurface,
+            ].join(' ')}
+          >
+            {tier.items.map((item) => (
+              <ItemCard
+                key={item.id}
+                dragMode="sortable"
+                sortableData={{ type: 'tier-item', tierId: tier.id }}
+                item={item}
+                isSelected={selectedSet.has(item.id)}
+                targetingActive={targetingActive && !isTarget}
+                alreadyInTarget={isTarget && targetItemIds.has(item.id)}
+                onClick={(e) => onClickItem(item.id, e)}
+              />
+            ))}
+          </div>
+        </SortableContext>
 
         {disableTierSettings ? (
           <span

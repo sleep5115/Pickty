@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.pickty.server.domain.community.CommunityMyReactionService
 import com.pickty.server.domain.community.ReactionTargetType
 import com.pickty.server.domain.community.ReactionType
+import com.pickty.server.domain.view.ViewCountService
 import com.pickty.server.domain.tier.dto.CreateTierResultRequest
 import com.pickty.server.domain.tier.dto.TierResultResponse
 import com.pickty.server.domain.tier.dto.TierResultSummaryResponse
@@ -27,6 +28,7 @@ class TierResultService(
     private val tierTemplateRepository: TierTemplateRepository,
     private val tierResultCacheService: TierResultCacheService,
     private val communityMyReactionService: CommunityMyReactionService,
+    private val viewCountService: ViewCountService,
     private val validator: Validator,
 ) {
 
@@ -65,7 +67,10 @@ class TierResultService(
             .findByUserIdAndResultStatusWithTemplateOrderByCreatedAtDesc(userId, ResultStatus.ACTIVE)
         val ids = rows.mapNotNull { it.id }
         val reactions = communityMyReactionService.mapByTargetIds(ReactionTargetType.TIER_RESULT, ids, userId)
-        return rows.map { toSummaryResponse(it, reactions[it.id]) }
+        val viewDeltas = viewCountService.resultPendingMulti(ids)
+        return rows.map {
+            toSummaryResponse(it, reactions[it.id], viewDeltas[it.id] ?: 0L)
+        }
     }
 
     @Transactional(readOnly = true)
@@ -73,7 +78,10 @@ class TierResultService(
         val page = tierResultRepository.findAllByResultStatusOrderByCreatedAtDesc(ResultStatus.ACTIVE, pageable)
         val ids = page.content.mapNotNull { it.id }
         val reactions = communityMyReactionService.mapByTargetIds(ReactionTargetType.TIER_RESULT, ids, viewerUserId)
-        return page.map { toSummaryResponse(it, reactions[it.id]) }
+        val viewDeltas = viewCountService.resultPendingMulti(ids)
+        return page.map {
+            toSummaryResponse(it, reactions[it.id], viewDeltas[it.id] ?: 0L)
+        }
     }
 
     @Transactional(readOnly = true)
@@ -95,12 +103,16 @@ class TierResultService(
         val rows = tierResultRepository.findPopularByTemplateId(templateId, ResultStatus.ACTIVE, pageable)
         val ids = rows.mapNotNull { it.id }
         val reactions = communityMyReactionService.mapByTargetIds(ReactionTargetType.TIER_RESULT, ids, viewerUserId)
-        return rows.map { toSummaryResponse(it, reactions[it.id]) }
+        val viewDeltas = viewCountService.resultPendingMulti(ids)
+        return rows.map {
+            toSummaryResponse(it, reactions[it.id], viewDeltas[it.id] ?: 0L)
+        }
     }
 
     private fun toSummaryResponse(
         e: TierResult,
         myReaction: ReactionType? = null,
+        viewDelta: Long = 0L,
     ): TierResultSummaryResponse {
         val fmt = DateTimeFormatter.ISO_LOCAL_DATE_TIME
         val rid = e.id ?: throw IllegalStateException("result id null")
@@ -122,6 +134,7 @@ class TierResultService(
             upCount = e.upCount,
             downCount = e.downCount,
             commentCount = e.commentCount,
+            viewCount = e.viewCount + viewDelta,
             myReaction = myReaction,
         )
     }
@@ -130,13 +143,16 @@ class TierResultService(
     fun getById(id: UUID, viewerUserId: Long?): TierResultResponse {
         val cached = tierResultCacheService.getCached(id)
         val base = if (cached != null) {
-            cached.copy(myReaction = null)
+            val pending = viewCountService.bumpResultPending(id)
+            val dbView = tierResultRepository.findViewCountById(id) ?: 0L
+            cached.copy(myReaction = null, viewCount = dbView + pending)
         } else {
             val entity = tierResultRepository.findByIdWithTemplate(id)
                 ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "tier result not found")
-            val dto = toResponse(entity)
-            tierResultCacheService.put(id, dto)
-            dto
+            val pending = viewCountService.bumpResultPending(id)
+            val persisted = toResponse(entity)
+            tierResultCacheService.put(id, persisted)
+            persisted.copy(viewCount = entity.viewCount + pending)
         }
         return base.copy(
             myReaction = communityMyReactionService.single(ReactionTargetType.TIER_RESULT, id, viewerUserId),
@@ -169,7 +185,8 @@ class TierResultService(
         entity.applyListMeta(title, description)
         val rid = entity.id ?: throw IllegalStateException("result id null")
         tierResultCacheService.evict(rid)
-        val base = toResponse(entity)
+        val pending = viewCountService.resultPendingMulti(listOf(rid))[rid] ?: 0L
+        val base = toResponse(entity).copy(viewCount = entity.viewCount + pending)
         return base.copy(
             myReaction = communityMyReactionService.single(ReactionTargetType.TIER_RESULT, rid, userId),
         )
@@ -242,6 +259,7 @@ class TierResultService(
             upCount = entity.upCount,
             downCount = entity.downCount,
             commentCount = entity.commentCount,
+            viewCount = entity.viewCount,
         )
     }
 

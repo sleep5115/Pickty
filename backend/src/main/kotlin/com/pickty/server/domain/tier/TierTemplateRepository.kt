@@ -8,6 +8,9 @@ import java.util.UUID
 
 interface TierTemplateRepository : JpaRepository<TierTemplate, UUID> {
 
+    @Query("SELECT t.viewCount FROM TierTemplate t WHERE t.id = :id")
+    fun findViewCountById(@Param("id") id: UUID): Long?
+
     fun findAllByTemplateStatusOrderByCreatedAtDesc(templateStatus: TemplateStatus): List<TierTemplate>
 
     fun findAllByCreatorIdAndTemplateStatusOrderByCreatedAtDesc(

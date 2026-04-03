@@ -9,6 +9,7 @@ import { ImagePreviewModal } from '@/components/tier/image-preview-modal';
 import { CommentSection } from '@/components/community/comment-section';
 import { PopularTierResults } from '@/components/tier/popular-tier-results';
 import { TemplateLikeButton } from '@/components/community/template-like-button';
+import { ViewCountInline } from '@/components/community/view-count-inline';
 import { TemplateDeleteConfirmDialog } from '@/components/template/template-delete-confirm-dialog';
 import { TemplateEditMetaModal } from '@/components/template/template-edit-meta-modal';
 import { apiFetch } from '@/lib/api-fetch';
@@ -48,6 +49,7 @@ function TierPageInner() {
   const [templateBanner, setTemplateBanner] = useState<string | null>(null);
   const [templateCreatorId, setTemplateCreatorId] = useState<number | null>(null);
   const [templateLikeCount, setTemplateLikeCount] = useState(0);
+  const [templateViewCount, setTemplateViewCount] = useState(0);
   const [templateMyReaction, setTemplateMyReaction] = useState<CommunityReactionType | null>(null);
   const [me, setMe] = useState<{ id: number; role: string } | null>(null);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
@@ -137,6 +139,7 @@ function TierPageInner() {
       if (cancelled) return;
       setTemplateMyReaction(d.myReaction ?? null);
       setTemplateLikeCount(d.likeCount ?? 0);
+      setTemplateViewCount(d.viewCount ?? 0);
     }).catch(() => {});
     return () => {
       cancelled = true;
@@ -185,11 +188,13 @@ function TierPageInner() {
               });
               setTemplateCreatorId(detail.creatorId ?? null);
               setTemplateLikeCount(detail.likeCount ?? 0);
+              setTemplateViewCount(detail.viewCount ?? 0);
               setTemplateMyReaction(detail.myReaction ?? null);
             })
             .catch(() => {
               setTemplateCreatorId(null);
               setTemplateLikeCount(0);
+              setTemplateViewCount(0);
             });
         } catch {
           if (!cancelled) {
@@ -245,6 +250,7 @@ function TierPageInner() {
         });
         setTemplateCreatorId(detail.creatorId ?? null);
         setTemplateLikeCount(detail.likeCount ?? 0);
+        setTemplateViewCount(detail.viewCount ?? 0);
         setTemplateMyReaction(detail.myReaction ?? null);
         setTemplateBanner(null);
       } catch {
@@ -252,6 +258,7 @@ function TierPageInner() {
           setTemplateBanner('템플릿을 불러오지 못했습니다. 링크를 확인해 주세요.');
           setTemplateCreatorId(null);
           setTemplateLikeCount(0);
+          setTemplateViewCount(0);
         }
       }
     })();
@@ -391,13 +398,16 @@ function TierPageInner() {
         allowLabelImageUpload={false}
         templateLikeSlot={
           templateId ? (
-            <TemplateLikeButton
-              templateId={templateId}
-              initialLikeCount={templateLikeCount}
-              initialMyReaction={templateMyReaction}
-              onMyReactionResolved={setTemplateMyReaction}
-              onLikeCountChange={setTemplateLikeCount}
-            />
+            <div className="flex shrink-0 items-center gap-2">
+              <ViewCountInline count={templateViewCount} />
+              <TemplateLikeButton
+                templateId={templateId}
+                initialLikeCount={templateLikeCount}
+                initialMyReaction={templateMyReaction}
+                onMyReactionResolved={setTemplateMyReaction}
+                onLikeCountChange={setTemplateLikeCount}
+              />
+            </div>
           ) : null
         }
       />

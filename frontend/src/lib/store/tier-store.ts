@@ -1,17 +1,59 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { arrayMove } from '@dnd-kit/sortable';
 import { clearTierAutoSaveThumbnailStash } from '@/lib/tier-autosave-thumbnail';
+import { isTierSpacerId } from '@/lib/tier-spacer-id';
 import {
   cloneTemplateBoardConfig,
   type TemplateBoardConfig,
   type TemplateBoardSurface,
 } from '@/lib/template-board-config';
 
+export { isTierSpacerId };
+
 export interface TierItem {
   id: string;
   name: string;
   imageUrl?: string;
+}
+
+/** @dnd-kit/sortable `arrayMove`와 동일 — 이 모듈에서 dnd-kit을 import하면 RSC 번들에서 createContext 오류 발생 */
+function arrayMove<T>(array: readonly T[], from: number, to: number): T[] {
+  const next = [...array];
+  if (from < 0 || to < 0 || from >= next.length || to >= next.length) return next;
+  const [item] = next.splice(from, 1);
+  next.splice(to, 0, item!);
+  return next;
+}
+
+/** `overId` 앞/뒤에 `activeId`를 끼워 넣음 — 마지막 카드 ‘뒤’에 놓는 경우 `insertAfter: true` */
+function reorderItemNextToRef<T extends { id: string }>(
+  list: T[],
+  activeId: string,
+  overId: string,
+  insertAfter: boolean,
+): T[] | null {
+  if (activeId === overId) return null;
+  const next = [...list];
+  const from = next.findIndex((i) => i.id === activeId);
+  if (from === -1) return null;
+  const [mv] = next.splice(from, 1);
+  const target = next.findIndex((i) => i.id === overId);
+  if (target === -1) return null;
+  const insertAt = target + (insertAfter ? 1 : 0);
+  next.splice(insertAt, 0, mv!);
+  return next;
+}
+
+function newSpacerId(): string {
+  try {
+    const c = globalThis.crypto;
+    if (c && typeof c.randomUUID === 'function') {
+      return `spacer-${c.randomUUID()}`;
+    }
+  } catch {
+    // Secure Context가 아닐 때 randomUUID 사용 불가
+  }
+  return `spacer-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
 /** 기획·문서에서 쓰는 이름과 동일 — 티어 아이템 타입 */
@@ -43,7 +85,8 @@ export function buildTierImageGallery(state: {
   pool: TierItem[];
   tiers: Tier[];
 }): TierItem[] {
-  const hasImage = (it: TierItem) => Boolean(it.imageUrl?.trim());
+  const hasImage = (it: TierItem) =>
+    Boolean(it.imageUrl?.trim()) && !isTierSpacerId(it.id);
   return [
     ...state.pool.filter(hasImage),
     ...state.tiers.flatMap((t) => t.items.filter(hasImage)),
@@ -139,6 +182,24 @@ interface TierState {
    */
   moveItems: (itemIds: string[], toTierId: string | 'pool') => void;
 
+  /** 미분류 풀 내부 순서 — `insertAfter`: 기준 카드 오른쪽 절반에 놓은 경우 */
+  reorderPoolItems: (activeId: string, overId: string, insertAfter?: boolean) => void;
+
+  /** 같은 티어 행 안 순서 — `insertAfter`: 기준 카드 오른쪽 절반에 놓은 경우 */
+  reorderTierItems: (tierId: string, activeId: string, overId: string, insertAfter?: boolean) => void;
+
+  /**
+   * 풀의 기준 카드 앞/뒤에 끼워 넣음.
+   * `insertAfter === true`면 `refItemId` **뒤**(맨 끝에 이어 붙이기).
+   */
+  moveItemsToPoolBefore: (itemIds: string[], refItemId: string, insertAfter?: boolean) => void;
+
+  /**
+   * 티어 행의 기준 카드 앞/뒤에 끼워 넣음.
+   * `insertAfter === true`면 `refItemId` **뒤**.
+   */
+  moveItemsToTierBefore: (itemIds: string[], tierId: string, refItemId: string, insertAfter?: boolean) => void;
+
   /** 티어 행 순서 변경 (dnd-kit arrayMove) */
   reorderTiers: (activeId: string, overId: string) => void;
 
@@ -206,6 +267,9 @@ interface TierState {
    * 폼에 없는 id는 티어·풀에서 제거, 티어에 올라간 카드는 위치 유지, 나머지는 풀에 둠.
    */
   syncTemplatePreviewPoolFromForm: (entries: TierItem[]) => void;
+
+  /** 미분류 풀 index 0에 투명 블록 삽입(기존 아이템은 한 칸씩 뒤로) */
+  addPoolSpacer: () => void;
 }
 
 export const useTierStore = create<TierState>()(
@@ -285,6 +349,14 @@ export const useTierStore = create<TierState>()(
           autoSaveListDescription: null,
         });
       },
+
+      addPoolSpacer: () =>
+        set((state) => ({
+          pool: [
+            { id: newSpacerId(), name: '투명 블록' },
+            ...state.pool,
+          ],
+        })),
 
       syncTemplatePreviewPoolFromForm: (entries) =>
         set((state) => {
@@ -456,6 +528,108 @@ export const useTierStore = create<TierState>()(
                 ? { ...tier, items: [...tier.items, ...collected] }
                 : tier,
             ),
+            pool: newPool,
+            selectedItemIds: state.selectedItemIds.filter((id) => !idsSet.has(id)),
+          };
+        }),
+
+      reorderPoolItems: (activeId, overId, insertAfter = false) =>
+        set((state) => {
+          const next = reorderItemNextToRef(state.pool, activeId, overId, insertAfter);
+          if (!next) return {};
+          return { pool: next };
+        }),
+
+      reorderTierItems: (tierId, activeId, overId, insertAfter = false) =>
+        set((state) => {
+          const tIdx = state.tiers.findIndex((t) => t.id === tierId);
+          if (tIdx === -1) return {};
+          const tier = state.tiers[tIdx]!;
+          const nextItems = reorderItemNextToRef(tier.items, activeId, overId, insertAfter);
+          if (!nextItems) return {};
+          return {
+            tiers: state.tiers.map((t, i) => (i === tIdx ? { ...t, items: nextItems } : t)),
+          };
+        }),
+
+      moveItemsToPoolBefore: (itemIds, refItemId, insertAfter = false) =>
+        set((state) => {
+          const idsSet = new Set(itemIds);
+          const collected: TierItem[] = [];
+
+          const newTiers = state.tiers.map((tier) => ({
+            ...tier,
+            items: tier.items.filter((item) => {
+              if (idsSet.has(item.id)) {
+                collected.push(item);
+                return false;
+              }
+              return true;
+            }),
+          }));
+
+          const newPool = state.pool.filter((item) => {
+            if (idsSet.has(item.id)) {
+              collected.push(item);
+              return false;
+            }
+            return true;
+          });
+
+          let insertAt = newPool.findIndex((i) => i.id === refItemId);
+          if (insertAt < 0) insertAt = newPool.length;
+          else if (insertAfter) insertAt += 1;
+          const nextPool = [
+            ...newPool.slice(0, insertAt),
+            ...collected,
+            ...newPool.slice(insertAt),
+          ];
+
+          return {
+            tiers: newTiers,
+            pool: nextPool,
+            selectedItemIds: state.selectedItemIds.filter((id) => !idsSet.has(id)),
+          };
+        }),
+
+      moveItemsToTierBefore: (itemIds, tierId, refItemId, insertAfter = false) =>
+        set((state) => {
+          const idsSet = new Set(itemIds);
+          const collected: TierItem[] = [];
+
+          const newTiers = state.tiers.map((tier) => ({
+            ...tier,
+            items: tier.items.filter((item) => {
+              if (idsSet.has(item.id)) {
+                collected.push(item);
+                return false;
+              }
+              return true;
+            }),
+          }));
+
+          const newPool = state.pool.filter((item) => {
+            if (idsSet.has(item.id)) {
+              collected.push(item);
+              return false;
+            }
+            return true;
+          });
+
+          const tIdx = newTiers.findIndex((t) => t.id === tierId);
+          if (tIdx === -1) return {};
+          const tier = newTiers[tIdx]!;
+          let insertAt = tier.items.findIndex((i) => i.id === refItemId);
+          if (insertAt < 0) insertAt = tier.items.length;
+          else if (insertAfter) insertAt += 1;
+          const nextItems = [
+            ...tier.items.slice(0, insertAt),
+            ...collected,
+            ...tier.items.slice(insertAt),
+          ];
+
+          return {
+            tiers: newTiers.map((t, i) => (i === tIdx ? { ...t, items: nextItems } : t)),
             pool: newPool,
             selectedItemIds: state.selectedItemIds.filter((id) => !idsSet.has(id)),
           };

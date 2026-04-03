@@ -10,6 +10,14 @@ function prepareTierBoardCloneForImageCapture(clone: HTMLElement): void {
   clone.querySelectorAll('[data-capture-ignore="true"]').forEach((node) => {
     node.parentNode?.removeChild(node);
   });
+  /** 편집 보드의 투명 블록 — 레이아웃 폭은 유지하고 시각만 제거(점선·배경 잔상 방지) */
+  clone.querySelectorAll<HTMLElement>('[data-tier-spacer="true"]').forEach((el) => {
+    el.style.opacity = '0';
+    el.style.border = 'none';
+    el.style.boxShadow = 'none';
+    el.style.background = 'transparent';
+    el.style.filter = 'none';
+  });
   clone.querySelectorAll<HTMLElement>('[data-tier-board-surface]').forEach((el) => {
     el.style.width = '100%';
     el.style.inset = '0';

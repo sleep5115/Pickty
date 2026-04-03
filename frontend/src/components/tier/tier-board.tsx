@@ -4,8 +4,9 @@ import Link from 'next/link';
 import { RefObject, ReactNode, useCallback, useRef, useState } from 'react';
 import { GitBranch } from 'lucide-react';
 import {
+  closestCorners,
   DndContext,
-  DragEndEvent,
+  type DragEndEvent,
   DragOverlay,
   DragStartEvent,
   MeasuringStrategy,
@@ -26,6 +27,17 @@ import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
 import { ItemPool } from './item-pool';
 import { ItemCard } from './item-card';
 import { ExportModal } from './export-modal';
+
+/** 드래그 타일 중심이 기준 카드 중심보다 오른쪽이면 ‘그 뒤’에 삽입 */
+function insertAfterFromPointer(event: Pick<DragEndEvent, 'active' | 'over'>): boolean {
+  const { active, over } = event;
+  if (!over) return false;
+  const translated = active.rect.current.translated;
+  if (!translated || translated.width <= 0) return false;
+  const activeMidX = translated.left + translated.width / 2;
+  const overMidX = over.rect.left + over.rect.width / 2;
+  return activeMidX > overMidX;
+}
 
 interface TierBoardProps {
   /** tier/page.tsx 루트 ref — drag-select 범위를 toolbar·footer 포함 전체로 확장 */
@@ -58,10 +70,15 @@ export function TierBoard({
     toggleTargetTier,
     clearTarget,
     moveItems,
+    reorderPoolItems,
+    reorderTierItems,
+    moveItemsToPoolBefore,
+    moveItemsToTierBefore,
     reorderTiers,
     selectItems,
     clearSelection,
     toggleItemSelection,
+    addPoolSpacer,
   } = useTierStore();
   const templateId = useTierStore((s) => s.templateId);
   const workspaceBoardSurface = useTierStore((s) => s.workspaceBoardSurface);
@@ -132,14 +149,81 @@ export function TierBoard({
     if (!over) return;
 
     const itemId = active.id as string;
-    const toId = over.id as string;
+    const overId = over.id as string;
 
     const idsToMove =
       selectedItemIds.includes(itemId) && selectedItemIds.length > 0
         ? selectedItemIds
         : [itemId];
 
-    moveItems(idsToMove, toId);
+    if (idsToMove.length === 1 && idsToMove[0] === overId) {
+      clearSelection();
+      return;
+    }
+
+    const insertAfter = insertAfterFromPointer(event);
+
+    const { pool, tiers } = useTierStore.getState();
+    const tierIdSet = new Set(tiers.map((t) => t.id));
+    const overIsPoolItem = pool.some((i) => i.id === overId);
+    const overIsPoolDroppable = overId === 'pool';
+    const overIsTierRow = tierIdSet.has(overId);
+
+    // 미분류 풀 안에서만 순서 변경 (단일 카드)
+    if (
+      idsToMove.length === 1 &&
+      overIsPoolItem &&
+      pool.some((i) => i.id === itemId) &&
+      itemId !== overId
+    ) {
+      reorderPoolItems(itemId, overId, insertAfter);
+      clearSelection();
+      return;
+    }
+
+    // 티어 → 풀: 다른 풀 카드 위에 놓으면 그 앞에 삽입
+    if (overIsPoolItem) {
+      const allFromPool = idsToMove.every((id) => pool.some((i) => i.id === id));
+      if (!allFromPool) {
+        moveItemsToPoolBefore(idsToMove, overId, insertAfter);
+        clearSelection();
+        return;
+      }
+      moveItems(idsToMove, 'pool');
+      clearSelection();
+      return;
+    }
+
+    const overAsTierSlot = tiers.find((t) => t.items.some((i) => i.id === overId));
+    if (overAsTierSlot) {
+      const activeTier = tiers.find((t) => t.items.some((i) => i.id === itemId));
+      const sameRowSingle =
+        idsToMove.length === 1 &&
+        activeTier != null &&
+        activeTier.id === overAsTierSlot.id &&
+        itemId !== overId;
+      if (sameRowSingle) {
+        reorderTierItems(overAsTierSlot.id, itemId, overId, insertAfter);
+      } else {
+        moveItemsToTierBefore(idsToMove, overAsTierSlot.id, overId, insertAfter);
+      }
+      clearSelection();
+      return;
+    }
+
+    if (overIsTierRow) {
+      moveItems(idsToMove, overId);
+      clearSelection();
+      return;
+    }
+
+    if (overIsPoolDroppable) {
+      moveItems(idsToMove, 'pool');
+      clearSelection();
+      return;
+    }
+
+    moveItems(idsToMove, 'pool');
     clearSelection();
   };
 
@@ -207,6 +291,7 @@ export function TierBoard({
   return (
     <DndContext
       sensors={sensors}
+      collisionDetection={closestCorners}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
@@ -368,6 +453,7 @@ export function TierBoard({
           selectedItemIds={selectedItemIds}
           targetingActive={targetingActive}
           onClickItem={handleClickItem}
+          onAddSpacer={isTemplatePreview ? undefined : addPoolSpacer}
         />
 
         {/* 범위 선택 박스 (PC 전용) */}

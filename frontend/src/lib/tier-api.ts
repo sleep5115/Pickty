@@ -37,6 +37,7 @@ export interface TemplateDetailResponse {
   creatorId?: number | null;
   likeCount?: number;
   commentCount?: number;
+  viewCount?: number;
   myReaction?: CommunityReactionType | null;
 }
 
@@ -58,6 +59,7 @@ export interface TemplateSummaryResponse {
   creatorId: number | null;
   likeCount?: number;
   commentCount?: number;
+  viewCount?: number;
   myReaction?: CommunityReactionType | null;
 }
 
@@ -136,6 +138,7 @@ export interface TierResultResponse {
   upCount?: number;
   downCount?: number;
   commentCount?: number;
+  viewCount?: number;
   myReaction?: CommunityReactionType | null;
 }
 
@@ -155,6 +158,7 @@ export interface TierResultSummaryResponse {
   upCount?: number;
   downCount?: number;
   commentCount?: number;
+  viewCount?: number;
   myReaction?: CommunityReactionType | null;
 }
 
@@ -258,6 +262,7 @@ export function mapTierResultSummaryRow(row: Record<string, unknown>): TierResul
     upCount: optLongField(row, 'upCount', 'up_count'),
     downCount: optLongField(row, 'downCount', 'down_count'),
     commentCount: optLongField(row, 'commentCount', 'comment_count'),
+    viewCount: optLongField(row, 'viewCount', 'view_count'),
     myReaction: parseMyReaction(row),
   };
 }
@@ -304,6 +309,7 @@ function mapTemplateSummaryRow(row: Record<string, unknown>): TemplateSummaryRes
     creatorId: Number.isFinite(creatorIdNum) ? creatorIdNum : null,
     likeCount: optLongField(row, 'likeCount', 'like_count'),
     commentCount: optLongField(row, 'commentCount', 'comment_count'),
+    viewCount: optLongField(row, 'viewCount', 'view_count'),
     myReaction: parseMyReaction(row),
   };
 }
@@ -377,6 +383,7 @@ export async function getTemplate(id: string, accessToken: string | null = null)
     creatorId: Number.isFinite(creatorIdNum) ? creatorIdNum : null,
     likeCount: optLongField(row, 'likeCount', 'like_count'),
     commentCount: optLongField(row, 'commentCount', 'comment_count'),
+    viewCount: optLongField(row, 'viewCount', 'view_count'),
     myReaction: parseMyReaction(row),
   };
 }
@@ -502,6 +509,7 @@ export async function createTierResult(
     upCount: optLongField(row, 'upCount', 'up_count'),
     downCount: optLongField(row, 'downCount', 'down_count'),
     commentCount: optLongField(row, 'commentCount', 'comment_count'),
+    viewCount: optLongField(row, 'viewCount', 'view_count'),
     myReaction: parseMyReaction(row),
   };
 }
@@ -605,6 +613,7 @@ export async function getTierResult(id: string, accessToken: string | null = nul
     upCount: optLongField(row, 'upCount', 'up_count'),
     downCount: optLongField(row, 'downCount', 'down_count'),
     commentCount: optLongField(row, 'commentCount', 'comment_count'),
+    viewCount: optLongField(row, 'viewCount', 'view_count'),
     myReaction: parseMyReaction(row),
   };
 }
@@ -639,6 +648,7 @@ export async function patchTierResultMeta(
     upCount: optLongField(row, 'upCount', 'up_count'),
     downCount: optLongField(row, 'downCount', 'down_count'),
     commentCount: optLongField(row, 'commentCount', 'comment_count'),
+    viewCount: optLongField(row, 'viewCount', 'view_count'),
     myReaction: parseMyReaction(row),
   };
 }

@@ -2,6 +2,7 @@ package com.pickty.server.domain.tier
 
 import com.pickty.server.domain.community.CommunityMyReactionService
 import com.pickty.server.domain.community.ReactionTargetType
+import com.pickty.server.domain.view.ViewCountService
 import com.pickty.server.domain.tier.dto.CreateTemplateRequest
 import com.pickty.server.domain.tier.dto.PatchTemplateMetaResponse
 import com.pickty.server.domain.tier.dto.TemplateBoardConfigPayload
@@ -21,6 +22,7 @@ import java.util.UUID
 class TierTemplateService(
     private val tierTemplateRepository: TierTemplateRepository,
     private val communityMyReactionService: CommunityMyReactionService,
+    private val viewCountService: ViewCountService,
 ) {
 
     fun listSummaries(viewerUserId: Long?): List<TemplateSummaryResponse> {
@@ -42,6 +44,7 @@ class TierTemplateService(
     ): List<TemplateSummaryResponse> {
         val ids = rows.mapNotNull { it.id }
         val reactions = communityMyReactionService.mapByTargetIds(ReactionTargetType.TIER_TEMPLATE, ids, viewerUserId)
+        val viewDeltas = viewCountService.templatePendingMulti(ids)
         return rows.map { e ->
             val id = e.id ?: throw IllegalStateException("template id missing")
             val items = e.items
@@ -57,6 +60,7 @@ class TierTemplateService(
                 creatorId = e.creatorId,
                 likeCount = e.likeCount,
                 commentCount = e.commentCount,
+                viewCount = e.viewCount + (viewDeltas[id] ?: 0L),
                 myReaction = reactions[id],
             )
         }
@@ -65,6 +69,7 @@ class TierTemplateService(
     fun getById(id: UUID, viewerUserId: Long?): TemplateDetailResponse {
         val e = tierTemplateRepository.findById(id)
             .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "template not found") }
+        val pending = viewCountService.bumpTemplatePending(id)
         val tid = e.id ?: throw IllegalStateException("template id missing")
         return TemplateDetailResponse(
             id = tid,
@@ -77,6 +82,7 @@ class TierTemplateService(
             creatorId = e.creatorId,
             likeCount = e.likeCount,
             commentCount = e.commentCount,
+            viewCount = e.viewCount + pending,
             myReaction = communityMyReactionService.single(ReactionTargetType.TIER_TEMPLATE, tid, viewerUserId),
         )
     }

@@ -94,6 +94,10 @@ class TierResult(
     @ColumnDefault("0")
     var commentCount: Long = 0
 
+    @Column(name = "view_count", nullable = false)
+    @ColumnDefault("0")
+    var viewCount: Long = 0
+
     fun attachUser(userId: Long) {
         this.userId = userId
         this.isTemporary = false

@@ -11,6 +11,9 @@ import java.util.UUID
 
 interface TierResultRepository : JpaRepository<TierResult, UUID> {
 
+    @Query("SELECT r.viewCount FROM TierResult r WHERE r.id = :id")
+    fun findViewCountById(@Param("id") id: UUID): Long?
+
     fun countByTemplate_IdAndResultStatus(templateId: UUID, resultStatus: ResultStatus): Long
 
     @Query(

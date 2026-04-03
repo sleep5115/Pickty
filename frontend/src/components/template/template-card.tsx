@@ -7,6 +7,7 @@ import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
 import type { CommunityReactionType } from '@/lib/api/community-api';
 import type { TemplateSummaryResponse } from '@/lib/tier-api';
 import { TemplateLikeButton } from '@/components/community/template-like-button';
+import { ViewCountInline } from '@/components/community/view-count-inline';
 
 export function TemplateCard({
   row,
@@ -120,6 +121,7 @@ export function TemplateCard({
             onLikeCountChange={(n) => onLikeCountChange(id, n)}
             className="shrink-0"
           />
+          <ViewCountInline count={row.viewCount ?? 0} />
           <span className="min-w-0 truncate text-xs leading-none text-slate-500 dark:text-zinc-500">{itemLine}</span>
         </div>
         {showMenu ? (

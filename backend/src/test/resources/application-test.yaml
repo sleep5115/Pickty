@@ -10,6 +10,9 @@ JWT_SECRET: test-jwt-secret-256-bit-minimum-length-for-hmac-sha-256-algorithm
 FRONTEND_URL: http://localhost:3002
 
 spring:
+  task:
+    scheduling:
+      enabled: false
   jpa:
     hibernate:
       ddl-auto: create-drop

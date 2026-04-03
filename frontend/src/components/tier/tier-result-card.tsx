@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { MoreVertical, Pencil, RefreshCw, Trash2 } from 'lucide-react';
 import { ResultVoteButtons } from '@/components/community/result-vote-buttons';
+import { ViewCountInline } from '@/components/community/view-count-inline';
 import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
 import type { CommunityReactionType } from '@/lib/api/community-api';
 import type { TierResultSummaryResponse } from '@/lib/tier-api';
@@ -122,9 +123,12 @@ export function TierResultCard({
             {r.isPublic ? ' · 공개' : ''}
             {isDeleted ? ' · 삭제됨(비공개)' : ''}
           </span>
-          <span className="text-xs text-slate-400 dark:text-zinc-600 mt-auto pt-2 tabular-nums">
-            {formatTierResultSavedAt(r.createdAt)}
-          </span>
+          <div className="mt-auto flex items-center justify-between gap-2 pt-2">
+            <ViewCountInline count={r.viewCount ?? 0} />
+            <span className="text-xs text-slate-400 dark:text-zinc-600 tabular-nums shrink-0">
+              {formatTierResultSavedAt(r.createdAt)}
+            </span>
+          </div>
         </div>
       </Link>
       <div className="flex flex-wrap items-center gap-2 rounded-b-xl border-t border-transparent px-4 pb-4 pt-0">

@@ -64,6 +64,7 @@ data class TemplateDetailResponse(
     val creatorId: Long?,
     val likeCount: Long = 0,
     val commentCount: Long = 0,
+    val viewCount: Long = 0,
     /** 로그인 사용자 본인 반응 — 비로그인·없음이면 null */
     val myReaction: ReactionType? = null,
 )
@@ -98,6 +99,7 @@ data class TemplateSummaryResponse(
     val creatorId: Long?,
     val likeCount: Long = 0,
     val commentCount: Long = 0,
+    val viewCount: Long = 0,
     val myReaction: ReactionType? = null,
 )
 
@@ -137,6 +139,7 @@ data class TierResultResponse(
     val upCount: Long = 0,
     val downCount: Long = 0,
     val commentCount: Long = 0,
+    val viewCount: Long = 0,
     val myReaction: ReactionType? = null,
 )
 
@@ -157,5 +160,6 @@ data class TierResultSummaryResponse(
     val upCount: Long = 0,
     val downCount: Long = 0,
     val commentCount: Long = 0,
+    val viewCount: Long = 0,
     val myReaction: ReactionType? = null,
 )

@@ -81,6 +81,10 @@ class TierTemplate(
     @ColumnDefault("0")
     var commentCount: Long = 0
 
+    @Column(name = "view_count", nullable = false)
+    @ColumnDefault("0")
+    var viewCount: Long = 0
+
     fun updateItems(newItems: Map<String, Any?>) {
         this.items = newItems
     }

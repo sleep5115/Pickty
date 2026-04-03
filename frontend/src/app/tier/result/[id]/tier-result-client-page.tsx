@@ -9,6 +9,7 @@ import { TierBoardReadonly } from '@/components/tier/tier-board-readonly';
 import { TierResultEditMetaModal } from '@/components/tier/tier-result-edit-meta-modal';
 import { CommentSection } from '@/components/community/comment-section';
 import { ResultVoteButtons } from '@/components/community/result-vote-buttons';
+import { ViewCountInline } from '@/components/community/view-count-inline';
 import { TierResultDeleteConfirmDialog } from '@/components/tier/tier-result-delete-confirm-dialog';
 import type { CommunityReactionType } from '@/lib/api/community-api';
 import { getTierResult, type TierResultStatus } from '@/lib/tier-api';
@@ -46,6 +47,7 @@ export function TierResultClientPage() {
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const [upCount, setUpCount] = useState(0);
   const [downCount, setDownCount] = useState(0);
+  const [viewCount, setViewCount] = useState(0);
   const [resultMyReaction, setResultMyReaction] = useState<CommunityReactionType | null>(null);
 
   const reloadResult = useCallback(async () => {
@@ -65,6 +67,7 @@ export function TierResultClientPage() {
     setResultStatus(res.resultStatus ?? 'ACTIVE');
     setUpCount(res.upCount ?? 0);
     setDownCount(res.downCount ?? 0);
+    setViewCount(res.viewCount ?? 0);
     setResultMyReaction(res.myReaction ?? null);
     setTiers(snap.tiers);
     setPool(snap.pool);
@@ -210,9 +213,12 @@ export function TierResultClientPage() {
           <h1 className="text-xl font-bold text-slate-900 dark:text-zinc-100">
             {listTitle?.trim() || '저장된 티어표'}
           </h1>
-          <p className="text-xs text-slate-400 dark:text-zinc-600 mt-0.5">
-            템플릿: {templateTitle}
-            {isResultDeleted ? ' · 삭제됨(비공개·피드 숨김)' : ''}
+          <p className="text-xs text-slate-400 dark:text-zinc-600 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span>
+              템플릿: {templateTitle}
+              {isResultDeleted ? ' · 삭제됨(비공개·피드 숨김)' : ''}
+            </span>
+            <ViewCountInline count={viewCount} />
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">

@@ -4,6 +4,7 @@ import {
   rewriteTierItemsUploadUrls,
   rewriteTiersUploadUrls,
 } from '@/lib/pickty-image-url';
+import { isTierSpacerId } from '@/lib/tier-spacer-id';
 import type { Tier, TierItem } from '@/lib/store/tier-store';
 
 /** 프론트 ↔ 백 스냅샷 스키마 (버전 올리면 마이그레이션) */
@@ -44,13 +45,20 @@ export function buildTierSnapshot(
   };
 }
 
-/** 템플릿 items JSON용 — 보드에 등장한 아이템 중복 제거 */
+/**
+ * 템플릿 생성 API `items`·통계용 — 실제 이미지 아이템만 (`spacer-` 레이아웃 블록 제외).
+ * PNG 썸네일·보드 캡처는 DOM에서 스페이서 타일이 폭을 유지하며, 이 함수와 무관함.
+ */
 export function collectDistinctItems(tiers: Tier[], pool: TierItem[]): TierItem[] {
   const map = new Map<string, TierItem>();
   for (const row of tiers) {
-    for (const item of row.items) map.set(item.id, item);
+    for (const item of row.items) {
+      if (!isTierSpacerId(item.id)) map.set(item.id, item);
+    }
   }
-  for (const item of pool) map.set(item.id, item);
+  for (const item of pool) {
+    if (!isTierSpacerId(item.id)) map.set(item.id, item);
+  }
   return [...map.values()];
 }
 
