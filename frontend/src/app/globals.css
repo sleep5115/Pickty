@@ -28,10 +28,27 @@ html {
   --border-subtle: #27272a;
 }
 
-/* Autofill overrides for dark-themed inputs */
-input:-webkit-autofill,
-input:-webkit-autofill:hover,
-input:-webkit-autofill:focus {
+/*
+ * Autofill: next-themes는 `html.dark`만 켬. 예전 규칙은 다크 색을 전 input에 적용해,
+ * 라이트 모드에서 자동완성(Chrome ‘지난 완성 기록’ 등) 선택 시 제목 칸만 어둡게 보였음.
+ */
+html:not(.dark) input:-webkit-autofill,
+html:not(.dark) input:-webkit-autofill:hover,
+html:not(.dark) input:-webkit-autofill:focus,
+html:not(.dark) textarea:-webkit-autofill,
+html:not(.dark) textarea:-webkit-autofill:hover,
+html:not(.dark) textarea:-webkit-autofill:focus {
+  -webkit-text-fill-color: #0f172a;
+  -webkit-box-shadow: 0 0 0px 1000px #f8fafc inset;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+html.dark input:-webkit-autofill,
+html.dark input:-webkit-autofill:hover,
+html.dark input:-webkit-autofill:focus,
+html.dark textarea:-webkit-autofill,
+html.dark textarea:-webkit-autofill:hover,
+html.dark textarea:-webkit-autofill:focus {
   -webkit-text-fill-color: #f4f4f5;
   -webkit-box-shadow: 0 0 0px 1000px #27272a inset;
   transition: background-color 5000s ease-in-out 0s;

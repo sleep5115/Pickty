@@ -6,9 +6,12 @@ import { GitBranch } from 'lucide-react';
 import {
   closestCorners,
   DndContext,
+  type CollisionDetection,
   type DragEndEvent,
+  type DragOverEvent,
   DragOverlay,
   DragStartEvent,
+  getFirstCollision,
   MeasuringStrategy,
   PointerSensor,
   useSensor,
@@ -19,7 +22,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { useAuthStore } from '@/lib/store/auth-store';
-import { useTierStore } from '@/lib/store/tier-store';
+import { reorderItemNextToRef, useTierStore } from '@/lib/store/tier-store';
 import { usePointerDevice } from '@/hooks/use-pointer-device';
 import { useDragSelect } from '@/hooks/use-drag-select';
 import { TierRow } from './tier-row';
@@ -29,7 +32,9 @@ import { ItemCard } from './item-card';
 import { ExportModal } from './export-modal';
 
 /** 드래그 타일 중심이 기준 카드 중심보다 오른쪽이면 ‘그 뒤’에 삽입 */
-function insertAfterFromPointer(event: Pick<DragEndEvent, 'active' | 'over'>): boolean {
+function insertAfterFromPointer(
+  event: Pick<DragEndEvent, 'active' | 'over'> | Pick<DragOverEvent, 'active' | 'over'>,
+): boolean {
   const { active, over } = event;
   if (!over) return false;
   const translated = active.rect.current.translated;
@@ -106,6 +111,66 @@ export function TierBoard({
     }),
   );
 
+  /**
+   * Sortable은 `over`가 바뀌면 형제 카드 transform으로 ‘자리’를 미리 비운다.
+   * 드롭 규칙(가로 중심)상 순서가 안 바뀌는데도 `closestCorners`만으로는 `over`가 옆 카드로 잡혀
+   * 유령 슬롯만 움직이는 현상이 난다 → 그럴 땐 `over`를 active로 고정.
+   */
+  const tierItemCollisionDetection = useCallback<CollisionDetection>((args) => {
+    const base = closestCorners(args);
+    const { active } = args;
+    if (!active) return base;
+    if (active.data.current?.type === 'tier-row') return base;
+
+    const activeId = String(active.id);
+    const hitId = getFirstCollision(base, 'id');
+    if (hitId == null) return base;
+    const overId = String(hitId);
+    if (overId === activeId) return base;
+
+    const { pool, tiers, selectedItemIds } = useTierStore.getState();
+    const idsToMove =
+      selectedItemIds.includes(activeId) && selectedItemIds.length > 0
+        ? selectedItemIds
+        : [activeId];
+    if (idsToMove.length !== 1) return base;
+
+    let list: { id: string }[] | null = null;
+    const activeInPool = pool.some((i) => i.id === activeId);
+    const overInPool = pool.some((i) => i.id === overId);
+    if (activeInPool && overInPool) {
+      list = pool;
+    } else {
+      const overTier = tiers.find((t) => t.items.some((i) => i.id === overId));
+      const activeTier = tiers.find((t) => t.items.some((i) => i.id === activeId));
+      if (overTier && activeTier && overTier.id === activeTier.id) {
+        list = activeTier.items;
+      }
+    }
+    if (!list) return base;
+
+    const translated = active.rect.current.translated;
+    const overRect = args.droppableRects.get(overId);
+    if (!translated || translated.width <= 0 || !overRect) return base;
+
+    const insertAfter =
+      translated.left + translated.width / 2 > overRect.left + overRect.width / 2;
+    const next = reorderItemNextToRef(list, activeId, overId, insertAfter);
+    if (!next || next.every((it, i) => it.id === list[i]?.id)) {
+      const activeContainer = args.droppableContainers.find((c) => c.id === active.id);
+      if (activeContainer) {
+        return [
+          {
+            id: active.id,
+            data: { droppableContainer: activeContainer, value: 0 },
+          },
+        ];
+      }
+    }
+
+    return base;
+  }, []);
+
   const tierIds = tiers.map((t) => t.id);
 
   const allItems = [...tiers.flatMap((t) => t.items), ...pool];
@@ -131,6 +196,54 @@ export function TierBoard({
       }
     }
   };
+
+  /**
+   * Sortable 기본 transform은 ‘over 인덱스’ 기준이라, 드롭 시 쓰는 가로 중심(앞/뒤 삽입)과 어긋날 수 있음.
+   * 같은 풀·같은 티어 행 안(단일 카드)에서는 드래그 중에도 동일 규칙으로 순서를 맞춰 미리보기=결과로 만든다.
+   */
+  const handleDragOver = useCallback(
+    (event: DragOverEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+      if (active.data.current?.type === 'tier-row') return;
+
+      const itemId = active.id as string;
+      const overId = over.id as string;
+
+      const { selectedItemIds, pool, tiers } = useTierStore.getState();
+      const idsToMove =
+        selectedItemIds.includes(itemId) && selectedItemIds.length > 0
+          ? selectedItemIds
+          : [itemId];
+      if (idsToMove.length !== 1) return;
+      if (idsToMove[0] === overId) return;
+
+      const insertAfter = insertAfterFromPointer(event);
+
+      const overIsPoolItem = pool.some((i) => i.id === overId);
+      if (
+        overIsPoolItem &&
+        pool.some((i) => i.id === itemId) &&
+        itemId !== overId
+      ) {
+        reorderPoolItems(itemId, overId, insertAfter);
+        return;
+      }
+
+      const overAsTierSlot = tiers.find((t) => t.items.some((i) => i.id === overId));
+      if (!overAsTierSlot) return;
+
+      const activeTier = tiers.find((t) => t.items.some((i) => i.id === itemId));
+      if (
+        activeTier &&
+        activeTier.id === overAsTierSlot.id &&
+        itemId !== overId
+      ) {
+        reorderTierItems(overAsTierSlot.id, itemId, overId, insertAfter);
+      }
+    },
+    [reorderPoolItems, reorderTierItems],
+  );
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -291,8 +404,9 @@ export function TierBoard({
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCorners}
+      collisionDetection={tierItemCollisionDetection}
       onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
       measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
     >

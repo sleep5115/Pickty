@@ -26,7 +26,7 @@ function arrayMove<T>(array: readonly T[], from: number, to: number): T[] {
 }
 
 /** `overId` 앞/뒤에 `activeId`를 끼워 넣음 — 마지막 카드 ‘뒤’에 놓는 경우 `insertAfter: true` */
-function reorderItemNextToRef<T extends { id: string }>(
+export function reorderItemNextToRef<T extends { id: string }>(
   list: T[],
   activeId: string,
   overId: string,
@@ -537,6 +537,7 @@ export const useTierStore = create<TierState>()(
         set((state) => {
           const next = reorderItemNextToRef(state.pool, activeId, overId, insertAfter);
           if (!next) return {};
+          if (next.every((it, i) => it.id === state.pool[i]?.id)) return {};
           return { pool: next };
         }),
 
@@ -547,6 +548,7 @@ export const useTierStore = create<TierState>()(
           const tier = state.tiers[tIdx]!;
           const nextItems = reorderItemNextToRef(tier.items, activeId, overId, insertAfter);
           if (!nextItems) return {};
+          if (nextItems.every((it, i) => it.id === tier.items[i]?.id)) return {};
           return {
             tiers: state.tiers.map((t, i) => (i === tIdx ? { ...t, items: nextItems } : t)),
           };

@@ -418,6 +418,8 @@ function LoggedInSaveDownloadPanel({
           </label>
           <input
             id="tier-list-title"
+            name="pickty-tier-list-title"
+            autoComplete="off"
             value={listTitle}
             maxLength={LIST_TITLE_MAX_LEN}
             onChange={(e) => setListTitle(e.target.value)}
@@ -453,6 +455,8 @@ function LoggedInSaveDownloadPanel({
           </label>
           <textarea
             id="tier-list-desc"
+            name="pickty-tier-list-description"
+            autoComplete="off"
             value={listDescription}
             maxLength={LIST_DESCRIPTION_MAX_LEN}
             onChange={(e) => setListDescription(e.target.value)}
