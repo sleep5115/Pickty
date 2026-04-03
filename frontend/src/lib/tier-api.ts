@@ -358,8 +358,18 @@ export async function listMyTemplates(accessToken: string): Promise<TemplateSumm
   });
 }
 
-export async function getTemplate(id: string, accessToken: string | null = null): Promise<TemplateDetailResponse> {
-  const res = await apiFetch(`/api/v1/templates/${encodeURIComponent(id)}`, {
+export type GetTemplateOptions = {
+  /** false: 조회수 미증가(같은 화면에서 메타·반응만 다시 맞출 때) */
+  countView?: boolean;
+};
+
+export async function getTemplate(
+  id: string,
+  accessToken: string | null = null,
+  options: GetTemplateOptions = {},
+): Promise<TemplateDetailResponse> {
+  const q = options.countView === false ? '?countView=false' : '';
+  const res = await apiFetch(`/api/v1/templates/${encodeURIComponent(id)}${q}`, {
     headers: { ...authHeaders(accessToken) },
   });
   if (!res.ok) {
@@ -595,8 +605,18 @@ export async function listTierResultsFeedPage(
   };
 }
 
-export async function getTierResult(id: string, accessToken: string | null = null): Promise<TierResultResponse> {
-  const res = await apiFetch(`/api/v1/tiers/results/${encodeURIComponent(id)}`, {
+export type GetTierResultOptions = {
+  /** false: 조회수 미증가(로그인 토큰만 바뀌어 같은 결과를 다시 맞출 때 등) */
+  countView?: boolean;
+};
+
+export async function getTierResult(
+  id: string,
+  accessToken: string | null = null,
+  options: GetTierResultOptions = {},
+): Promise<TierResultResponse> {
+  const q = options.countView === false ? '?countView=false' : '';
+  const res = await apiFetch(`/api/v1/tiers/results/${encodeURIComponent(id)}${q}`, {
     headers: { ...authHeaders(accessToken) },
   });
   if (!res.ok) {

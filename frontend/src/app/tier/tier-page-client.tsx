@@ -56,6 +56,8 @@ function TierPageInner() {
   const [editMetaOpen, setEditMetaOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const headerMenuRef = useRef<HTMLDivElement>(null);
+  /** intent로 워크스페이스 effect가 getTemplate을 안 할 때만 조회수 집계(같은 tid 재요청은 제외) */
+  const templateAuthSyncCountRef = useRef<string | null>(null);
 
   const dragSelectRef = useRef<HTMLDivElement>(null);
 
@@ -129,13 +131,33 @@ function TierPageInner() {
     };
   }, [headerMenuOpen]);
 
-  /** 로그인/토큰 변경 시 서버 `myReaction`·카운트만 동기화 (워크스페이스 로드 effect와 분리) */
+  useEffect(() => {
+    templateAuthSyncCountRef.current = null;
+  }, [templateIdParam]);
+
+  /**
+   * 로그인/토큰 변경 시 `myReaction`·좋아요·표시용 조회수 동기화.
+   * 워크스페이스 effect가 같은 URL로 getTemplate을 호출할 때는 countView=false로 이중 집계 방지.
+   * intent 이어쓰기로 워크스페이스 effect가 GET을 생략하면 여기서만 집계(같은 tid 재요청은 false).
+   */
   useEffect(() => {
     if (!tierHydrated) return;
     const tid = templateIdParam ?? templateId;
     if (!tid) return;
+
+    const snap = useTierStore.getState();
+    const workspaceGetSkipped =
+      Boolean(templateIdParam) &&
+      snap.tierAutoSaveIntent &&
+      snap.templateId != null &&
+      snap.templateId === templateIdParam;
+
+    const countView =
+      workspaceGetSkipped && templateAuthSyncCountRef.current !== tid;
+    if (countView) templateAuthSyncCountRef.current = tid;
+
     let cancelled = false;
-    void getTemplate(tid, accessToken ?? null).then((d) => {
+    void getTemplate(tid, accessToken ?? null, { countView }).then((d) => {
       if (cancelled) return;
       setTemplateMyReaction(d.myReaction ?? null);
       setTemplateLikeCount(d.likeCount ?? 0);

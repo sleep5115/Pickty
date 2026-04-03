@@ -68,9 +68,10 @@ class TierResultController(
     @GetMapping("/{id}")
     fun getOne(
         @PathVariable id: UUID,
+        @RequestParam(name = "countView", defaultValue = "true") countView: Boolean,
         authentication: Authentication?,
     ): ResponseEntity<TierResultResponse> =
-        ResponseEntity.ok(tierResultService.getById(id, resolveUserId(authentication)))
+        ResponseEntity.ok(tierResultService.getById(id, resolveUserId(authentication), countView))
 
     @PatchMapping("/{id}")
     fun patch(

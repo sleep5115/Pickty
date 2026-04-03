@@ -66,11 +66,15 @@ class TierTemplateService(
         }
     }
 
-    fun getById(id: UUID, viewerUserId: Long?): TemplateDetailResponse {
+    fun getById(id: UUID, viewerUserId: Long?, countView: Boolean = true): TemplateDetailResponse {
         val e = tierTemplateRepository.findById(id)
             .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "template not found") }
-        val pending = viewCountService.bumpTemplatePending(id)
         val tid = e.id ?: throw IllegalStateException("template id missing")
+        val pending = if (countView) {
+            viewCountService.bumpTemplatePending(tid)
+        } else {
+            viewCountService.templatePendingMulti(listOf(tid))[tid] ?: 0L
+        }
         return TemplateDetailResponse(
             id = tid,
             title = e.title,

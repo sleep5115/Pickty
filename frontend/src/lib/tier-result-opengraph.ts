@@ -17,7 +17,7 @@ export type TierResultOgPayload = {
  */
 export async function fetchTierResultForOpenGraph(id: string): Promise<TierResultOgPayload | null> {
   const base = PUBLIC_API_BASE_URL.replace(/\/$/, '');
-  const url = `${base}/api/v1/tiers/results/${encodeURIComponent(id)}`;
+  const url = `${base}/api/v1/tiers/results/${encodeURIComponent(id)}?countView=false`;
   try {
     const res = await fetch(url, { next: { revalidate: 120 } });
     if (!res.ok) return null;

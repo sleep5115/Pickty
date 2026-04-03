@@ -12,7 +12,7 @@ export type TemplateOgPayload = {
  */
 export async function fetchTemplateForOpenGraph(templateId: string): Promise<TemplateOgPayload | null> {
   const base = PUBLIC_API_BASE_URL.replace(/\/$/, '');
-  const url = `${base}/api/v1/templates/${encodeURIComponent(templateId)}`;
+  const url = `${base}/api/v1/templates/${encodeURIComponent(templateId)}?countView=false`;
   try {
     const res = await fetch(url, { next: { revalidate: 120 } });
     if (!res.ok) return null;

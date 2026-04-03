@@ -50,9 +50,14 @@ export function TierResultClientPage() {
   const [viewCount, setViewCount] = useState(0);
   const [resultMyReaction, setResultMyReaction] = useState<CommunityReactionType | null>(null);
 
+  /** 같은 결과 id로 토큰만 바뀌어 재요청할 때는 조회수 이중 집계 방지 */
+  const resultDetailCountedIdRef = useRef<string | null>(null);
+
   const reloadResult = useCallback(async () => {
     if (!id) return;
-    const res = await getTierResult(id, accessToken ?? null);
+    const countView = resultDetailCountedIdRef.current !== id;
+    if (countView) resultDetailCountedIdRef.current = id;
+    const res = await getTierResult(id, accessToken ?? null, { countView });
     const snap = parseSnapshotDataToBoard(res.snapshotData as Record<string, unknown>);
     if (!snap) {
       setError('지원하지 않는 스냅샷 형식입니다.');

@@ -140,16 +140,19 @@ class TierResultService(
     }
 
     @Transactional(readOnly = true)
-    fun getById(id: UUID, viewerUserId: Long?): TierResultResponse {
+    fun getById(id: UUID, viewerUserId: Long?, countView: Boolean = true): TierResultResponse {
+        val pending = if (countView) {
+            viewCountService.bumpResultPending(id)
+        } else {
+            viewCountService.resultPendingMulti(listOf(id))[id] ?: 0L
+        }
         val cached = tierResultCacheService.getCached(id)
         val base = if (cached != null) {
-            val pending = viewCountService.bumpResultPending(id)
             val dbView = tierResultRepository.findViewCountById(id) ?: 0L
             cached.copy(myReaction = null, viewCount = dbView + pending)
         } else {
             val entity = tierResultRepository.findByIdWithTemplate(id)
                 ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "tier result not found")
-            val pending = viewCountService.bumpResultPending(id)
             val persisted = toResponse(entity)
             tierResultCacheService.put(id, persisted)
             persisted.copy(viewCount = entity.viewCount + pending)
