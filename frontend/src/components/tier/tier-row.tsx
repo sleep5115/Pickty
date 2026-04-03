@@ -73,7 +73,7 @@ export function TierRow({
         ref={setNodeRef}
         style={rowStyle}
         className={[
-          'flex flex-row min-h-20 border-b border-slate-200 dark:border-zinc-800 transition-all duration-150',
+          'flex flex-row min-h-20 items-stretch border-b border-slate-200 dark:border-zinc-800 transition-all duration-150',
           isDragging ? 'opacity-40' : '',
           isTarget ? 'ring-2 ring-inset ring-violet-500 bg-violet-950/20' : '',
         ]
@@ -92,7 +92,7 @@ export function TierRow({
               : `'${tier.label}' 티어로 이동 타겟팅`
           }
           className={[
-            'relative w-20 min-w-[80px] shrink-0 overflow-hidden',
+            'relative flex min-h-20 w-20 min-w-[80px] shrink-0 flex-col overflow-hidden',
             'transition-all duration-150',
             isTarget
               ? 'brightness-110 ring-2 ring-violet-400'

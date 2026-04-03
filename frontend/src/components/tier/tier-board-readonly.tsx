@@ -40,9 +40,9 @@ export const TierBoardReadonly = forwardRef<HTMLDivElement, TierBoardReadonlyPro
             {tiers.map((tier) => (
               <div
                 key={tier.id}
-                className="flex min-h-20 flex-row border-b border-slate-200 last:border-b-0 dark:border-zinc-800"
+                className="flex min-h-20 flex-row items-stretch border-b border-slate-200 last:border-b-0 dark:border-zinc-800"
               >
-                <div className="relative w-20 min-w-[80px] shrink-0 overflow-hidden">
+                <div className="relative flex min-h-20 w-20 min-w-[80px] shrink-0 flex-col overflow-hidden">
                   <TierLabelCellView tier={tier} />
                 </div>
                 <div className="flex min-h-20 min-w-0 flex-1 flex-row flex-wrap content-start items-start gap-1 bg-transparent p-1.5">

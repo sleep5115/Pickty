@@ -24,7 +24,8 @@ export function TierLabelCellView({
 }: TierLabelCellViewProps) {
   const hasImg = tierHasBackgroundImage(tier);
   const textStyle = getTierLabelTextStyle(tier);
-  const box = compact ? 'h-full w-full min-h-0' : 'min-h-20 w-full';
+  /** compact: 모달 스와치 등 고정 박스. 그 외: 티어 행에서 아이템 줄바꿈 시 라벨 배경이 행 전체 높이를 채우도록 flex-1 */
+  const box = compact ? 'h-full w-full min-h-0' : 'min-h-20 w-full min-h-0 flex-1';
 
   if (!hasImg) {
     return (
