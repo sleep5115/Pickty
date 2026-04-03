@@ -93,6 +93,7 @@
 ## 진행 메모 **(2026-04-04)**
 
 - **티어 DnD — 미리보기=드롭**: `closestCorners`만으로는 Sortable이 **가로 중심 기준**과 다른 `over`를 잡아, 중심선 이전에도 **유령 슬롯**이 먼저 움직이던 현상. 대응: (1) 같은 미분류 풀·같은 티어 행·**단일 카드** 드래그 시 `onDragOver`에서 `reorderPoolItems`/`reorderTierItems`로 상태 동기화(기존). (2) **`tierItemCollisionDetection`** — `reorderItemNextToRef`로 **순서가 실제로 안 바뀌면** 충돌 결과를 **`over = active`**로 덮어 Sortable transform을 막음. `reorderItemNextToRef`는 DnD·충돌 공용으로 **`tier-store` export**.
+- **티어 DnD — 빈 티어 줄 드롭**: `closestCorners`가 **드래그 카드 rect** 기준이라 커서는 아래 빈 행인데 `over`가 위쪽 S/A 아이템으로 잡히던 문제 — **`collisionsFromPointerInside`**: 포인터가 들어 있는 droppable만 모아 **면적 작은 순**(카드 우선)으로 정렬 후, 없으면 `closestCorners` 폴백.
 - **저장|다운로드 모달 — autofill**: `globals.css`의 `-webkit-autofill`이 다크 색을 **전역** 적용해, 라이트 모드에서 Chrome 자동완성(「지난 완성 기록」 등) 선택 시 **제목 input만** 어둡게 보이던 현상 — `html:not(.dark)` / `html.dark`로 분리. `export-modal` 제목·설명에 `autoComplete="off"`·구분용 `name`.
 - **`/login`**: 소셜 버튼 아래 **이용약관·개인정보처리방침 동의 문구** 제거 — 전역 **`SiteFooter`**에 동일 링크가 있어 중복 노출 방지.
 

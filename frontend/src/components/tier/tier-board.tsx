@@ -6,6 +6,7 @@ import { GitBranch } from 'lucide-react';
 import {
   closestCorners,
   DndContext,
+  type Collision,
   type CollisionDetection,
   type DragEndEvent,
   type DragOverEvent,
@@ -30,6 +31,41 @@ import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
 import { ItemPool } from './item-pool';
 import { ItemCard } from './item-card';
 import { ExportModal } from './export-modal';
+
+/**
+ * `closestCorners`는 ‘드래그 중인 카드 rect’ 기준이라, 아래쪽 빈 티어 줄 위에 있어도
+ * 위쪽 S/A 아이템이 더 가깝다고 잡히는 경우가 많음. 포인터가 실제로 들어 있는 droppable을
+ * 우선하고, 겹치면 면적이 작은 쪽(카드 > 행)을 먼저 쓴다.
+ */
+function collisionsFromPointerInside(
+  args: Parameters<CollisionDetection>[0],
+): Collision[] | null {
+  const { pointerCoordinates, droppableContainers, droppableRects } = args;
+  if (!pointerCoordinates) return null;
+  const { x, y } = pointerCoordinates;
+
+  const hits: { area: number; container: (typeof droppableContainers)[number] }[] = [];
+  for (const container of droppableContainers) {
+    if (container.disabled) continue;
+    const rect = droppableRects.get(container.id);
+    if (!rect) continue;
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) continue;
+    hits.push({
+      area: rect.width * rect.height,
+      container,
+    });
+  }
+  if (hits.length === 0) return null;
+
+  hits.sort((a, b) => a.area - b.area);
+  return hits.map((h) => ({
+    id: h.container.id,
+    data: {
+      droppableContainer: h.container,
+      value: h.area,
+    },
+  }));
+}
 
 /** 드래그 타일 중심이 기준 카드 중심보다 오른쪽이면 ‘그 뒤’에 삽입 */
 function insertAfterFromPointer(
@@ -117,10 +153,14 @@ export function TierBoard({
    * 유령 슬롯만 움직이는 현상이 난다 → 그럴 땐 `over`를 active로 고정.
    */
   const tierItemCollisionDetection = useCallback<CollisionDetection>((args) => {
-    const base = closestCorners(args);
     const { active } = args;
-    if (!active) return base;
-    if (active.data.current?.type === 'tier-row') return base;
+    if (!active) return closestCorners(args);
+    if (active.data.current?.type === 'tier-row') {
+      return closestCorners(args);
+    }
+
+    const pointerCollisions = collisionsFromPointerInside(args);
+    const base = pointerCollisions ?? closestCorners(args);
 
     const activeId = String(active.id);
     const hitId = getFirstCollision(base, 'id');
