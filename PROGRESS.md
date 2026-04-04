@@ -21,7 +21,7 @@
 | `progress/PROGRESS_20260331.md`           | 2026-03-31 `**/template/new` 도화지·미리보기** 상세 정리 보관 (표배경 UI는 04-01 이후 본문·정본 문서에 반영됨) |
 | `docs/TEMPLATE_NEW_CANVAS_AND_PREVIEW.md` | 템플릿 만들기 **도화지·미리보기·board_config·레이어** 정본                      |
 | `docs/LOCAL-DEV.md`                       | 로컬 실행(Windows, JDK 25, 프론트 **3002**, `dev`/`local` 프로필)       |
-| `docs/DEPLOYMENT-CHECKLIST.md`            | OAuth·Vercel·CORS·`npm run verify:deploy`                     |
+| `docs/DEPLOYMENT-CHECKLIST.md`            | **상단 표**: Vercel(프론트)·Actions(백엔드 path)·pickty-config(시크릿). OAuth·CORS·`npm run verify:deploy` |
 | `deploy/lightsail/README.md`              | Lightsail·compose·시크릿 경로                                      |
 
 

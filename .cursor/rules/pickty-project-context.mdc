@@ -31,6 +31,16 @@ alwaysApply: true
 
 - **로컬·에이전트 작업:** `main` 으로 머지해 배포 반영할 때만 맞추고, **그 외에는 항상 `dev` 체크아웃**으로 유지한다.
 
+### 배포 구조 한눈에 (매번 찾지 말 것)
+
+| 대상 | 무엇이 배포를 밀어주나 | 메모 |
+|------|------------------------|------|
+| **프론트** (`pickty.app`) | **Vercel** — GitHub `main`에 올라오면 연동 프로젝트가 빌드·배포 | `frontend/**`만 바뀐 커밋도 **Vercel은 반응**. Pickty 레포의 백엔드 Actions와는 **별개** |
+| **백엔드** (`api.pickty.app`) | **GitHub Actions** `.github/workflows/deploy-backend.yml` | 트리거: `main` push **이면서** 변경 경로가 `backend/**` 또는 `deploy/lightsail/**` 또는 해당 workflow 파일. Lightsail에서 `git pull` + `docker compose … --build` |
+| **운영 시크릿** (`application-secrets.yaml`) | 비공개 레포 **pickty-config** 의 별도 workflow | SCP로 서버에 덮어쓴 뒤 API 컨테이너만 재시작 — Pickty 코드 push와 무관 |
+
+**자주 하는 실수:** 프론트만 고쳤는데 “GitHub Actions에 배포가 안 뜬다” — 정상이다. **Vercel 빌드**를 본다. 상세·체크리스트는 **`docs/DEPLOYMENT-CHECKLIST.md`**, Lightsail 서버 절차는 **`deploy/lightsail/README.md`**.
+
 ### 용어: 기록 · 커밋 · 배포 · 커밋 로그
 
 - 채팅에서 **「기록」** = `PROGRESS.md` 진행상황 갱신, **「커밋」** = Pickty는 `dev` / pickty-config는 `main`에 각각 커밋, **「배포」** = Pickty `dev` push + `main` 머지 + pickty-config `main` push 등 — **전체 정의·커밋 메시지 한글 규칙**은 **`pickty-workflow-terms.mdc`** 를 따른다.

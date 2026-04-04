@@ -2,6 +2,16 @@
 
 운영 도메인: **https://pickty.app** · API: **https://api.pickty.app** · 이미지 CDN: **https://img.pickty.app**
 
+### 배포가 어디로 가나 (요약)
+
+| 구성 | 배포 주체 | 언제 도나 |
+|------|-----------|-----------|
+| Next 프론트 | **Vercel** (GitHub `main` 연동) | `main`에 프론트 커밋이 올라올 때마다. `frontend/**`만 바뀌어도 여기만 돈다. |
+| Spring API + Nginx | **GitHub Actions** `deploy-backend.yml` | `main` push인데 **변경 파일이** `backend/**` 또는 `deploy/lightsail/**` 또는 그 workflow일 때만. |
+| `application-secrets.yaml` | **pickty-config** 레포 workflow | 그 레포 `main`에서 해당 파일 변경 시 (Pickty와 별도). |
+
+에이전트·규칙 파일에도 동일 요약: **`.cursor/rules/pickty-project-context.mdc`** 「배포 구조 한눈에」.
+
 ---
 
 ## 0. 백엔드 시크릿·코드 배포 (Lightsail)
