@@ -4,7 +4,7 @@ import { useDraggable } from '@dnd-kit/core';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ZoomIn } from 'lucide-react';
-import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
+import { TierItemTileImages } from '@/components/tier/tier-item-tile-images';
 import { isTierSpacerId, TierItem, useTierStore } from '@/lib/store/tier-store';
 
 export function hashColor(str: string): string {
@@ -145,13 +145,7 @@ function ItemCardChrome({
           .join(' ')}
       >
         {!isSpacer && item.imageUrl ? (
-          <img
-            src={picktyImageDisplaySrc(item.imageUrl)}
-            alt={item.name}
-            className="w-full h-full object-cover pointer-events-none"
-            loading="lazy"
-            decoding="async"
-          />
+          <TierItemTileImages imageUrl={item.imageUrl} alt={item.name} />
         ) : !isSpacer ? (
           <span className="text-center leading-tight px-0.5 drop-shadow pointer-events-none">
             {initials}
@@ -159,11 +153,11 @@ function ItemCardChrome({
         ) : null}
 
         {targetingActive && !alreadyInTarget && (
-          <span className="absolute inset-0 bg-violet-400/10 pointer-events-none rounded" />
+          <span className="pointer-events-none absolute inset-0 z-[15] rounded bg-violet-400/10" />
         )}
 
         {isSelected && (
-          <span className="absolute inset-0 bg-violet-400/20 pointer-events-none rounded" />
+          <span className="pointer-events-none absolute inset-0 z-[15] rounded bg-violet-400/20" />
         )}
       </button>
 

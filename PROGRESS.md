@@ -98,6 +98,10 @@
 - **저장|다운로드 모달 — autofill**: `globals.css`의 `-webkit-autofill`이 다크 색을 **전역** 적용해, 라이트 모드에서 Chrome 자동완성(「지난 완성 기록」 등) 선택 시 **제목 input만** 어둡게 보이던 현상 — `html:not(.dark)` / `html.dark`로 분리. `export-modal` 제목·설명에 `autoComplete="off"`·구분용 `name`.
 - **`/login`**: 소셜 버튼 아래 **이용약관·개인정보처리방침 동의 문구** 제거 — 전역 **`SiteFooter`**에 동일 링크가 있어 중복 노출 방지.
 - **업로드 압축 — Web Worker 폴백**: 번들 환경에서 `browser-image-compression` **Web Worker** 스크립트 로드가 실패하면 `ProgressEvent`만 reject 되어 **`/template/new`** 등에서 **첫 이미지부터 압축 실패**할 수 있음. `**frontend/src/lib/image-upload-api.ts**`: worker 실패 시 **`useWebWorker: false`**로 한 번 더 압축 재시도.
+- **표배경 이미지 UX·알려진 한계**: `**/template/new`** 도화지 팁에 추천 **1008×480px**(티어 라벨 6칸 기준) 안내. **`/tier`** 에서는 아이템이 많아 행 높이가 커지면 **`background-size: cover`** 때문에 배경이 **확대·재크롭되는 느낌**이 날 수 있음 — 당장 동작 변경 없이 기록만.
+- **티어·템플릿 이미지 잘림 완화**: 공용 `**frontend/src/components/tier/tier-item-tile-images.tsx**` — 정사각 타일 안 **`object-contain`** (초기 블러 배경 레이어는 제거). `**ItemCard**`·`**StaticItemCard**`·`**/template/new`** 아이템 그리드에 적용.
+- **썸네일도 전신 보이기**: `**/template/new`** 직접·포크 썸네일 미리보기, `**template-card**` 목록, `**tier-result-card**` 미리보기 `contain` 정책 통일. 자동 2×2 합성 `**template-thumbnail-composite.ts**` 는 캔버스에 **`drawImageContain`**.
+- **템플릿 카드 썸네일 비율**: 목록 카드 상단 영역 **`aspect-square`(1∶1)** — 자동 정사각 2×2 썸네일이 `contain` 일 때 좌우 여백 없이 맞음. 티어표 결과 카드는 **16∶10** 유지.
 
 ---
 

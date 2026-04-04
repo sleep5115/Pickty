@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
@@ -29,6 +28,7 @@ import {
 import { type TierItem, useTierStore } from '@/lib/store/tier-store';
 import { useTierPersistHydrated } from '@/lib/hooks/use-tier-persist-hydrated';
 import { TierBoard } from '@/components/tier/tier-board';
+import { TierItemTileImages } from '@/components/tier/tier-item-tile-images';
 import { ImagePreviewModal } from '@/components/tier/image-preview-modal';
 import { TemplateBoardCanvasEditor } from '@/components/template/template-board-canvas-editor';
 
@@ -687,25 +687,17 @@ function NewTemplatePageInner() {
               )}
             </div>
             {customThumbPreview && (
-              <div className="mt-2 relative w-24 h-24 rounded-lg overflow-hidden border border-slate-200 dark:border-zinc-700">
-                <Image
-                  src={customThumbPreview}
-                  alt=""
-                  fill
-                  className="object-cover"
-                  unoptimized
-                />
+              <div className="relative mt-2 h-24 w-24 overflow-hidden rounded-lg border border-slate-200 dark:border-zinc-700">
+                <TierItemTileImages imageUrl={customThumbPreview} alt="썸네일 미리보기" />
               </div>
             )}
             {!customThumbFile && persistedListThumbnailUrl && (
               <div className="mt-3 space-y-1">
                 <p className="text-xs text-slate-500 dark:text-zinc-500">불러온 템플릿 썸네일</p>
-                <div className="relative w-28 h-28 rounded-lg overflow-hidden border border-slate-200 dark:border-zinc-700">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={picktyImageDisplaySrc(persistedListThumbnailUrl)}
-                    alt=""
-                    className="h-full w-full object-cover"
+                <div className="relative h-28 w-28 overflow-hidden rounded-lg border border-slate-200 dark:border-zinc-700">
+                  <TierItemTileImages
+                    imageUrl={persistedListThumbnailUrl.trim()}
+                    alt="불러온 템플릿 썸네일"
                   />
                 </div>
                 {showForkOriginalThumbOption && keepOriginalThumb ? (
@@ -795,12 +787,13 @@ function NewTemplatePageInner() {
               {fields.map((field, index) => {
                 const clientId = form.watch(`items.${index}.clientId`);
                 const existingImg = form.watch(`items.${index}.existingImageUrl`);
+                const rowName = form.watch(`items.${index}.name`);
                 const previewLocal = clientId ? fileMap[clientId]?.previewUrl : undefined;
-                const preview =
-                  previewLocal ??
-                  (typeof existingImg === 'string' && existingImg.trim()
-                    ? picktyImageDisplaySrc(existingImg.trim())
-                    : undefined);
+                const existingTrimmed =
+                  typeof existingImg === 'string' && existingImg.trim() ? existingImg.trim() : '';
+                const rawImageUrl = previewLocal ?? existingTrimmed;
+                const itemAlt =
+                  (typeof rowName === 'string' && rowName.trim()) || `아이템 ${index + 1}`;
                 const picked = (form.watch('thumbnailClientIds') ?? []).includes(clientId ?? '');
                 const thumbCount = (form.watch('thumbnailClientIds') ?? []).length;
                 return (
@@ -808,16 +801,9 @@ function NewTemplatePageInner() {
                     key={field.id}
                     className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm flex flex-col"
                   >
-                    <div className="aspect-square bg-slate-100 dark:bg-zinc-950 relative">
-                      {preview ? (
-                        <Image
-                          src={preview}
-                          alt=""
-                          fill
-                          sizes="(max-width: 640px) 50vw, 25vw"
-                          className="object-cover"
-                          unoptimized
-                        />
+                    <div className="relative aspect-square overflow-hidden bg-slate-100 dark:bg-zinc-950">
+                      {rawImageUrl ? (
+                        <TierItemTileImages imageUrl={rawImageUrl} alt={itemAlt} />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-xs text-slate-400 dark:text-zinc-600">
                           미리보기 없음

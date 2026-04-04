@@ -98,7 +98,7 @@ export function TierResultCard({
               <img
                 src={picktyImageDisplaySrc(r.thumbnailUrl)}
                 alt=""
-                className="block h-full w-full min-h-0 object-cover object-top"
+                className="block h-full w-full min-h-0 object-contain object-center"
                 loading="lazy"
                 decoding="async"
               />

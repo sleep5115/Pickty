@@ -394,10 +394,22 @@ export function TemplateBoardCanvasEditor({
         <h2 className="text-sm font-semibold tracking-tight text-slate-900 dark:text-zinc-100">
           도화지
         </h2>
-        <p className="mt-0.5 text-xs text-slate-500 dark:text-zinc-500">
+        <p className="mt-0.5 text-xs text-slate-500 dark:text-zinc-500 leading-relaxed">
           가운데 영역을 눌러 표배경 이미지를 올리거나, 우측 상단에서 배경색을 고를 수 있어요. 행마다 아이콘으로
           라벨배경을 올릴 수 있어요.
         </p>
+        <div className="mt-2 space-y-1.5 text-xs text-slate-500 dark:text-zinc-500 leading-relaxed">
+          <p className="font-medium text-slate-600 dark:text-zinc-400">배경 이미지 딱 맞게 올리는 팁</p>
+          <p>
+            <span className="text-slate-600 dark:text-zinc-400">표 전체 배경:</span> 라벨 영역+표 영역 (우측 끝 조작 메뉴 칸 제외)
+            추천 사이즈:{' '}
+            <span className="tabular-nums font-medium text-slate-700 dark:text-zinc-300">1008 × 480px</span> (티어
+            라벨 6칸 기준)
+          </p>
+          <p className="text-slate-400 dark:text-zinc-600">
+            참고: 티어표에 아이템이 많아져 줄이 추가되면, 배경 이미지도 아래로 자연스럽게 늘어납니다.
+          </p>
+        </div>
         <div className="mt-3 flex flex-wrap gap-2">
           <button
             type="button"

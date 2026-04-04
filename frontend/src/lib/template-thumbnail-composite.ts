@@ -23,8 +23,8 @@ function loadImageForCanvas(src: string, originalForError: string): Promise<HTML
   });
 }
 
-/** object-fit: cover — 셀 중앙 기준 크롭 */
-function drawImageCover(
+/** object-fit: contain — 셀 안에 전체가 들어가도록, 여백은 셀 배경색 */
+function drawImageContain(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
   dx: number,
@@ -35,12 +35,12 @@ function drawImageCover(
   const iw = img.naturalWidth;
   const ih = img.naturalHeight;
   if (iw < 1 || ih < 1) return;
-  const r = Math.max(dWidth / iw, dHeight / ih);
-  const sw = dWidth / r;
-  const sh = dHeight / r;
-  const sx = (iw - sw) / 2;
-  const sy = (ih - sh) / 2;
-  ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dWidth, dHeight);
+  const r = Math.min(dWidth / iw, dHeight / ih);
+  const dw = iw * r;
+  const dh = ih * r;
+  const ox = dx + (dWidth - dw) / 2;
+  const oy = dy + (dHeight - dh) / 2;
+  ctx.drawImage(img, 0, 0, iw, ih, ox, oy, dw, dh);
 }
 
 function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
@@ -108,7 +108,7 @@ export async function captureTemplateThumbnail2x2(imageUrls: readonly string[]):
     const [x, y] = corners[i]!;
     ctx.fillStyle = CELL_HEX;
     ctx.fillRect(x, y, cell, cell);
-    drawImageCover(ctx, imgs[i]!, x, y, cell, cell);
+    drawImageContain(ctx, imgs[i]!, x, y, cell, cell);
   }
 
   return canvasToPngBlob(canvas);

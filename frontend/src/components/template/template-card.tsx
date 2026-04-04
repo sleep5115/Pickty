@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { MoreVertical, Pencil, Trash2 } from 'lucide-react';
-import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
+import { TierItemTileImages } from '@/components/tier/tier-item-tile-images';
 import type { CommunityReactionType } from '@/lib/api/community-api';
 import type { TemplateSummaryResponse } from '@/lib/tier-api';
 import { TemplateLikeButton } from '@/components/community/template-like-button';
@@ -66,22 +66,14 @@ export function TemplateCard({
         className="group flex w-full flex-col transition-colors"
       >
         <div
-          className="relative w-full shrink-0 overflow-hidden rounded-t-xl border-b border-slate-100 bg-linear-to-br from-slate-200 to-slate-100 dark:border-zinc-800 dark:from-zinc-800 dark:to-zinc-900"
-          style={{ aspectRatio: '16 / 10', minHeight: '120px' }}
+          className="relative aspect-square w-full min-h-[120px] shrink-0 overflow-hidden rounded-t-xl border-b border-slate-100 bg-linear-to-br from-slate-200 to-slate-100 dark:border-zinc-800 dark:from-zinc-800 dark:to-zinc-900"
         >
           {hasThumb ? (
             <div className="absolute inset-0 min-h-0 w-full">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={picktyImageDisplaySrc(thumbnailUrl!)}
-                alt=""
-                className="block h-full w-full object-cover"
-                loading="lazy"
-                decoding="async"
-              />
+              <TierItemTileImages imageUrl={thumbnailUrl!} alt={`${title} 썸네일`} />
             </div>
           ) : (
-            <div className="flex h-full min-h-[120px] items-center justify-center">
+            <div className="flex h-full min-h-[120px] w-full items-center justify-center">
               <span
                 className="select-none text-4xl opacity-40 transition-opacity group-hover:opacity-60"
                 aria-hidden
