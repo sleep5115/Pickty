@@ -5,14 +5,14 @@ import { apiFetch } from '@/lib/api-fetch';
  * 서버·Nginx 요청당 본문 한도는 8MB로 통일(`application.yaml`, `deploy/lightsail/nginx.conf`).
  * 서버는 JPEG/PNG/WebP/GIF 화이트리스트 + 매직 검증.
  */
-const PICKTY_CLIENT_COMPRESS_OPTIONS = {
+/** useWebWorker 는 호출 시점에 덮어씀 — 번들 환경에서 worker 청크 로드 실패 시 ProgressEvent 만 던지는 경우가 있음 */
+const PICKTY_CLIENT_COMPRESS_OPTIONS_BASE = {
   maxSizeMB: 0.5,
   maxWidthOrHeight: 1024,
-  useWebWorker: true,
   fileType: 'image/webp' as const,
   /** 확대 모달 등에서 디테일 보존 */
   initialQuality: 0.85,
-};
+} as const;
 
 export type UploadPicktyImagesOptions = {
   /**
@@ -32,12 +32,25 @@ function webpUploadName(original: File): string {
 }
 
 /**
- * 원본 File → WebP 로 압축. Web Worker 사용으로 메인 스레드 블로킹 완화.
+ * 원본 File → WebP 로 압축. 우선 Web Worker, 실패 시 메인 스레드로 재시도.
+ * Next.js 등에서 worker 번들 URL 이 어긋나면 `ProgressEvent` 만 reject 되는 경우가 있어 폴백이 필요함.
  * 동적 import 로 `window`/canvas 의존 라이브러리 로드를 클라이언트 업로드 시점까지 지연.
  */
 async function compressPicktyImageForUpload(file: File): Promise<File> {
   const imageCompression = (await import('browser-image-compression')).default;
-  const out = await imageCompression(file, PICKTY_CLIENT_COMPRESS_OPTIONS);
+  const run = (useWebWorker: boolean) =>
+    imageCompression(file, {
+      ...PICKTY_CLIENT_COMPRESS_OPTIONS_BASE,
+      useWebWorker,
+    });
+
+  let out: Blob;
+  try {
+    out = await run(true);
+  } catch {
+    out = await run(false);
+  }
+
   return new File([out], webpUploadName(file), {
     type: 'image/webp',
     lastModified: Date.now(),

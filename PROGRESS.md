@@ -97,6 +97,7 @@
 - **조회수 이중 집계**: `GET /templates/{id}`·`GET /tiers/results/{id}`마다 Valkey `HINCRBY` 하는데, `/tier`는 **워크스페이스 로드**와 **토큰·반응 동기화** 두 effect가 각각 `getTemplate`을 호출해 **운영 +2·로컬(Strict) +4**처럼 보일 수 있음(템플릿 목록 개수와 무관). 대응: 쿼리 **`countView=false`**(집계 생략·미반영 delta만 HMGET) + 프론트는 동기화용 호출에만 적용, OG `fetch`도 `countView=false`. intent로 워크스페이스가 GET을 생략할 때만 동기화 effect에서 **1회** 집계. `/tier/result/…`는 같은 id로 토큰만 바뀔 때 `countView=false`.
 - **저장|다운로드 모달 — autofill**: `globals.css`의 `-webkit-autofill`이 다크 색을 **전역** 적용해, 라이트 모드에서 Chrome 자동완성(「지난 완성 기록」 등) 선택 시 **제목 input만** 어둡게 보이던 현상 — `html:not(.dark)` / `html.dark`로 분리. `export-modal` 제목·설명에 `autoComplete="off"`·구분용 `name`.
 - **`/login`**: 소셜 버튼 아래 **이용약관·개인정보처리방침 동의 문구** 제거 — 전역 **`SiteFooter`**에 동일 링크가 있어 중복 노출 방지.
+- **업로드 압축 — Web Worker 폴백**: 번들 환경에서 `browser-image-compression` **Web Worker** 스크립트 로드가 실패하면 `ProgressEvent`만 reject 되어 **`/template/new`** 등에서 **첫 이미지부터 압축 실패**할 수 있음. `**frontend/src/lib/image-upload-api.ts**`: worker 실패 시 **`useWebWorker: false`**로 한 번 더 압축 재시도.
 
 ---
 
