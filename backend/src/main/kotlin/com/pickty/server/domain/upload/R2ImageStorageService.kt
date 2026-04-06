@@ -28,8 +28,20 @@ class R2ImageStorageService(
     private val log = LoggerFactory.getLogger(R2ImageStorageService::class.java)
 
     /** [storeOne] 과 동일 규칙: UUID 소문자 + 허용 확장자 */
-    private val storedObjectKeyRegex =
-        Regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(png|jpe?g|webp|gif|bin)$")
+    private val storedObjectKeyRegex = STORED_OBJECT_KEY_REGEX
+
+    companion object {
+        /** 업로드 객체 키 형식 — 고아 정리·DB 스캔 등에서 동일 규칙으로 맞춘다 */
+        val STORED_OBJECT_KEY_REGEX: Regex =
+            Regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(png|jpe?g|webp|gif|bin)$")
+
+        /** JSON·본문 안에 포함된 키 후보를 찾을 때(앵커 없음) */
+        val STORED_OBJECT_KEY_FRAGMENT_REGEX: Regex =
+            Regex(
+                "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(?:png|jpe?g|webp|gif|bin)",
+                RegexOption.IGNORE_CASE,
+            )
+    }
 
     fun storeAllOrdered(files: List<MultipartFile>): List<String> {
         if (files.isEmpty()) {

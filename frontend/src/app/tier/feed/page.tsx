@@ -96,8 +96,8 @@ export default function TierFeedPage() {
   }, [fetchPage, hasMore, initialLoading, items.length]);
 
   return (
-    <div className="w-full py-8 px-1 sm:px-2 max-w-5xl mx-auto flex flex-col gap-6">
-      <div>
+    <div className="w-full py-8 px-1 sm:px-2 flex flex-col gap-6">
+      <div className="w-full">
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">티어표</h1>
         <p className="mt-1 text-sm text-slate-600 dark:text-zinc-400">
           모두가 만든 티어표를 최신순으로 모아 보여요.
@@ -123,6 +123,8 @@ export default function TierFeedPage() {
           </>
         )}
       </div>
+
+      <div className="w-full max-w-5xl mx-auto flex flex-col gap-6">
 
       {initialLoading && (
         <div className="flex justify-center py-16">
@@ -226,6 +228,7 @@ export default function TierFeedPage() {
           }}
         />
       )}
+      </div>
     </div>
   );
 }

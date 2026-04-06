@@ -746,12 +746,14 @@ export default function AccountPage() {
   const joinDateCompact = formatJoinDateKoCompact(user.createdAt);
 
   return (
-    <div className="w-full max-w-2xl mx-auto py-10 space-y-6">
+    <div className="w-full py-10 px-1 sm:px-2 flex flex-col gap-6">
       <h1 className="text-2xl font-bold text-slate-900 dark:text-zinc-100">내 계정</h1>
 
+      <div className="w-full max-w-2xl mx-auto space-y-6">
       <div className="bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-6">
         <div className="flex items-start gap-5">
           {user.profileImageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- 프로필 원형 썸네일
             <img
               src={picktyImageDisplaySrc(user.profileImageUrl)}
               alt=""
@@ -1084,6 +1086,7 @@ export default function AccountPage() {
           router.replace('/login');
         }}
       />
+      </div>
     </div>
   );
 }
