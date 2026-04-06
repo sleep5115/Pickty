@@ -31,6 +31,7 @@
 |-----------|--------|-----------|
 | 프론트 API 베이스 | `https://api.pickty.app` | `frontend/src/lib/public-site-config.ts` 의 `PUBLIC_API_BASE_URL` fallback 및 Vercel `NEXT_PUBLIC_API_URL` |
 | 프론트 사이트 URL | `https://pickty.app` | `PUBLIC_SITE_URL` 및 `NEXT_PUBLIC_SITE_URL` |
+| GA4 측정 ID (선택) | 운영 스트림 `G-…` | Vercel `NEXT_PUBLIC_GA_ID` — 미설정·빈 값이면 빌드에 스크립트 미포함 · **로컬 `next dev`는 비프로덕션이라 수집 안 됨**(검증은 `next build`+`next start` 또는 배포 URL) |
 | 백엔드 `FRONTEND_URL` | `https://pickty.app` | `pickty-config/application-secrets.yaml` 또는 서버 환경 변수 |
 | 백엔드 CORS 허용 오리진 | `https://pickty.app`, `https://www.pickty.app`, 로컬 3002 | 동일 파일의 `app.oauth2.allowed-frontend-origins` (쉼표 구분, 공백 없이) |
 | R2 공개 URL | `https://img.pickty.app` | `cloud.cloudflare.r2.public-url` 이 업로드 응답 URL과 일치 |
