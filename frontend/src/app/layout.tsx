@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { SonnerToaster } from "@/components/providers/sonner-toaster";
 import { GNB } from "@/components/layout/gnb";
@@ -37,6 +38,10 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const gaId = process.env.NEXT_PUBLIC_GA_ID?.trim();
+  const enableGoogleAnalytics =
+    process.env.NODE_ENV === "production" && Boolean(gaId);
+
   return (
     <html
       lang="ko"
@@ -59,6 +64,9 @@ export default function RootLayout({
             <SiteFooter />
           </div>
         </ThemeProvider>
+        {enableGoogleAnalytics && gaId ? (
+          <GoogleAnalytics gaId={gaId} />
+        ) : null}
       </body>
     </html>
   );
