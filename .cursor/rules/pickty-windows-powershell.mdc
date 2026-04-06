@@ -1,0 +1,30 @@
+---
+description: Windows PowerShell에서 터미널 명령 실행 시 && 대신 세미콜론·Set-Location 사용
+alwaysApply: true
+---
+
+# Pickty — Windows 터미널 (PowerShell)
+
+개발 환경은 **Windows**이며, 기본 셸이 **Windows PowerShell 5.1**인 경우가 많다. **5.1은 `&&`로 명령을 이어 쓰는 문법을 지원하지 않는다** (PowerShell 7+ `pwsh`에서만 지원). 에이전트가 터미널에서 명령을 실행할 때 **Bash 스타일 `cd path && …`를 쓰면 파서 오류로 실패**한다.
+
+## 규칙
+
+1. **한 줄에 디렉터리 이동 + 명령**이 필요하면 **`Set-Location "경로"; 명령`** 형태를 쓴다. (`;`는 5.1에서 동작한다.)
+2. **`&&`는 사용하지 않는다** (사용자 환경이 `pwsh`임이 분명할 때만 예외 가능 — 기본은 금지).
+3. Git 등: `Set-Location "C:\...\Pickty"; git pull` — **성공 검증된 패턴**을 우선한다.
+
+## 예시
+
+```powershell
+# ❌ BAD — PowerShell 5.1에서 실패
+cd "C:\path\to\repo" && git pull
+
+# ✅ GOOD
+Set-Location "C:\path\to\repo"; git pull
+```
+
+여러 단계가 있으면 **명령을 나누어 실행**해도 된다.
+
+## 응답
+
+실패 후 재시도한 뒤 사용자에게 **“PowerShell에서 &&가 실패했다”**는 식의 장황한 설명을 **기본으로 하지 않는다**. 처음부터 위 패턴을 쓰면 된다.
