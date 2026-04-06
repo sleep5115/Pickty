@@ -2,7 +2,7 @@ import DOMPurify from 'dompurify';
 
 const BOARD_HTML_CONFIG: import('dompurify').Config = {
   USE_PROFILES: { html: true },
-  ADD_TAGS: ['iframe', 'details', 'summary', 'figure', 'figcaption'],
+  ADD_TAGS: ['iframe', 'figure', 'figcaption'],
   ADD_ATTR: [
     'allow',
     'allowfullscreen',
@@ -12,15 +12,7 @@ const BOARD_HTML_CONFIG: import('dompurify').Config = {
     'sandbox',
     'class',
     'style',
-    'open',
     'data-type',
-    'data-pickty-link-card',
-    'data-href',
-    'data-title',
-    'data-image',
-    'data-kind',
-    'data-twitter-embed',
-    'data-tweet-id',
     'width',
     'height',
     'loading',

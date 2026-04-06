@@ -26,6 +26,7 @@ repositories {
 
 dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+	implementation("org.flywaydb:flyway-core")
 	implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
 	implementation("org.springframework.boot:spring-boot-starter-data-redis")
 	implementation("org.springframework.boot:spring-boot-starter-security")
@@ -33,6 +34,7 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-webmvc")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+	implementation("org.jsoup:jsoup:1.18.3")
 	implementation("tools.jackson.module:jackson-module-kotlin")
 	implementation(platform("software.amazon.awssdk:bom:2.30.38"))
 	implementation("software.amazon.awssdk:s3")

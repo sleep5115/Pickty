@@ -78,6 +78,9 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
 
 # 이미지 저장소(Cloudflare R2, S3 호환): bucket-name·access-key·secret-key·endpoint·public-url
 # 값은 gitignore application-secrets.yaml 또는 배포 환경 변수(CLOUD_CLOUDFLARE_R2_*) 로 주입.

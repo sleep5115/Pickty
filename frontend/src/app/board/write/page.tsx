@@ -7,6 +7,8 @@ import { startTransition, useCallback, useEffect, useMemo, useState } from 'reac
 import { toast } from 'sonner';
 
 import { TiptapEditor } from '@/components/board/TiptapEditor';
+import { createBoardPost } from '@/lib/api/board-api';
+import { apiFetch } from '@/lib/api-fetch';
 import { useAuthStore } from '@/lib/store/auth-store';
 
 const STORAGE_KEY = 'pickty-board-draft';
@@ -80,11 +82,45 @@ function formatDraftTime(iso: string): string {
 export default function BoardWritePage() {
   const router = useRouter();
   const { accessToken } = useAuthStore();
+  const [me, setMe] = useState<{ id: number; nickname: string; profileImageUrl: string | null } | null>(null);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState<JSONContent>(EMPTY_DOC);
+  const [contentHtml, setContentHtml] = useState('');
   const [hydrated, setHydrated] = useState(false);
   const [savedDrafts, setSavedDrafts] = useState<SavedDraft[]>([]);
   const [loadModalOpen, setLoadModalOpen] = useState(false);
+  const [guestNickname, setGuestNickname] = useState('');
+  const [guestPassword, setGuestPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const isLoggedIn = Boolean(accessToken);
+
+  useEffect(() => {
+    if (!accessToken) {
+      setMe(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await apiFetch('/api/v1/user/me', { headers: { Authorization: `Bearer ${accessToken}` } });
+        if (!res.ok || cancelled) return;
+        const u = (await res.json()) as { id?: unknown; nickname?: unknown; profileImageUrl?: unknown };
+        const id = typeof u.id === 'number' ? u.id : Number(u.id);
+        if (!Number.isFinite(id)) return;
+        setMe({
+          id,
+          nickname: typeof u.nickname === 'string' ? u.nickname : '회원',
+          profileImageUrl: typeof u.profileImageUrl === 'string' ? u.profileImageUrl : null,
+        });
+      } catch {
+        if (!cancelled) setMe(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken]);
 
   useEffect(() => {
     const list = parseDraftList(sessionStorage.getItem(STORAGE_LIST_KEY));
@@ -108,8 +144,9 @@ export default function BoardWritePage() {
     });
   }, []);
 
-  const handleEditorChange = useCallback((json: JSONContent) => {
+  const handleEditorChange = useCallback((json: JSONContent, safeHtml?: string) => {
     setContent(json);
+    setContentHtml(safeHtml ?? '');
   }, []);
 
   const handleSaveDraft = useCallback(() => {
@@ -147,16 +184,43 @@ export default function BoardWritePage() {
     router.push('/board');
   }, [router]);
 
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback(async () => {
     const t = title.trim();
     if (!t) {
       toast.error('제목을 입력해 주세요.');
       return;
     }
-    toast.message('등록 API는 준비 중입니다.', {
-      description: '필요하면 먼저 임시저장을 눌러 주세요.',
-    });
-  }, [title]);
+    if (!contentHtml.trim()) {
+      toast.error('본문을 입력해 주세요.');
+      return;
+    }
+    if (!isLoggedIn) {
+      if (!guestNickname.trim()) {
+        toast.error('비회원 닉네임을 입력해 주세요.');
+        return;
+      }
+      if (!guestPassword.trim()) {
+        toast.error('비회원 비밀번호를 입력해 주세요.');
+        return;
+      }
+    }
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await createBoardPost({
+        title: t,
+        contentHtml,
+        guestNickname: isLoggedIn ? undefined : guestNickname.trim(),
+        guestPassword: isLoggedIn ? undefined : guestPassword.trim(),
+      });
+      toast.success('게시글을 등록했습니다.');
+      router.push('/board');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : '게시글 등록에 실패했습니다.');
+    } finally {
+      setSubmitting(false);
+    }
+  }, [title, contentHtml, isLoggedIn, guestNickname, guestPassword, submitting, router]);
 
   const savedCount = savedDrafts.length;
   const canOpenLoad = savedCount > 0;
@@ -184,6 +248,43 @@ export default function BoardWritePage() {
             className="w-full border-b-2 border-[var(--border-subtle)] bg-transparent px-0 py-3 text-3xl font-bold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:border-fuchsia-500 focus:outline-none dark:focus:border-fuchsia-400"
           />
         </label>
+
+        <section className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-3">
+          {isLoggedIn ? (
+            <p className="text-sm text-[var(--text-secondary)]">
+              작성자: <span className="font-semibold text-[var(--text-primary)]">{me?.nickname ?? '회원'}</span>
+            </p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">
+                  닉네임 <span className="text-rose-500">*</span>
+                </span>
+                <input
+                  type="text"
+                  value={guestNickname}
+                  onChange={(e) => setGuestNickname(e.target.value)}
+                  maxLength={64}
+                  className="h-10 w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] px-3 text-sm outline-none focus:border-fuchsia-400"
+                  placeholder="닉네임"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">
+                  비밀번호 <span className="text-rose-500">*</span>
+                </span>
+                <input
+                  type="password"
+                  value={guestPassword}
+                  onChange={(e) => setGuestPassword(e.target.value)}
+                  maxLength={128}
+                  className="h-10 w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] px-3 text-sm outline-none focus:border-fuchsia-400"
+                  placeholder="수정/삭제 시 사용"
+                />
+              </label>
+            </div>
+          )}
+        </section>
 
         {hydrated ? (
           <TiptapEditor
@@ -224,10 +325,11 @@ export default function BoardWritePage() {
           </button>
           <button
             type="button"
-            onClick={handleSubmit}
+            onClick={() => void handleSubmit()}
+            disabled={submitting}
             className="h-11 rounded-xl bg-linear-to-r from-violet-600 to-fuchsia-600 px-6 text-sm font-semibold text-white shadow-md shadow-violet-600/25 transition hover:from-violet-500 hover:to-fuchsia-500"
           >
-            등록
+            {submitting ? '등록 중…' : '등록'}
           </button>
         </div>
       </div>
