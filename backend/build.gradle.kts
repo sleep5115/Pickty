@@ -32,6 +32,7 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-validation")
 	implementation("org.springframework.boot:spring-boot-starter-webmvc")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
+	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
 	implementation("tools.jackson.module:jackson-module-kotlin")
 	implementation(platform("software.amazon.awssdk:bom:2.30.38"))
 	implementation("software.amazon.awssdk:s3")

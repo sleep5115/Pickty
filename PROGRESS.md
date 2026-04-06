@@ -125,6 +125,7 @@
 - **이미지 표시 안전 경로 통일**: 에디터에 삽입되는 이미지 URL을 `**picktyImageDisplaySrc**`로 변환해 `img.pickty.app` 직링크 403/ORB를 우회 (`/api/pickty-image?key=...` 경유).
 - **게시판 임시저장 UX 개편**: 자동저장/자동 confirm 폐기, **수동 임시저장** + `**불러오기(n)**` 모달(다중 draft 목록, 선택 복원·개별 삭제). 레거시 `pickty-board-draft`는 `pickty-board-drafts`로 1회 마이그레이션 후 제거.
 - **레이아웃 폭 규칙 정리(헤더/본문 분리)**: `/tier/feed`·`/tier/my`·`/account`는 **헤더는 GNB 폭 유지**, 본문 카드/폼은 기존 좁은 `max-w-*`를 유지하도록 구조 분리.
+- **R2 고아 이미지 정리 배치(백엔드)**: `ImageCleanupService` + `ImageCleanupController`(`POST /api/v1/admin/image-cleanup/run`) 추가. R2(S3Client) 전체 키와 DB 참조 키(`users.display_avatar_url`, `tier_templates`/`tier_results` 썸네일, JSONB `items`/`board_config`/`snapshot_data`)를 비교해 orphan 후보를 산출하고, 기본 **드라이 런**(삭제 없음)으로 키 샘플·총 용량 로그를 출력. `extensions=png,webp` 같은 확장자 필터 지원, 실제 삭제는 `dryRun=false & executeDelete=true & pickty.image-cleanup.allow-execute-delete=true` 3중 게이트로 제한.
 
 ---
 

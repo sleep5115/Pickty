@@ -104,3 +104,8 @@ logging:
   level:
     org.hibernate.SQL: DEBUG
     org.hibernate.orm.jdbc.bind: TRACE
+
+# R2 고아 객체 실제 삭제 허용 — 기본 false. 로컬 secrets 에서만 true 로 켠 뒤 executeDelete=true 와 함께 사용.
+pickty:
+  image-cleanup:
+    allow-execute-delete: false
