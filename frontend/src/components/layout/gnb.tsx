@@ -3,7 +3,7 @@
 import { startTransition, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutGrid, List } from 'lucide-react';
+import { LayoutGrid, List, MessagesSquare } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useTierStore } from '@/lib/store/tier-store';
@@ -21,6 +21,12 @@ const NAV_LINKS = [
     label: '티어표',
     Icon: List,
     isActive: (p: string) => p.startsWith('/tier/feed'),
+  },
+  {
+    href: '/board',
+    label: '커뮤니티',
+    Icon: MessagesSquare,
+    isActive: (p: string) => p.startsWith('/board'),
   },
   // 후순위 미구현: 이상형 월드컵
   // { href: '/worldcup', label: '이상형 월드컵' },
