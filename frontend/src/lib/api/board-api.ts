@@ -1,4 +1,5 @@
 import { apiFetch } from '@/lib/api-fetch';
+import { parseCommentPage, type CommunityCommentPage } from '@/lib/api/community-api';
 
 export type BoardPostSummary = {
   id: string;
@@ -15,12 +16,15 @@ export type BoardPostDetail = {
   title: string;
   contentHtml: string;
   viewCount: number;
+  commentCount: number;
   createdAt: string;
   updatedAt: string;
   authorUserId: number | null;
   authorNickname: string;
   authorIpPrefix: string | null;
   authorAvatarUrl: string | null;
+  /** 상세 조회 시 첫 페이지(백엔드 기본 30건) */
+  comments: CommunityCommentPage;
 };
 
 export type BoardPostPage = {
@@ -68,11 +72,27 @@ function parseSummary(row: Record<string, unknown>): BoardPostSummary {
 }
 
 function parseDetail(row: Record<string, unknown>): BoardPostDetail {
+  const rawComments = row.comments;
+  const comments =
+    rawComments != null && typeof rawComments === 'object'
+      ? parseCommentPage(rawComments as Record<string, unknown>)
+      : {
+          content: [],
+          totalElements: 0,
+          totalPages: 0,
+          size: 0,
+          number: 0,
+          first: true,
+          last: true,
+          empty: true,
+        };
+
   return {
     id: String(row.id ?? ''),
     title: typeof row.title === 'string' ? row.title : '',
     contentHtml: typeof row.contentHtml === 'string' ? row.contentHtml : String(row.content_html ?? ''),
     viewCount: toNum(row.viewCount ?? row.view_count),
+    commentCount: toNum(row.commentCount ?? row.comment_count),
     createdAt: typeof row.createdAt === 'string' ? row.createdAt : String(row.created_at ?? ''),
     updatedAt: typeof row.updatedAt === 'string' ? row.updatedAt : String(row.updated_at ?? ''),
     authorUserId: parseAuthorId(row.authorUserId ?? row.author_user_id),
@@ -94,6 +114,7 @@ function parseDetail(row: Record<string, unknown>): BoardPostDetail {
         : typeof row.author_avatar_url === 'string'
           ? row.author_avatar_url
           : null,
+    comments,
   };
 }
 

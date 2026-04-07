@@ -1,6 +1,6 @@
 import { apiFetch } from '@/lib/api-fetch';
 
-export type CommunityTargetType = 'TIER_TEMPLATE' | 'TIER_RESULT';
+export type CommunityTargetType = 'TIER_TEMPLATE' | 'TIER_RESULT' | 'BOARD_POST';
 
 export type CommunityReactionType = 'LIKE' | 'UPVOTE' | 'DOWNVOTE';
 
@@ -72,7 +72,7 @@ function parseComment(row: Record<string, unknown>): CommunityComment {
   };
 }
 
-function parseCommentPage(body: Record<string, unknown>): CommunityCommentPage {
+export function parseCommentPage(body: Record<string, unknown>): CommunityCommentPage {
   const rawContent = body.content;
   const content = Array.isArray(rawContent)
     ? rawContent

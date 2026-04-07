@@ -1,15 +1,19 @@
 package com.pickty.server.domain.board
 
+import com.pickty.server.domain.board.dto.BoardPostCommentsPageResponse
 import com.pickty.server.domain.board.dto.BoardPostDetailResponse
 import com.pickty.server.domain.board.dto.BoardPostSummaryResponse
 import com.pickty.server.domain.board.dto.CreateBoardPostRequest
 import com.pickty.server.domain.board.dto.CreateBoardPostResponse
+import com.pickty.server.domain.community.CommunityCommentService
+import com.pickty.server.domain.community.ReactionTargetType
 import com.pickty.server.domain.user.UserRepository
 import com.pickty.server.global.util.IpPrefixFormatter
 import com.pickty.server.global.util.Sha256Hex
 import com.pickty.server.global.web.ClientIpResolver
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.data.domain.Page
+import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
 import org.springframework.http.HttpStatus
 import org.springframework.security.crypto.password.PasswordEncoder
@@ -24,7 +28,11 @@ class BoardPostService(
     private val userRepository: UserRepository,
     private val passwordEncoder: PasswordEncoder,
     private val boardHtmlSanitizer: BoardHtmlSanitizer,
+    private val communityCommentService: CommunityCommentService,
 ) {
+    companion object {
+        private const val BOARD_POST_COMMENTS_PAGE_SIZE = 30
+    }
     @Transactional
     fun create(
         userId: Long?,
@@ -98,17 +106,36 @@ class BoardPostService(
         }
         val user = any.authorId?.let { userRepository.findById(it).orElse(null) }
         any.incrementViewCount()
+        val postId = any.id!!
+        val commentPage =
+            communityCommentService.listCommentsPage(
+                ReactionTargetType.BOARD_POST,
+                postId,
+                PageRequest.of(0, BOARD_POST_COMMENTS_PAGE_SIZE),
+            )
         return BoardPostDetailResponse(
-            id = any.id!!,
+            id = postId,
             title = any.title,
             contentHtml = any.contentHtml,
             viewCount = any.viewCount,
+            commentCount = any.commentCount,
             createdAt = any.createdAt.toString(),
             updatedAt = any.updatedAt.toString(),
             authorUserId = any.authorId,
             authorNickname = user?.nickname ?: (any.guestNickname ?: "익명"),
             authorIpPrefix = if (any.authorId == null) any.guestIpPrefix else null,
             authorAvatarUrl = user?.displayAvatarUrl,
+            comments =
+                BoardPostCommentsPageResponse(
+                    content = commentPage.content,
+                    totalElements = commentPage.totalElements,
+                    totalPages = commentPage.totalPages,
+                    size = commentPage.size,
+                    number = commentPage.number,
+                    first = commentPage.isFirst,
+                    last = commentPage.isLast,
+                    empty = commentPage.isEmpty,
+                ),
         )
     }
 }
