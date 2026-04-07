@@ -164,6 +164,7 @@ function ItemCardChrome({
       {showPreviewBtn && (
         <button
           type="button"
+          data-capture-ignore="true"
           aria-label={`${item.name} 이미지 크게 보기`}
           className={[
             'absolute top-0.5 right-0.5 z-20 rounded p-0.5 touch-manipulation',
