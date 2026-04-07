@@ -69,6 +69,11 @@ class BoardPost(
     var viewCount: Long = 0
         protected set
 
+    @Column(name = "comment_count", nullable = false)
+    @ColumnDefault("0")
+    var commentCount: Long = 0
+        protected set
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @ColumnDefault("'ACTIVE'")

@@ -7,6 +7,7 @@ import {
   deleteComment,
   getComments,
   type CommunityComment,
+  type CommunityCommentPage,
   type CommunityTargetType,
 } from '@/lib/api/community-api';
 import { useAuthStore } from '@/lib/store/auth-store';
@@ -41,6 +42,8 @@ type Props = {
   currentUserId: number | null;
   className?: string;
   onCommentPosted?: () => void;
+  /** 상세 API 등에서 내려온 첫 댓글 페이지가 있으면 초기 목록 GET 생략 */
+  initialCommentPage?: CommunityCommentPage | null;
 };
 
 export function CommentSection({
@@ -49,6 +52,7 @@ export function CommentSection({
   currentUserId,
   className = '',
   onCommentPosted,
+  initialCommentPage = null,
 }: Props) {
   const accessToken = useAuthStore((s) => s.accessToken);
   const isLoggedIn = Boolean(accessToken);
@@ -94,10 +98,17 @@ export function CommentSection({
       setHasMore(false);
       return;
     }
+    if (initialCommentPage != null) {
+      setFlat(initialCommentPage.content);
+      setPage(initialCommentPage.number);
+      setHasMore(!initialCommentPage.last);
+      setLoading(false);
+      return;
+    }
     setPage(0);
     setHasMore(true);
     void loadPage(0, true);
-  }, [targetType, targetId, loadPage]);
+  }, [targetType, targetId, initialCommentPage, loadPage]);
 
   const roots = useMemo(() => {
     const r = flat.filter((c) => !c.parentCommentId);

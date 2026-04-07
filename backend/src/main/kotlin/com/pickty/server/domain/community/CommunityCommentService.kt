@@ -3,6 +3,8 @@ package com.pickty.server.domain.community
 import com.pickty.server.domain.community.dto.CommentResponse
 import com.pickty.server.domain.community.dto.CreateCommentRequest
 import com.pickty.server.domain.community.dto.CreateCommentResponse
+import com.pickty.server.domain.board.BoardPostRepository
+import com.pickty.server.domain.board.BoardPostStatus
 import com.pickty.server.domain.tier.ResultStatus
 import com.pickty.server.domain.tier.TemplateStatus
 import com.pickty.server.domain.tier.TierResultCacheService
@@ -29,6 +31,7 @@ class CommunityCommentService(
     private val userRepository: UserRepository,
     private val tierTemplateRepository: TierTemplateRepository,
     private val tierResultRepository: TierResultRepository,
+    private val boardPostRepository: BoardPostRepository,
     private val passwordEncoder: PasswordEncoder,
     private val tierResultCacheService: TierResultCacheService,
 ) {
@@ -180,11 +183,11 @@ class CommunityCommentService(
         when (targetType) {
             ReactionTargetType.TIER_TEMPLATE,
             ReactionTargetType.TIER_RESULT,
+            ReactionTargetType.BOARD_POST,
             -> Unit
 
             ReactionTargetType.WORLDCUP_TEMPLATE,
             ReactionTargetType.WORLDCUP_RESULT,
-            ReactionTargetType.BOARD_POST,
             ->
                 throw ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, "아직 이 대상에는 댓글을 지원하지 않습니다.")
         }
@@ -208,6 +211,11 @@ class CommunityCommentService(
                 }
             }
 
+            ReactionTargetType.BOARD_POST -> {
+                boardPostRepository.findByIdAndStatus(targetId, BoardPostStatus.ACTIVE)
+                    ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "게시글을 찾을 수 없습니다.")
+            }
+
             else -> throw ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, "지원하지 않는 대상입니다.")
         }
     }
@@ -217,6 +225,7 @@ class CommunityCommentService(
             when (targetType) {
                 ReactionTargetType.TIER_TEMPLATE -> tierTemplateRepository.incrementCommentCount(targetId)
                 ReactionTargetType.TIER_RESULT -> tierResultRepository.incrementCommentCount(targetId)
+                ReactionTargetType.BOARD_POST -> boardPostRepository.incrementCommentCount(targetId)
                 else -> 0
             }
         if (rows == 0) {
@@ -229,6 +238,7 @@ class CommunityCommentService(
             when (targetType) {
                 ReactionTargetType.TIER_TEMPLATE -> tierTemplateRepository.decrementCommentCount(targetId)
                 ReactionTargetType.TIER_RESULT -> tierResultRepository.decrementCommentCount(targetId)
+                ReactionTargetType.BOARD_POST -> boardPostRepository.decrementCommentCount(targetId)
                 else -> 0
             }
         if (rows == 0) {

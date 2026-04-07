@@ -2,18 +2,23 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { CommentSection } from '@/components/community/comment-section';
 import { getBoardPost, type BoardPostDetail } from '@/lib/api/board-api';
+import { apiFetch } from '@/lib/api-fetch';
 import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
+import { useAuthStore } from '@/lib/store/auth-store';
 
 export default function BoardPostPage({
   params,
 }: {
   params: { id: string } | Promise<{ id: string }>;
 }) {
+  const accessToken = useAuthStore((s) => s.accessToken);
   const [id, setId] = useState<string>('');
   const [post, setPost] = useState<BoardPostDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [meId, setMeId] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -34,6 +39,30 @@ export default function BoardPostPage({
       cancelled = true;
     };
   }, [params]);
+
+  useEffect(() => {
+    if (!accessToken) {
+      setMeId(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await apiFetch('/api/v1/user/me', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!res.ok || cancelled) return;
+        const u = (await res.json()) as { id?: unknown };
+        const mid = typeof u.id === 'number' ? u.id : Number(u.id);
+        if (Number.isFinite(mid)) setMeId(mid);
+      } catch {
+        if (!cancelled) setMeId(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken]);
 
   const authorLabel =
     post == null
@@ -88,6 +117,14 @@ export default function BoardPostPage({
             <section
               className="prose prose-sm mt-6 max-w-none dark:prose-invert [&_img]:my-4 [&_img]:h-auto [&_img]:w-auto [&_img]:max-w-[800px] [&_img]:rounded-lg [&_img]:border [&_img]:border-[var(--border-subtle)] [&_iframe[src*='youtube']]:aspect-video [&_iframe[src*='youtube']]:h-auto [&_iframe[src*='youtube']]:w-full [&_iframe[src*='youtube']]:max-w-4xl"
               dangerouslySetInnerHTML={{ __html: post.contentHtml }}
+            />
+
+            <CommentSection
+              className="mt-8"
+              targetType="BOARD_POST"
+              targetId={post.id}
+              currentUserId={meId}
+              initialCommentPage={post.comments}
             />
           </article>
         )}
