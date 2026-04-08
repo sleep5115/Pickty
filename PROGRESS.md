@@ -358,7 +358,7 @@
   1) **LLM 텍스트 단계** — 자연어 요청을 아이템명·검색 쿼리 목록으로 구조화  
   2) **Search API 단계** — Google Custom Search API로 이미지 URL 후보 수집  
   3) **Vision 단계** — Python 오픈소스 모델(또는 브라우저 `face-api.js`)로 핵심 객체 좌표 추출(`focusRect: { x, y, w, h }`).
-- **프론트 렌더링 전략(비용 절감 핵심)**: 무거운 배경제거(누끼) 파이프라인은 도입하지 않고, `**TierItem**`에 `focusRect` 메타만 추가해 **CSS crop**으로 대응. 작은 카드(`item-card` 계열)는 `object-fit: cover` + `object-position`으로 증명사진형 썸네일을 만들고, 확대 모달은 원본 이미지를 그대로 노출.
+- **프론트 렌더링 전략(비용 절감 핵심)**: 무거운 배경제거(누끼) 파이프라인은 도입하지 않고, `**TierItem**`에 `focusRect` 메타만 추가해 **CSS crop**으로 대응. 작은 카드(`item-card`계열)는 `object-fit: cover` + `object-position`으로 증명사진형 썸네일을 만들고, 확대 모달은 원본 이미지를 그대로 노출. **(완료)**
 - **현재 코드 컨텍스트 연결**: `**frontend/src/lib/store/tier-store.ts**`의 `TierItem` 타입 확장 후보이며, `**frontend/src/components/tier/item-card.tsx**`는 현재 `TierItemTileImages`로 타일 렌더링하므로 `focusRect` 적용 시 공용 타일 렌더러 경로(`tier-item-tile-images`)까지 함께 설계해야 함.
 - **의도/가드레일**: 이 아이디어의 1차 목적은 "유저 입력 1회로 바로 편집 가능한 템플릿 생성"이며, 인퍼런스 비용은 **광고 대기열 + 누끼 미도입 + 좌표 기반 크롭**으로 방어. 모델·API 비용, 품질 기준(부적절/오탐 이미지), 실패 시 폴백(수동 업로드 전환)은 별도 운영 정책으로 분리.
 

@@ -15,6 +15,14 @@ const templateItemRowSchema = z.object({
       const t = v?.trim();
       return t && t.length > 0 ? t : undefined;
     }),
+  focusRect: z
+    .object({
+      x: z.number(),
+      y: z.number(),
+      w: z.number(),
+      h: z.number(),
+    })
+    .optional(),
 });
 
 export const templateNewFormSchema = z.object({

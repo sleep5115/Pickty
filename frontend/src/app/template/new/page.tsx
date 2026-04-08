@@ -199,6 +199,7 @@ function NewTemplatePageInner() {
           clientId: newClientId(),
           name: p.name,
           existingImageUrl: p.imageUrl,
+          focusRect: p.focusRect,
         }));
         form.reset({
           title: d.title,
@@ -256,6 +257,7 @@ function NewTemplatePageInner() {
         id: cid,
         name: (typeof row.name === 'string' && row.name.trim()) || '아이템',
         imageUrl: src,
+        focusRect: row.focusRect,
       });
     }
     return out;
@@ -343,6 +345,7 @@ function NewTemplatePageInner() {
       id: row.clientId,
       name: row.name.trim(),
       imageUrl: imageUrlsOrdered[i]!,
+      focusRect: row.focusRect,
     }));
 
     const itemsEnvelope: {
@@ -792,6 +795,7 @@ function NewTemplatePageInner() {
                 const existingTrimmed =
                   typeof existingImg === 'string' && existingImg.trim() ? existingImg.trim() : '';
                 const rawImageUrl = previewLocal ?? existingTrimmed;
+                const rowFocusRect = form.watch(`items.${index}.focusRect`);
                 const itemAlt =
                   (typeof rowName === 'string' && rowName.trim()) || `아이템 ${index + 1}`;
                 const picked = (form.watch('thumbnailClientIds') ?? []).includes(clientId ?? '');
@@ -803,7 +807,11 @@ function NewTemplatePageInner() {
                   >
                     <div className="relative aspect-square overflow-hidden bg-slate-100 dark:bg-zinc-950">
                       {rawImageUrl ? (
-                        <TierItemTileImages imageUrl={rawImageUrl} alt={itemAlt} />
+                        <TierItemTileImages
+                          imageUrl={rawImageUrl}
+                          alt={itemAlt}
+                          focusRect={rowFocusRect}
+                        />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-xs text-slate-400 dark:text-zinc-600">
                           미리보기 없음

@@ -14,6 +14,7 @@ export interface TierItem {
   id: string;
   name: string;
   imageUrl?: string;
+  focusRect?: { x: number; y: number; w: number; h: number };
 }
 
 /** @dnd-kit/sortable `arrayMove`와 동일 — 이 모듈에서 dnd-kit을 import하면 RSC 번들에서 createContext 오류 발생 */
