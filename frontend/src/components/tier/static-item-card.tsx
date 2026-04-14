@@ -62,6 +62,7 @@ export function StaticItemCard({
       {showPreviewBtn && (
         <button
           type="button"
+          data-capture-ignore="true"
           data-role="preview-btn"
           aria-label={`${item.name} 이미지 크게 보기`}
           className={[
