@@ -7,11 +7,12 @@ import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { TierBoardReadonly } from '@/components/tier/tier-board-readonly';
 import { TierResultEditMetaModal } from '@/components/tier/tier-result-edit-meta-modal';
-import { CommentSection } from '@/components/community/comment-section';
-import { ResultVoteButtons } from '@/components/community/result-vote-buttons';
-import { ViewCountInline } from '@/components/community/view-count-inline';
+import { CommentSection } from '@/components/interaction/comment-section';
+import { ResultVoteButtons } from '@/components/interaction/result-vote-buttons';
+import { ViewCountInline } from '@/components/interaction/view-count-inline';
 import { TierResultDeleteConfirmDialog } from '@/components/tier/tier-result-delete-confirm-dialog';
-import type { CommunityReactionType } from '@/lib/api/community-api';
+import { TierResultImagePreviewModal } from '@/components/tier/tier-result-image-preview-modal';
+import type { ReactionType } from '@/lib/api/interaction-api';
 import { getTierResult, type TierResultStatus } from '@/lib/tier-api';
 import { apiFetch } from '@/lib/api-fetch';
 import { useAuthStore } from '@/lib/store/auth-store';
@@ -48,7 +49,8 @@ export function TierResultClientPage() {
   const [upCount, setUpCount] = useState(0);
   const [downCount, setDownCount] = useState(0);
   const [viewCount, setViewCount] = useState(0);
-  const [resultMyReaction, setResultMyReaction] = useState<CommunityReactionType | null>(null);
+  const [resultMyReaction, setResultMyReaction] = useState<ReactionType | null>(null);
+  const [previewItem, setPreviewItem] = useState<TierItem | null>(null);
 
   /** 같은 결과 id로 토큰만 바뀌어 재요청할 때는 조회수 이중 집계 방지 */
   const resultDetailCountedIdRef = useRef<string | null>(null);
@@ -340,6 +342,16 @@ export function TierResultClientPage() {
         tiers={tiers}
         pool={pool}
         boardSurface={boardSurface}
+        onPreviewItem={setPreviewItem}
+        helpTextSlot={(
+          <p className="px-3 py-2 text-center text-xs text-slate-500 dark:text-zinc-600 border-t border-slate-200 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-950/50">
+            <span className="text-slate-600 dark:text-zinc-500">Alt+클릭:</span> 이미지 확대 / 확대 중엔 닫기
+            &nbsp;|&nbsp;
+            <span className="text-slate-600 dark:text-zinc-500">방향키:</span> ←→ 이전·다음
+            &nbsp;|&nbsp;
+            <span className="text-slate-600 dark:text-zinc-500">휠:</span> 이전·다음
+          </p>
+        )}
       />
 
       {!isResultDeleted && id ? (
@@ -400,6 +412,14 @@ export function TierResultClientPage() {
           }}
         />
       )}
+
+      <TierResultImagePreviewModal
+        pool={pool}
+        tiers={tiers}
+        previewItem={previewItem}
+        onClose={() => setPreviewItem(null)}
+        onPreviewItemChange={setPreviewItem}
+      />
     </div>
   );
 }

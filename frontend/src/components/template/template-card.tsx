@@ -4,10 +4,10 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { TierItemTileImages } from '@/components/tier/tier-item-tile-images';
-import type { CommunityReactionType } from '@/lib/api/community-api';
+import type { ReactionType } from '@/lib/api/interaction-api';
 import type { TemplateSummaryResponse } from '@/lib/tier-api';
-import { TemplateLikeButton } from '@/components/community/template-like-button';
-import { ViewCountInline } from '@/components/community/view-count-inline';
+import { TemplateLikeButton } from '@/components/interaction/template-like-button';
+import { ViewCountInline } from '@/components/interaction/view-count-inline';
 
 export function TemplateCard({
   row,
@@ -26,7 +26,7 @@ export function TemplateCard({
   onEdit: (t: TemplateSummaryResponse) => void;
   onDelete: (t: TemplateSummaryResponse) => void;
   onLikeCountChange: (templateId: string, likeCount: number) => void;
-  onMyReactionResolved?: (templateId: string, reaction: CommunityReactionType | null) => void;
+  onMyReactionResolved?: (templateId: string, reaction: ReactionType | null) => void;
 }) {
   const { id, title, description, thumbnailUrl, itemCount, creatorId } = row;
   const descTrimmed = description?.trim() ? description.trim() : null;

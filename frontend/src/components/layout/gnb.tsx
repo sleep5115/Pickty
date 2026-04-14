@@ -23,10 +23,10 @@ const NAV_LINKS = [
     isActive: (p: string) => p.startsWith('/tier/feed'),
   },
   {
-    href: '/board',
+    href: '/community',
     label: '커뮤니티',
     Icon: MessagesSquare,
-    isActive: (p: string) => p.startsWith('/board'),
+    isActive: (p: string) => p.startsWith('/community'),
   },
   // 후순위 미구현: 이상형 월드컵
   // { href: '/worldcup', label: '이상형 월드컵' },

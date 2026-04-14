@@ -3,10 +3,10 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { MoreVertical, Pencil, RefreshCw, Trash2 } from 'lucide-react';
-import { ResultVoteButtons } from '@/components/community/result-vote-buttons';
-import { ViewCountInline } from '@/components/community/view-count-inline';
+import { ResultVoteButtons } from '@/components/interaction/result-vote-buttons';
+import { ViewCountInline } from '@/components/interaction/view-count-inline';
 import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
-import type { CommunityReactionType } from '@/lib/api/community-api';
+import type { ReactionType } from '@/lib/api/interaction-api';
 import type { TierResultSummaryResponse } from '@/lib/tier-api';
 
 export function formatTierResultSavedAt(isoLocal: string): string {
@@ -31,7 +31,7 @@ export type TierResultCardProps = {
   onEdit: (r: TierResultSummaryResponse) => void;
   onDelete: (r: TierResultSummaryResponse) => void;
   onVoteCountsChange?: (resultId: string, upCount: number, downCount: number) => void;
-  onResultMyReactionResolved?: (resultId: string, reaction: CommunityReactionType | null) => void;
+  onResultMyReactionResolved?: (resultId: string, reaction: ReactionType | null) => void;
 };
 
 /**

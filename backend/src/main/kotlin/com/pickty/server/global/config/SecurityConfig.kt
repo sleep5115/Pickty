@@ -21,6 +21,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 
 @Configuration
 @EnableWebSecurity
+@org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 class SecurityConfig(
     private val unauthorizedEntryPoint: UnauthorizedEntryPoint,
     private val customOAuth2UserService: CustomOAuth2UserService,
@@ -87,6 +88,8 @@ class SecurityConfig(
                     .requestMatchers(HttpMethod.GET, "/api/v1/tiers/results/mine").authenticated()
                     .requestMatchers(HttpMethod.PATCH, "/api/v1/tiers/results/**").authenticated()
                     .requestMatchers(HttpMethod.DELETE, "/api/v1/tiers/results/**").authenticated()
+                    // AI 자동 생성
+                    .requestMatchers("/api/v1/ai/**").authenticated()
                     .anyRequest().permitAll()
             }
             .oauth2Login { oauth2 ->

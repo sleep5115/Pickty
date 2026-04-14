@@ -112,3 +112,10 @@ logging:
 pickty:
   image-cleanup:
     allow-execute-delete: false
+  ai:
+    gemini:
+      api-key: ${GEMINI_API_KEY:}
+      # 엔드포인트는 AiTemplateService 의 GEMINI_GENERATE_CONTENT_URI 고정 (v1/models/gemini-2.5-flash:generateContent)
+    google-search:
+      api-key: ${GOOGLE_SEARCH_API_KEY:}
+      cx: ${GOOGLE_SEARCH_CX:}

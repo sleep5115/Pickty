@@ -1,6 +1,6 @@
 'use client';
 
-import { forwardRef } from 'react';
+import { forwardRef, type ReactNode } from 'react';
 import type { Tier, TierItem } from '@/lib/store/tier-store';
 import type { TemplateBoardSurface } from '@/lib/template-board-config';
 import {
@@ -15,6 +15,8 @@ interface TierBoardReadonlyProps {
   pool: TierItem[];
   /** 결과 스냅샷 등 — 표 배경 한 겹(라벨+아이템 공통) */
   boardSurface?: TemplateBoardSurface | null;
+  onPreviewItem?: (item: TierItem) => void;
+  helpTextSlot?: ReactNode;
 }
 
 /**
@@ -22,7 +24,10 @@ interface TierBoardReadonlyProps {
  * ref는 `TierBoard`와 같이 **티어 행만** 감쌉니다 — PNG 캡처 시 미분류 풀 제외.
  */
 export const TierBoardReadonly = forwardRef<HTMLDivElement, TierBoardReadonlyProps>(
-  function TierBoardReadonly({ tiers, pool, boardSurface = null }, ref) {
+  function TierBoardReadonly(
+    { tiers, pool, boardSurface = null, onPreviewItem, helpTextSlot },
+    ref,
+  ) {
     const hasBoard = workspaceBoardSurfaceIsVisual(boardSurface);
     const boardStyle = buildWorkspaceBoardSurfaceStyle(boardSurface);
 
@@ -47,13 +52,15 @@ export const TierBoardReadonly = forwardRef<HTMLDivElement, TierBoardReadonlyPro
                 </div>
                 <div className="flex min-h-20 min-w-0 flex-1 flex-row flex-wrap content-start items-start gap-1 bg-transparent p-1.5">
                   {tier.items.map((item) => (
-                    <StaticItemCard key={item.id} item={item} />
+                    <StaticItemCard key={item.id} item={item} onPreview={onPreviewItem} />
                   ))}
                 </div>
               </div>
             ))}
           </div>
         </div>
+
+        {helpTextSlot}
 
         <div className="shrink-0 border-t-2 border-slate-300 bg-slate-100 dark:border-zinc-700 dark:bg-zinc-950">
           <div className="flex items-center gap-2 px-2 pb-1 pt-1.5">
@@ -70,7 +77,7 @@ export const TierBoardReadonly = forwardRef<HTMLDivElement, TierBoardReadonlyPro
             ) : (
               <div className="flex flex-row flex-wrap gap-0.5">
                 {pool.map((item) => (
-                  <StaticItemCard key={item.id} item={item} />
+                  <StaticItemCard key={item.id} item={item} onPreview={onPreviewItem} />
                 ))}
               </div>
             )}
