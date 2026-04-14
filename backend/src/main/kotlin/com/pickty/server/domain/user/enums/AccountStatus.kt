@@ -1,4 +1,4 @@
-package com.pickty.server.domain.user
+package com.pickty.server.domain.user.enums
 
 enum class AccountStatus {
     PENDING,

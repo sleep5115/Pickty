@@ -3,7 +3,7 @@ package com.pickty.server.domain.ai.controller
 import com.pickty.server.domain.ai.dto.AiTemplateItemGenerateRequest
 import com.pickty.server.domain.ai.dto.AiTemplateItemResponse
 import com.pickty.server.domain.ai.service.AiTemplateService
-import com.pickty.server.domain.tier.resolveUserIdOrThrow
+import com.pickty.server.global.security.resolveUserIdOrThrow
 import jakarta.validation.Valid
 import org.springframework.security.core.Authentication
 import org.springframework.web.bind.annotation.PostMapping

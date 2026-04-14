@@ -1,4 +1,4 @@
-package com.pickty.server.domain.upload
+package com.pickty.server.domain.upload.service
 
 import com.pickty.server.global.config.CloudflareR2Properties
 import org.slf4j.LoggerFactory
@@ -10,6 +10,7 @@ import software.amazon.awssdk.core.sync.RequestBody
 import software.amazon.awssdk.core.sync.ResponseTransformer
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.GetObjectRequest
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException
 import software.amazon.awssdk.services.s3.model.PutObjectRequest
 import software.amazon.awssdk.services.s3.model.S3Exception
 import java.util.UUID
@@ -74,7 +75,7 @@ class R2ImageStorageService(
             val ct = resp.response().contentType()?.takeIf { it.isNotBlank() }
                 ?: "application/octet-stream"
             R2FetchedObject(resp.asByteArray(), ct)
-        } catch (_: software.amazon.awssdk.services.s3.model.NoSuchKeyException) {
+        } catch (_: NoSuchKeyException) {
             log.warn("R2 fetch miss: NoSuchKey bucket={} key={}", props.bucketName, normalized)
             null
         } catch (e: S3Exception) {

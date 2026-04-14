@@ -1,5 +1,6 @@
-package com.pickty.server.domain.view
+package com.pickty.server.domain.view.scheduler
 
+import com.pickty.server.domain.view.service.ViewCountService
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component

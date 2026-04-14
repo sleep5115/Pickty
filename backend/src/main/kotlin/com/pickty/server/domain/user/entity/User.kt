@@ -1,5 +1,9 @@
-package com.pickty.server.domain.user
+package com.pickty.server.domain.user.entity
 
+import com.pickty.server.domain.user.enums.AccountStatus
+import com.pickty.server.domain.user.enums.Gender
+import com.pickty.server.domain.user.enums.Provider
+import com.pickty.server.domain.user.enums.Role
 import com.pickty.server.global.common.BaseTimeEntity
 import jakarta.persistence.CascadeType
 import jakarta.persistence.Column
@@ -62,7 +66,7 @@ class User(
         protected set
 
     /**
-     * 계정 병합으로 본체([AccountMergeService])에 흡수된 경우, 생존 계정의 user id.
+     * 계정 병합으로 본체([com.pickty.server.domain.user.service.AccountMergeService])에 흡수된 경우, 생존 계정의 user id.
      * 벌크 UPDATE로만 설정한다(save + orphanRemoval 위험 방지).
      */
     @Column(name = "merged_into_user_id")

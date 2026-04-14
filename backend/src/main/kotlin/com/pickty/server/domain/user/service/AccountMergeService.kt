@@ -1,14 +1,17 @@
-package com.pickty.server.domain.user
+package com.pickty.server.domain.user.service
 
-import com.pickty.server.domain.tier.TierResultRepository
-import com.pickty.server.domain.tier.TierTemplateRepository
+import com.pickty.server.domain.tier.repository.TierResultRepository
+import com.pickty.server.domain.tier.repository.TierTemplateRepository
+import com.pickty.server.domain.user.enums.AccountStatus
+import com.pickty.server.domain.user.repository.SocialAccountRepository
+import com.pickty.server.domain.user.repository.UserRepository
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
 
 /**
- * 계정 병합: **가입일(created_at)이 더 이른** [User]가 본체로 남고, 다른 쪽은 [AccountStatus.MERGED] 처리.
+ * 계정 병합: **가입일(created_at)이 더 이른** [com.pickty.server.domain.user.entity.User]가 본체로 남고, 다른 쪽은 [AccountStatus.MERGED] 처리.
  */
 @Service
 class AccountMergeService(

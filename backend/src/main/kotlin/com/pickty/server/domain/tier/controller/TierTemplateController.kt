@@ -1,5 +1,6 @@
-package com.pickty.server.domain.tier
+package com.pickty.server.domain.tier.controller
 
+import com.pickty.server.domain.tier.service.TierTemplateService
 import com.pickty.server.domain.tier.dto.CreateTemplateRequest
 import com.pickty.server.domain.tier.dto.PatchTemplateMetaResponse
 import com.pickty.server.domain.tier.dto.TemplateDetailResponse

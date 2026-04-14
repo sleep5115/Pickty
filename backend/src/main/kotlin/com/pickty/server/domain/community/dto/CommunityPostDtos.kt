@@ -1,6 +1,6 @@
-package com.pickty.server.domain.board.dto
+package com.pickty.server.domain.community.dto
 
-import com.pickty.server.domain.community.dto.CommentResponse
+import com.pickty.server.domain.interaction.dto.CommentResponse
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size
 import java.util.UUID

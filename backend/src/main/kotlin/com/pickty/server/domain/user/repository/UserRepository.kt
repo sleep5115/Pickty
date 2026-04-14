@@ -1,5 +1,6 @@
-package com.pickty.server.domain.user
+package com.pickty.server.domain.user.repository
 
+import com.pickty.server.domain.user.entity.User
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query

@@ -1,5 +1,6 @@
-package com.pickty.server.domain.upload
+package com.pickty.server.domain.upload.service
 
+import com.pickty.server.domain.upload.support.ImageReferencedKeysReader
 import com.pickty.server.global.config.CloudflareR2Properties
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async

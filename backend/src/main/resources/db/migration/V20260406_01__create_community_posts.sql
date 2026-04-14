@@ -1,4 +1,4 @@
-create table if not exists board_posts (
+create table if not exists community_posts (
     id uuid primary key,
     title varchar(200) not null,
     content_html text not null,
@@ -11,7 +11,7 @@ create table if not exists board_posts (
     status varchar(20) not null default 'ACTIVE',
     created_at timestamp not null,
     updated_at timestamp not null,
-    constraint ck_board_posts_author_or_guest
+    constraint ck_community_posts_author_or_guest
         check (
             (author_id is not null and guest_nickname is null and guest_password_hash is null and guest_ip_hash is null)
             or
@@ -19,5 +19,5 @@ create table if not exists board_posts (
         )
 );
 
-create index if not exists ix_board_posts_status_created_at on board_posts(status, created_at desc);
-create index if not exists ix_board_posts_author_id on board_posts(author_id);
+create index if not exists ix_community_posts_status_created_at on community_posts(status, created_at desc);
+create index if not exists ix_community_posts_author_id on community_posts(author_id);

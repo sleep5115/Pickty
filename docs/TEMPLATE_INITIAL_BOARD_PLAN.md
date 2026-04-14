@@ -67,7 +67,7 @@
 3. **`TemplateDetailResponse`**: `val boardConfig: Map<String, Any?>?` 추가 — 메이커·OG·캐시 일관성.
 4. **`TemplateSummaryResponse`**: 목록 카드에 필수는 아님; 썸네일·제목만 쓰면 **생략 가능**(응답 크기 절약).
 5. **`fork` 생성 시**: 부모의 `boardConfig`를 **복사**할지 제품 정책으로 결정(권장: **복사** 후 편집 가능).
-6. **`PATCH` 템플릿 메타**: 현재는 제목·설명만. 도화지 수정을 **같은 PATCH**에 넣을지, **`PATCH …/templates/{id}/board`** 를 둘지 선택 — 1차는 **생성 시에만** 넣고 PATCH는 후속 작업으로 나누어도 됨.
+6. **`PATCH` 템플릿 메타**: 현재는 제목·설명만. 도화지 수정을 **같은 PATCH**에 넣을지, **`PATCH …/templates/{id}/community`** 를 둘지 선택 — 1차는 **생성 시에만** 넣고 PATCH는 후속 작업으로 나누어도 됨.
 
 ---
 

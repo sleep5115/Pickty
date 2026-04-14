@@ -1,5 +1,6 @@
-package com.pickty.server.domain.upload
+package com.pickty.server.domain.upload.controller
 
+import com.pickty.server.domain.upload.service.R2ImageStorageService
 import com.pickty.server.global.security.resolveUserId
 import com.pickty.server.domain.upload.dto.ImageUploadResponse
 import org.springframework.http.HttpHeaders

@@ -1,6 +1,6 @@
-package com.pickty.server.domain.community.dto
+package com.pickty.server.domain.interaction.dto
 
-import com.pickty.server.domain.community.ReactionTargetType
+import com.pickty.server.domain.interaction.enums.ReactionTargetType
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size
 import java.util.UUID

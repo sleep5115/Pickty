@@ -30,7 +30,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uk_reactions_target_member ON reactions (targe
 CREATE UNIQUE INDEX IF NOT EXISTS uk_reactions_target_guest_ip ON reactions (target_type, target_id, guest_ip_hash) WHERE guest_ip_hash IS NOT NULL;
 
 COMMENT ON TABLE reactions IS '다형성 반응: TIER_TEMPLATE(LIKE), TIER_RESULT(UP/DOWN) 등';
-COMMENT ON COLUMN reactions.target_type IS 'TIER_TEMPLATE | TIER_RESULT | WORLDCUP_TEMPLATE | WORLDCUP_RESULT | BOARD_POST 등';
+COMMENT ON COLUMN reactions.target_type IS 'TIER_TEMPLATE | TIER_RESULT | WORLDCUP_TEMPLATE | WORLDCUP_RESULT | community_post 등';
 COMMENT ON COLUMN reactions.target_id IS '대상 엔티티 PK (FK 제약 없음 — 앱에서 존재·권한 검증)';
 COMMENT ON COLUMN reactions.guest_ip_hash IS '비회원 반응 식별용 전체 IP 의 SHA-256 hex';
 

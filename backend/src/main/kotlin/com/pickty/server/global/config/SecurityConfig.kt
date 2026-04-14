@@ -21,6 +21,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 
 @Configuration
 @EnableWebSecurity
+@org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 class SecurityConfig(
     private val unauthorizedEntryPoint: UnauthorizedEntryPoint,
     private val customOAuth2UserService: CustomOAuth2UserService,

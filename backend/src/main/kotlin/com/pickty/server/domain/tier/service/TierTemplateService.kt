@@ -1,8 +1,11 @@
-package com.pickty.server.domain.tier
+package com.pickty.server.domain.tier.service
 
 import com.pickty.server.domain.interaction.service.MyReactionService
 import com.pickty.server.domain.interaction.enums.ReactionTargetType
-import com.pickty.server.domain.view.ViewCountService
+import com.pickty.server.domain.tier.enums.TemplateStatus
+import com.pickty.server.domain.tier.entity.TierTemplate
+import com.pickty.server.domain.tier.repository.TierTemplateRepository
+import com.pickty.server.domain.view.service.ViewCountService
 import com.pickty.server.domain.tier.dto.CreateTemplateRequest
 import com.pickty.server.domain.tier.dto.PatchTemplateMetaResponse
 import com.pickty.server.domain.tier.dto.TemplateBoardConfigPayload

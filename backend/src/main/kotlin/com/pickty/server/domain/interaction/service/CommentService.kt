@@ -1,16 +1,20 @@
-package com.pickty.server.domain.interaction
+package com.pickty.server.domain.interaction.service
 
 import com.pickty.server.domain.interaction.dto.CommentResponse
 import com.pickty.server.domain.interaction.dto.CreateCommentRequest
 import com.pickty.server.domain.interaction.dto.CreateCommentResponse
-import com.pickty.server.domain.community.CommunityPostRepository
-import com.pickty.server.domain.community.CommunityPostStatus
-import com.pickty.server.domain.tier.ResultStatus
-import com.pickty.server.domain.tier.TemplateStatus
-import com.pickty.server.domain.tier.TierResultCacheService
-import com.pickty.server.domain.tier.TierResultRepository
-import com.pickty.server.domain.tier.TierTemplateRepository
-import com.pickty.server.domain.user.UserRepository
+import com.pickty.server.domain.community.repository.CommunityPostRepository
+import com.pickty.server.domain.community.enums.CommunityPostStatus
+import com.pickty.server.domain.interaction.entity.Comment
+import com.pickty.server.domain.interaction.repository.CommentRepository
+import com.pickty.server.domain.interaction.enums.CommentStatus
+import com.pickty.server.domain.interaction.enums.ReactionTargetType
+import com.pickty.server.domain.tier.enums.ResultStatus
+import com.pickty.server.domain.tier.enums.TemplateStatus
+import com.pickty.server.domain.tier.service.TierResultCacheService
+import com.pickty.server.domain.tier.repository.TierResultRepository
+import com.pickty.server.domain.tier.repository.TierTemplateRepository
+import com.pickty.server.domain.user.repository.UserRepository
 import com.pickty.server.global.util.IpPrefixFormatter
 import com.pickty.server.global.util.Sha256Hex
 import com.pickty.server.global.web.ClientIpResolver
@@ -24,6 +28,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
 import java.util.UUID
+import kotlin.collections.get
 
 @Service
 class CommentService(

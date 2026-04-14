@@ -1,5 +1,7 @@
-package com.pickty.server.domain.interaction
+package com.pickty.server.domain.interaction.entity
 
+import com.pickty.server.domain.interaction.enums.CommentStatus
+import com.pickty.server.domain.interaction.enums.ReactionTargetType
 import com.pickty.server.global.common.BaseTimeEntity
 import jakarta.persistence.Column
 import jakarta.persistence.Entity

@@ -1,7 +1,7 @@
 package com.pickty.server.domain.auth.handler
 
 import tools.jackson.databind.ObjectMapper
-import com.pickty.server.domain.auth.PrincipalDetails
+import com.pickty.server.domain.auth.security.PrincipalDetails
 import com.pickty.server.domain.auth.service.OAuthExchangeService
 import com.pickty.server.domain.auth.service.RefreshTokenService
 import com.pickty.server.global.jwt.JwtTokenProvider

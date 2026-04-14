@@ -1,7 +1,7 @@
 import { apiFetch } from '@/lib/api-fetch';
 import { parseCommentPage, type CommentPage } from '@/lib/api/interaction-api';
 
-export type BoardPostSummary = {
+export type CommunityPostSummary = {
   id: string;
   title: string;
   viewCount: number;
@@ -11,7 +11,7 @@ export type BoardPostSummary = {
   authorIpPrefix: string | null;
 };
 
-export type BoardPostDetail = {
+export type CommunityPostDetail = {
   id: string;
   title: string;
   contentHtml: string;
@@ -27,8 +27,8 @@ export type BoardPostDetail = {
   comments: CommentPage;
 };
 
-export type BoardPostPage = {
-  content: BoardPostSummary[];
+export type CommunityPostPage = {
+  content: CommunityPostSummary[];
   totalElements: number;
   totalPages: number;
   size: number;
@@ -49,7 +49,7 @@ function parseAuthorId(raw: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function parseSummary(row: Record<string, unknown>): BoardPostSummary {
+function parseSummary(row: Record<string, unknown>): CommunityPostSummary {
   return {
     id: String(row.id ?? ''),
     title: typeof row.title === 'string' ? row.title : '',
@@ -71,7 +71,7 @@ function parseSummary(row: Record<string, unknown>): BoardPostSummary {
   };
 }
 
-function parseDetail(row: Record<string, unknown>): BoardPostDetail {
+function parseDetail(row: Record<string, unknown>): CommunityPostDetail {
   const rawComments = row.comments;
   const comments =
     rawComments != null && typeof rawComments === 'object'
@@ -118,7 +118,7 @@ function parseDetail(row: Record<string, unknown>): BoardPostDetail {
   };
 }
 
-export async function createBoardPost(input: {
+export async function createCommunityPost(input: {
   title: string;
   contentHtml: string;
   guestNickname?: string | null;
@@ -133,7 +133,7 @@ export async function createBoardPost(input: {
   if (nick) payload.guestNickname = nick;
   if (pwd) payload.guestPassword = pwd;
 
-  const res = await apiFetch('/api/v1/board/posts', {
+  const res = await apiFetch('/api/v1/community/posts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -145,12 +145,12 @@ export async function createBoardPost(input: {
   return { id: String(row.id ?? '') };
 }
 
-export async function listBoardPosts(page = 0, size = 20): Promise<BoardPostPage> {
+export async function listCommunityPosts(page = 0, size = 20): Promise<CommunityPostPage> {
   const params = new URLSearchParams({
     page: String(Math.max(0, page)),
     size: String(Math.max(1, size)),
   });
-  const res = await apiFetch(`/api/v1/board/posts?${params.toString()}`);
+  const res = await apiFetch(`/api/v1/community/posts?${params.toString()}`);
   if (!res.ok) {
     throw new Error((await res.text()) || `게시글 목록 조회 실패 (${res.status})`);
   }
@@ -170,8 +170,8 @@ export async function listBoardPosts(page = 0, size = 20): Promise<BoardPostPage
   };
 }
 
-export async function getBoardPost(id: string): Promise<BoardPostDetail> {
-  const res = await apiFetch(`/api/v1/board/posts/${encodeURIComponent(id)}`);
+export async function getCommunityPost(id: string): Promise<CommunityPostDetail> {
+  const res = await apiFetch(`/api/v1/community/posts/${encodeURIComponent(id)}`);
   if (!res.ok) {
     throw new Error((await res.text()) || `게시글 조회 실패 (${res.status})`);
   }

@@ -1,15 +1,15 @@
 import { apiFetch } from '@/lib/api-fetch';
 
-export type CommunityTargetType = 'TIER_TEMPLATE' | 'TIER_RESULT' | 'BOARD_POST';
+export type InteractionTargetType = 'TIER_TEMPLATE' | 'TIER_RESULT' | 'community_post';
 
-export type CommunityReactionType = 'LIKE' | 'UPVOTE' | 'DOWNVOTE';
+export type ReactionType = 'LIKE' | 'UPVOTE' | 'DOWNVOTE';
 
-export interface CommunityReactionToggleResult {
+export interface ReactionToggleResult {
   active: boolean;
-  reactionType: CommunityReactionType | null;
+  reactionType: ReactionType | null;
 }
 
-export interface CommunityComment {
+export interface Comment {
   id: string;
   body: string;
   parentCommentId: string | null;
@@ -20,8 +20,8 @@ export interface CommunityComment {
   authorUserId: number | null;
 }
 
-export interface CommunityCommentPage {
-  content: CommunityComment[];
+export interface CommentPage {
+  content: Comment[];
   totalElements: number;
   totalPages: number;
   size: number;
@@ -31,7 +31,7 @@ export interface CommunityCommentPage {
   empty: boolean;
 }
 
-function parseComment(row: Record<string, unknown>): CommunityComment {
+function parseComment(row: Record<string, unknown>): Comment {
   const pid = row.parentCommentId ?? row.parent_comment_id;
   const uid = row.authorUserId ?? row.author_user_id;
   let authorUserId: number | null = null;
@@ -72,7 +72,7 @@ function parseComment(row: Record<string, unknown>): CommunityComment {
   };
 }
 
-export function parseCommentPage(body: Record<string, unknown>): CommunityCommentPage {
+export function parseCommentPage(body: Record<string, unknown>): CommentPage {
   const rawContent = body.content;
   const content = Array.isArray(rawContent)
     ? rawContent
@@ -92,11 +92,11 @@ export function parseCommentPage(body: Record<string, unknown>): CommunityCommen
 }
 
 export async function toggleReaction(
-  targetType: CommunityTargetType,
+  targetType: InteractionTargetType,
   targetId: string,
-  reactionType: CommunityReactionType,
-): Promise<CommunityReactionToggleResult> {
-  const res = await apiFetch('/api/v1/community/reactions/toggle', {
+  reactionType: ReactionType,
+): Promise<ReactionToggleResult> {
+  const res = await apiFetch('/api/v1/interaction/reactions/toggle', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ targetType, targetId, reactionType }),
@@ -108,24 +108,24 @@ export async function toggleReaction(
   const row = (await res.json()) as Record<string, unknown>;
   const active = Boolean(row.active);
   const rt = row.reactionType ?? row.reaction_type;
-  const reactionTypeOut: CommunityReactionType | null =
+  const reactionTypeOut: ReactionType | null =
     rt === 'LIKE' || rt === 'UPVOTE' || rt === 'DOWNVOTE' ? rt : null;
   return { active, reactionType: reactionTypeOut };
 }
 
 export async function getComments(
-  targetType: CommunityTargetType,
+  targetType: InteractionTargetType,
   targetId: string,
   page: number,
   size: number,
-): Promise<CommunityCommentPage> {
+): Promise<CommentPage> {
   const params = new URLSearchParams({
     targetType,
     targetId,
     page: String(Math.max(0, page)),
     size: String(Math.max(1, size)),
   });
-  const res = await apiFetch(`/api/v1/community/comments?${params.toString()}`);
+  const res = await apiFetch(`/api/v1/interaction/comments?${params.toString()}`);
   if (!res.ok) {
     const t = await res.text();
     throw new Error(t || `댓글을 불러오지 못했습니다 (${res.status})`);
@@ -135,7 +135,7 @@ export async function getComments(
 }
 
 export async function createComment(
-  targetType: CommunityTargetType,
+  targetType: InteractionTargetType,
   targetId: string,
   content: string,
   options?: {
@@ -154,7 +154,7 @@ export async function createComment(
   const an = options?.authorName?.trim();
   if (gp) body.guestPassword = gp;
   if (an !== undefined && an !== '') body.authorName = an;
-  const res = await apiFetch('/api/v1/community/comments', {
+  const res = await apiFetch('/api/v1/interaction/comments', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -172,7 +172,7 @@ export async function deleteComment(
   commentId: string,
   guestPassword?: string | null,
 ): Promise<void> {
-  const res = await apiFetch(`/api/v1/community/comments/${encodeURIComponent(commentId)}`, {
+  const res = await apiFetch(`/api/v1/interaction/comments/${encodeURIComponent(commentId)}`, {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(

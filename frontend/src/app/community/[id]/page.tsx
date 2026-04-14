@@ -121,7 +121,7 @@ export default function BoardPostPage({
 
             <CommentSection
               className="mt-8"
-              targetType="BOARD_POST"
+              targetType="community_post"
               targetId={post.id}
               currentUserId={meId}
               initialCommentPage={post.comments}

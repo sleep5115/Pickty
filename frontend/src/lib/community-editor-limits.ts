@@ -1,7 +1,7 @@
 import type { Node as PMNode } from '@tiptap/pm/model';
 
-export const BOARD_EDITOR_MAX_CHARACTERS = 10_000;
-export const BOARD_EDITOR_MAX_IMAGES = 50;
+export const COMMUNITY_EDITOR_MAX_CHARACTERS = 10_000;
+export const COMMUNITY_EDITOR_MAX_IMAGES = 50;
 
 export function countImageResizeNodes(root: PMNode): number {
   let n = 0;

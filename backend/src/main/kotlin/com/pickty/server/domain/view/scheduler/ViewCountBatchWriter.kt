@@ -1,5 +1,6 @@
-package com.pickty.server.domain.view
+package com.pickty.server.domain.view.scheduler
 
+import com.pickty.server.domain.view.repository.ViewCountJdbcBulk
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID

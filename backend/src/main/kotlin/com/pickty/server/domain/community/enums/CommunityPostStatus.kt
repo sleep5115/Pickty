@@ -1,2 +1,6 @@
-package com.pickty.server.domain.community.enums 
+package com.pickty.server.domain.community.enums
 
+enum class CommunityPostStatus {
+    ACTIVE,
+    DELETED,
+}

@@ -1,5 +1,7 @@
-package com.pickty.server.domain.tier
+package com.pickty.server.domain.tier.service
 
+import com.pickty.server.domain.tier.enums.ResultStatus
+import com.pickty.server.domain.tier.repository.TierResultRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID

@@ -1,10 +1,10 @@
-package com.pickty.server.domain.community.dto
+package com.pickty.server.domain.interaction.dto
 
-import com.pickty.server.domain.community.ReactionTargetType
-import com.pickty.server.domain.community.ReactionType
+import com.pickty.server.domain.interaction.enums.ReactionTargetType
+import com.pickty.server.domain.interaction.enums.ReactionType
 import java.util.UUID
 
-data class ToggleReactionRequest(
+data class ReactionToggleRequest(
     val targetType: ReactionTargetType,
     val targetId: UUID,
     val reactionType: ReactionType,

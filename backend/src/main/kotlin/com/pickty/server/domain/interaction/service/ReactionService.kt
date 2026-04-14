@@ -1,12 +1,16 @@
-package com.pickty.server.domain.interaction
+package com.pickty.server.domain.interaction.service
 
+import com.pickty.server.domain.interaction.entity.Reaction
+import com.pickty.server.domain.interaction.repository.ReactionRepository
+import com.pickty.server.domain.interaction.enums.ReactionTargetType
+import com.pickty.server.domain.interaction.enums.ReactionType
 import com.pickty.server.domain.interaction.dto.ReactionToggleResponse
 import com.pickty.server.domain.interaction.dto.ReactionToggleRequest
-import com.pickty.server.domain.tier.ResultStatus
-import com.pickty.server.domain.tier.TemplateStatus
-import com.pickty.server.domain.tier.TierResultCacheService
-import com.pickty.server.domain.tier.TierResultRepository
-import com.pickty.server.domain.tier.TierTemplateRepository
+import com.pickty.server.domain.tier.enums.ResultStatus
+import com.pickty.server.domain.tier.enums.TemplateStatus
+import com.pickty.server.domain.tier.service.TierResultCacheService
+import com.pickty.server.domain.tier.repository.TierResultRepository
+import com.pickty.server.domain.tier.repository.TierTemplateRepository
 import com.pickty.server.global.util.Sha256Hex
 import com.pickty.server.global.web.ClientIpResolver
 import jakarta.servlet.http.HttpServletRequest

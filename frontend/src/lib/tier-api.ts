@@ -1,4 +1,4 @@
-import type { CommunityReactionType } from '@/lib/api/community-api';
+import type { ReactionType } from '@/lib/api/interaction-api';
 import { apiFetch } from '@/lib/api-fetch';
 import { resolvePicktyUploadsUrl } from '@/lib/pickty-image-url';
 import {
@@ -38,7 +38,7 @@ export interface TemplateDetailResponse {
   likeCount?: number;
   commentCount?: number;
   viewCount?: number;
-  myReaction?: CommunityReactionType | null;
+  myReaction?: ReactionType | null;
 }
 
 export interface TemplateMetaPatchResponse {
@@ -60,7 +60,7 @@ export interface TemplateSummaryResponse {
   likeCount?: number;
   commentCount?: number;
   viewCount?: number;
-  myReaction?: CommunityReactionType | null;
+  myReaction?: ReactionType | null;
 }
 
 /** 템플릿 items JSONB의 `description` 문자열 (없으면 null) */
@@ -153,7 +153,7 @@ export interface TierResultResponse {
   downCount?: number;
   commentCount?: number;
   viewCount?: number;
-  myReaction?: CommunityReactionType | null;
+  myReaction?: ReactionType | null;
 }
 
 export interface TierResultSummaryResponse {
@@ -173,7 +173,7 @@ export interface TierResultSummaryResponse {
   downCount?: number;
   commentCount?: number;
   viewCount?: number;
-  myReaction?: CommunityReactionType | null;
+  myReaction?: ReactionType | null;
 }
 
 export interface PageTierResultSummary {
@@ -229,7 +229,7 @@ function optLongField(row: Record<string, unknown>, camel: string, snake: string
   return Number.isFinite(n) ? n : 0;
 }
 
-function parseMyReaction(row: Record<string, unknown>): CommunityReactionType | null {
+function parseMyReaction(row: Record<string, unknown>): ReactionType | null {
   const v = row.myReaction ?? row.my_reaction;
   if (v === 'LIKE' || v === 'UPVOTE' || v === 'DOWNVOTE') return v;
   return null;

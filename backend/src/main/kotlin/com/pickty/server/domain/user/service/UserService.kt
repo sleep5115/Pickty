@@ -1,6 +1,12 @@
-package com.pickty.server.domain.user
+package com.pickty.server.domain.user.service
 
 import com.pickty.server.domain.auth.service.RefreshTokenService
+import com.pickty.server.domain.user.enums.AccountStatus
+import com.pickty.server.domain.user.dto.SensitiveLinkedAccountDto
+import com.pickty.server.domain.user.repository.SocialAccountRepository
+import com.pickty.server.domain.user.repository.UserRepository
+import com.pickty.server.domain.user.dto.UserResponse
+import com.pickty.server.domain.user.dto.UserSensitiveProfileResponse
 import com.pickty.server.domain.user.dto.CompleteOnboardingRequest
 import com.pickty.server.domain.user.dto.UpdateProfileRequest
 import tools.jackson.core.type.TypeReference
@@ -11,6 +17,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
 import java.time.Year
+import kotlin.collections.get
 
 @Service
 class UserService(

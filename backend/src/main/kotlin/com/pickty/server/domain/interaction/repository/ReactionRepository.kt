@@ -1,5 +1,7 @@
-package com.pickty.server.domain.interaction
+package com.pickty.server.domain.interaction.repository
 
+import com.pickty.server.domain.interaction.entity.Reaction
+import com.pickty.server.domain.interaction.enums.ReactionTargetType
 import org.springframework.data.jpa.repository.JpaRepository
 import java.util.UUID
 

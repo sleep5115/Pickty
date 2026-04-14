@@ -1,4 +1,4 @@
-package com.pickty.server.domain.user
+package com.pickty.server.domain.user.dto
 
 /**
  * 공개·일반 UI용. **이메일·실명·소셜 원본 사진은 포함하지 않는다** (`GET /me/sensitive` 참고).

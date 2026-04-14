@@ -119,5 +119,3 @@ pickty:
     google-search:
       api-key: ${GOOGLE_SEARCH_API_KEY:}
       cx: ${GOOGLE_SEARCH_CX:}
-    bing-search:
-      api-key: ${BING_SEARCH_API_KEY:}

@@ -1,5 +1,7 @@
-package com.pickty.server.domain.upload
+package com.pickty.server.domain.upload.controller
 
+import com.pickty.server.domain.upload.service.ImageCleanupReport
+import com.pickty.server.domain.upload.service.ImageCleanupService
 import com.pickty.server.global.security.isAdmin
 import com.pickty.server.global.security.resolveUserIdOrThrow
 import org.springframework.http.HttpStatus

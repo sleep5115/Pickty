@@ -1,6 +1,7 @@
-package com.pickty.server.domain.tier
+package com.pickty.server.domain.tier.controller
 
 import com.fasterxml.jackson.databind.JsonNode
+import com.pickty.server.domain.tier.service.TierResultService
 import com.pickty.server.domain.tier.dto.CreateTierResultRequest
 import com.pickty.server.domain.tier.dto.TierResultResponse
 import com.pickty.server.domain.tier.dto.TierResultSummaryResponse

@@ -1,5 +1,6 @@
-package com.pickty.server.domain.tier
+package com.pickty.server.domain.tier.entity
 
+import com.pickty.server.domain.tier.enums.TemplateStatus
 import com.pickty.server.global.common.BaseTimeEntity
 import jakarta.persistence.Column
 import jakarta.persistence.Entity

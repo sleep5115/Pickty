@@ -1,4 +1,4 @@
-package com.pickty.server.domain.tier
+package com.pickty.server.domain.tier.service
 
 import com.pickty.server.domain.tier.dto.TierResultResponse
 import org.springframework.data.redis.core.StringRedisTemplate

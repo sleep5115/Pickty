@@ -1,5 +1,6 @@
-package com.pickty.server.domain.user
+package com.pickty.server.domain.user.entity
 
+import com.pickty.server.domain.user.enums.Provider
 import com.pickty.server.global.common.BaseTimeEntity
 import jakarta.persistence.Column
 import jakarta.persistence.Entity

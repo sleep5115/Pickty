@@ -7,12 +7,12 @@ import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { TierBoardReadonly } from '@/components/tier/tier-board-readonly';
 import { TierResultEditMetaModal } from '@/components/tier/tier-result-edit-meta-modal';
-import { CommentSection } from '@/components/community/comment-section';
-import { ResultVoteButtons } from '@/components/community/result-vote-buttons';
-import { ViewCountInline } from '@/components/community/view-count-inline';
+import { CommentSection } from '@/components/interaction/comment-section';
+import { ResultVoteButtons } from '@/components/interaction/result-vote-buttons';
+import { ViewCountInline } from '@/components/interaction/view-count-inline';
 import { TierResultDeleteConfirmDialog } from '@/components/tier/tier-result-delete-confirm-dialog';
 import { TierResultImagePreviewModal } from '@/components/tier/tier-result-image-preview-modal';
-import type { CommunityReactionType } from '@/lib/api/community-api';
+import type { ReactionType } from '@/lib/api/interaction-api';
 import { getTierResult, type TierResultStatus } from '@/lib/tier-api';
 import { apiFetch } from '@/lib/api-fetch';
 import { useAuthStore } from '@/lib/store/auth-store';
@@ -49,7 +49,7 @@ export function TierResultClientPage() {
   const [upCount, setUpCount] = useState(0);
   const [downCount, setDownCount] = useState(0);
   const [viewCount, setViewCount] = useState(0);
-  const [resultMyReaction, setResultMyReaction] = useState<CommunityReactionType | null>(null);
+  const [resultMyReaction, setResultMyReaction] = useState<ReactionType | null>(null);
   const [previewItem, setPreviewItem] = useState<TierItem | null>(null);
 
   /** 같은 결과 id로 토큰만 바뀌어 재요청할 때는 조회수 이중 집계 방지 */

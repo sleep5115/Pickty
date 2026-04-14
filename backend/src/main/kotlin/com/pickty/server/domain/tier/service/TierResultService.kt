@@ -1,10 +1,15 @@
-package com.pickty.server.domain.tier
+package com.pickty.server.domain.tier.service
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.pickty.server.domain.interaction.service.MyReactionService
 import com.pickty.server.domain.interaction.enums.ReactionTargetType
 import com.pickty.server.domain.interaction.enums.ReactionType
-import com.pickty.server.domain.view.ViewCountService
+import com.pickty.server.domain.tier.enums.ResultStatus
+import com.pickty.server.domain.tier.enums.TemplateStatus
+import com.pickty.server.domain.tier.entity.TierResult
+import com.pickty.server.domain.tier.repository.TierResultRepository
+import com.pickty.server.domain.tier.repository.TierTemplateRepository
+import com.pickty.server.domain.view.service.ViewCountService
 import com.pickty.server.domain.tier.dto.CreateTierResultRequest
 import com.pickty.server.domain.tier.dto.TierResultResponse
 import com.pickty.server.domain.tier.dto.TierResultSummaryResponse
@@ -21,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
 import java.time.format.DateTimeFormatter
 import java.util.UUID
+import kotlin.collections.get
 
 @Service
 class TierResultService(

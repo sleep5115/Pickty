@@ -2,7 +2,7 @@ import 'server-only';
 
 import DOMPurify from 'isomorphic-dompurify';
 
-const BOARD_HTML_CONFIG: import('dompurify').Config = {
+const COMMUNITY_HTML_CONFIG: import('dompurify').Config = {
   USE_PROFILES: { html: true },
   ADD_TAGS: ['iframe', 'details', 'summary', 'figure', 'figcaption'],
   ADD_ATTR: [
@@ -35,5 +35,5 @@ const BOARD_HTML_CONFIG: import('dompurify').Config = {
 /** API·RSC 등 서버에서 저장 HTML을 소독할 때만 사용. 클라이언트에서 import 금지. */
 export function sanitizeBoardHtmlOnServer(dirty: string): string {
   if (!dirty || typeof dirty !== 'string') return '';
-  return DOMPurify.sanitize(dirty, BOARD_HTML_CONFIG);
+  return DOMPurify.sanitize(dirty, COMMUNITY_HTML_CONFIG);
 }

@@ -1,5 +1,8 @@
-package com.pickty.server.domain.interaction
+package com.pickty.server.domain.interaction.service
 
+import com.pickty.server.domain.interaction.repository.ReactionRepository
+import com.pickty.server.domain.interaction.enums.ReactionTargetType
+import com.pickty.server.domain.interaction.enums.ReactionType
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
