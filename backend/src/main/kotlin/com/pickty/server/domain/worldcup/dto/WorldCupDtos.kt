@@ -1,0 +1,79 @@
+package com.pickty.server.domain.worldcup.dto
+
+import com.pickty.server.domain.tier.dto.TemplateItemPayload
+import jakarta.validation.Valid
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.NotEmpty
+import jakarta.validation.constraints.NotNull
+import jakarta.validation.constraints.Size
+import java.util.UUID
+
+data class WorldCupTemplateItemsPayload(
+    @field:NotEmpty(message = "아이템을 1개 이상 추가해 주세요.")
+    @field:Valid
+    val items: List<TemplateItemPayload>,
+)
+
+data class CreateWorldCupTemplateRequest(
+    @field:NotBlank(message = "템플릿 제목을 입력해 주세요.")
+    @field:Size(max = 100, message = "제목은 100자 이하로 입력해 주세요.")
+    val title: String,
+    @field:Size(max = 10000, message = "설명은 10000자 이하로 입력해 주세요.")
+    val description: String? = null,
+    /** `split_lr` | `split_diagonal` */
+    @field:NotBlank(message = "레이아웃 모드를 선택해 주세요.")
+    @field:Size(max = 32)
+    val layoutMode: String,
+    @field:NotNull @field:Valid val items: WorldCupTemplateItemsPayload,
+)
+
+data class UpdateWorldCupTemplateMetaRequest(
+    @field:NotBlank(message = "템플릿 제목을 입력해 주세요.")
+    @field:Size(max = 100, message = "제목은 100자 이하로 입력해 주세요.")
+    val title: String,
+    @field:Size(max = 10000, message = "설명은 10000자 이하로 입력해 주세요.")
+    val description: String? = null,
+)
+
+data class PatchWorldCupTemplateMetaResponse(
+    val id: UUID,
+    val title: String,
+    val version: Int,
+    val description: String?,
+)
+
+data class WorldCupTemplateCreatedResponse(
+    val id: UUID,
+    val title: String,
+    val version: Int,
+    val creatorId: Long?,
+    val thumbnailUrl: String?,
+)
+
+data class WorldCupTemplateSummaryResponse(
+    val id: UUID,
+    val title: String,
+    val version: Int,
+    val description: String?,
+    val thumbnailUrl: String?,
+    val creatorId: Long?,
+    val layoutMode: String,
+    val likeCount: Long = 0,
+    val commentCount: Long = 0,
+    val viewCount: Long = 0,
+)
+
+/** 상세 — 아이템 JSONB 전체 */
+data class WorldCupTemplateDetailResponse(
+    val id: UUID,
+    val title: String,
+    val version: Int,
+    val description: String?,
+    val items: Map<String, Any?>,
+    val thumbnailUrl: String?,
+    val creatorId: Long?,
+    val layoutMode: String,
+    val likeCount: Long = 0,
+    val commentCount: Long = 0,
+    val viewCount: Long = 0,
+)
