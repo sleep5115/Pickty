@@ -111,7 +111,7 @@ function LoginPageContent() {
             }
           } catch {
             toast.error('로그인 후 이동 처리에 실패했습니다.');
-            router.replace('/templates');
+            router.replace('/tier/templates');
           }
         })();
       } else if (event.data?.type === 'OAUTH_ERROR') {

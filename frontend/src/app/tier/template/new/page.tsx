@@ -517,7 +517,7 @@ function NewTemplatePageInner() {
             템플릿 등록은 로그인 후 이용할 수 있습니다.
           </p>
           <Link
-            href="/login?returnTo=/template/new"
+            href="/login?returnTo=/tier/template/new"
             className="mt-5 inline-flex items-center justify-center rounded-lg bg-violet-600 hover:bg-violet-500 dark:bg-violet-600 dark:hover:bg-violet-500 text-white text-sm font-medium px-4 py-2.5 transition-colors"
           >
             로그인하기
@@ -557,7 +557,7 @@ function NewTemplatePageInner() {
               티어표 만들기
             </button>
             <Link
-              href="/templates"
+              href="/tier/templates"
               className="inline-flex items-center justify-center rounded-lg border border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 text-sm font-medium px-5 py-2.5 transition-colors text-center"
             >
               템플릿 목록 보기
@@ -1050,7 +1050,7 @@ function NewTemplatePageInner() {
             )}
           </button>
           <Link
-            href="/templates"
+            href="/tier/templates"
             className="inline-flex items-center justify-center rounded-lg border border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 text-sm font-medium px-5 py-2.5 transition-colors"
           >
             취소

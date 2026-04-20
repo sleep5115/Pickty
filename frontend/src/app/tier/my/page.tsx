@@ -100,7 +100,7 @@ export default function MyTierResultsPage() {
 
       <div className="flex gap-3 flex-wrap">
         <Link
-          href="/templates"
+          href="/tier/templates"
           className="text-sm font-medium text-violet-600 dark:text-violet-400 hover:underline"
         >
           템플릿 목록
@@ -146,7 +146,7 @@ export default function MyTierResultsPage() {
             아직 저장한 티어표가 없습니다.
           </p>
           <Link
-            href="/templates"
+            href="/tier/templates"
             className="mt-4 inline-flex text-sm font-semibold text-violet-600 dark:text-violet-400 hover:underline"
           >
             템플릿 고르고 티어 만들기 →

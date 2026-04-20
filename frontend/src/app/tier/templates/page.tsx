@@ -79,7 +79,7 @@ export default function TemplatesPage() {
           </p>
         </div>
         <Link
-          href={accessToken ? '/template/new' : '/login?returnTo=/template/new'}
+          href={accessToken ? '/tier/template/new' : '/login?returnTo=/tier/template/new'}
           className="inline-flex shrink-0 items-center justify-center rounded-xl bg-violet-600 px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-violet-500/25 transition-colors hover:bg-violet-500 dark:bg-violet-600 dark:shadow-violet-900/30 dark:hover:bg-violet-500"
         >
           새 템플릿 만들기
@@ -143,14 +143,14 @@ export default function TemplatesPage() {
                 }}
                 onEdit={(target) => {
                   if (!accessToken) {
-                    router.push('/login?returnTo=/templates');
+                    router.push('/login?returnTo=/tier/templates');
                     return;
                   }
                   setEditMetaTarget(target);
                 }}
                 onDelete={(target) => {
                   if (!accessToken) {
-                    router.push('/login?returnTo=/templates');
+                    router.push('/login?returnTo=/tier/templates');
                     return;
                   }
                   setDeleteTarget(target);

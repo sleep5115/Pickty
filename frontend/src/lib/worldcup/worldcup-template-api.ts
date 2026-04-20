@@ -47,6 +47,8 @@ export interface CreateWorldCupTemplatePayload {
   description: string | null;
   layoutMode: 'split_lr' | 'split_diagonal';
   items: { id: string; name: string; imageUrl?: string | null }[];
+  /** 합성·직접 업로드한 목록 썸네일. 생략 시 서버가 첫 미디어 등으로 추론 */
+  thumbnailUrl?: string | null;
 }
 
 export interface WorldCupTemplateCreatedDto {
@@ -72,6 +74,7 @@ export async function createWorldCupTemplate(
       description: body.description,
       layoutMode: body.layoutMode,
       items: { items: body.items },
+      thumbnailUrl: body.thumbnailUrl?.trim() ? body.thumbnailUrl.trim() : null,
     }),
   });
   if (!res.ok) {

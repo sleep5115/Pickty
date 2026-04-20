@@ -53,7 +53,8 @@ class WorldCupTemplateService(
                 creatorId = creatorId,
             )
         entity.layoutMode = layout
-        entity.thumbnailUrl = inferThumbnail(request.items.items)
+        entity.thumbnailUrl =
+            normalizeThumbnailUrl(request.thumbnailUrl) ?: inferThumbnail(request.items.items)
 
         val saved = worldCupTemplateRepository.save(entity)
         worldCupTemplateRepository.flush()

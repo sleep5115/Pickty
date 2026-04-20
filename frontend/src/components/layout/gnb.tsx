@@ -11,10 +11,13 @@ import { logoutSession } from '@/lib/auth-session';
 
 const NAV_LINKS = [
   {
-    href: '/templates',
+    href: '/tier/templates',
     label: '티어 만들기',
     Icon: LayoutGrid,
-    isActive: (p: string) => p.startsWith('/templates') || p.startsWith('/template'),
+    isActive: (p: string) =>
+      p.startsWith('/tier/templates') ||
+      p === '/tier/template' ||
+      p.startsWith('/tier/template/'),
   },
   {
     href: '/tier/feed',
@@ -174,7 +177,7 @@ export function GNB() {
                     내 티어표
                   </Link>
                   <Link
-                    href="/templates/mine"
+                    href="/tier/templates/mine"
                     role="menuitem"
                     onClick={() => setAccountOpen(false)}
                     className={accountLinkClass}
@@ -276,7 +279,7 @@ export function GNB() {
                       내 티어표
                     </Link>
                     <Link
-                      href="/templates/mine"
+                      href="/tier/templates/mine"
                       onClick={() => setMenuOpen(false)}
                       className="rounded-lg px-3 py-2.5 text-sm text-slate-600 transition-colors hover:bg-slate-100 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
                     >

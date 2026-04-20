@@ -105,7 +105,7 @@ export function WorldCupTemplateHubCard({
         href={`/worldcup/${id}`}
         className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm ring-1 ring-slate-200/80 transition hover:border-violet-300 hover:shadow-md hover:ring-violet-200/60 dark:border-zinc-700 dark:bg-zinc-900 dark:ring-white/5 dark:hover:border-violet-600/50 dark:hover:ring-violet-500/20"
       >
-        <div className="aspect-video w-full bg-slate-100 dark:bg-zinc-800">
+        <div className="aspect-[16/10] w-full overflow-hidden bg-slate-100 dark:bg-zinc-800">
           {thumbnailUrl ? (
             // eslint-disable-next-line @next/next/no-img-element -- API 썸네일 URL
             <img

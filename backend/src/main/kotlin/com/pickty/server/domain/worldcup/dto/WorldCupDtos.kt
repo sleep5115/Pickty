@@ -20,6 +20,9 @@ data class CreateWorldCupTemplateRequest(
     val title: String,
     @field:Size(max = 10000, message = "설명은 10000자 이하로 입력해 주세요.")
     val description: String? = null,
+    /** 클라이언트가 합성·업로드한 목록 썸네일. 비어 있으면 서버가 첫 미디어 URL 등으로 추론 */
+    @field:Size(max = 2048, message = "썸네일 URL은 2048자 이하로 입력해 주세요.")
+    val thumbnailUrl: String? = null,
     /** `split_lr` | `split_diagonal` */
     @field:NotBlank(message = "레이아웃 모드를 선택해 주세요.")
     @field:Size(max = 32)

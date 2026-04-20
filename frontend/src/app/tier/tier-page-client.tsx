@@ -481,7 +481,7 @@ function TierPageInner() {
           onDeleted={() => {
             setDeleteOpen(false);
             toast.success('삭제했어요.');
-            router.push('/templates');
+            router.push('/tier/templates');
           }}
         />
       )}

@@ -106,7 +106,7 @@ export default function TierFeedPage() {
 
       <div className="flex gap-3 flex-wrap">
         <Link
-          href="/templates"
+          href="/tier/templates"
           className="text-sm font-medium text-violet-600 dark:text-violet-400 hover:underline"
         >
           템플릿 목록
@@ -143,7 +143,7 @@ export default function TierFeedPage() {
         <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-900/60 px-5 py-8 text-center">
           <p className="text-sm text-slate-600 dark:text-zinc-400">아직 공개된 티어표가 없습니다.</p>
           <Link
-            href="/templates"
+            href="/tier/templates"
             className="mt-4 inline-flex text-sm font-semibold text-violet-600 dark:text-violet-400 hover:underline"
           >
             템플릿 고르고 티어 만들기 →

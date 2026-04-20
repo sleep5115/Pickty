@@ -7,7 +7,7 @@ import { splitUrlLines } from '@/lib/worldcup/worldcup-media-url';
 type Props = {
   open: boolean;
   onClose: () => void;
-  onApply: (urls: string[]) => void;
+  onApply: (urls: string[]) => void | Promise<void>;
 };
 
 export function WorldCupBulkAddModal({ open, onClose, onApply }: Props) {
@@ -22,11 +22,13 @@ export function WorldCupBulkAddModal({ open, onClose, onApply }: Props) {
   if (!open) return null;
 
   const handleApply = () => {
-    const urls = splitUrlLines(text);
-    if (urls.length === 0) return;
-    onApply(urls);
-    setText('');
-    onClose();
+    void (async () => {
+      const urls = splitUrlLines(text);
+      if (urls.length === 0) return;
+      await onApply(urls);
+      setText('');
+      onClose();
+    })();
   };
 
   return (

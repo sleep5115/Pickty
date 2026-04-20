@@ -1,12 +1,18 @@
 'use client';
 
-import { useState } from 'react';
-import { Dices, Undo2, Zap } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Dices, Undo2, Volume2, VolumeX, Zap } from 'lucide-react';
 import {
   useWorldCupStore,
   type WorldCupItem,
   type WorldCupLayoutMode,
 } from '@/lib/store/worldcup-store';
+import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
+import {
+  buildWorldCupYoutubePlayEmbedSrc,
+  classifyWorldCupMediaUrl,
+  parseYoutubeVideoId,
+} from '@/lib/worldcup/worldcup-media-url';
 
 const pillCounter =
   'rounded-full border border-zinc-300 bg-white/90 px-4 py-2 text-sm font-medium text-zinc-900 shadow-lg backdrop-blur-sm tabular-nums dark:border-white/15 dark:bg-black/55 dark:text-white';
@@ -58,6 +64,8 @@ export function WorldCupPlayClient({ templateId }: WorldCupPlayClientProps) {
   const zA = topCard === 'A' ? 'z-10' : 'z-0';
   const zB = topCard === 'B' ? 'z-10' : 'z-0';
 
+  const tieDisabled = tournamentComplete || (!left && !right);
+
   const playChrome = (
     <>
       <div className="absolute right-4 top-4 z-40 flex items-center gap-2 md:right-8 md:top-6">
@@ -83,33 +91,39 @@ export function WorldCupPlayClient({ templateId }: WorldCupPlayClientProps) {
         </p>
       </div>
 
-      {/* 공통: 상·하단 중앙 고정 — 미디어와 계층 분리 (항상 카드 위 클릭 가능) */}
-      <div className="pointer-events-none absolute left-1/2 top-[6.25rem] z-[45] -translate-x-1/2 md:top-28">
-        <button
-          type="button"
-          className={`pointer-events-auto whitespace-nowrap ${tieBtn}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            keepBoth();
-          }}
-          disabled={tournamentComplete || (!left && !right)}
-        >
-          둘 다 올리기 (무승부)
-        </button>
-      </div>
-      <div className="pointer-events-none absolute bottom-8 left-1/2 z-[45] -translate-x-1/2">
-        <button
-          type="button"
-          className={`pointer-events-auto whitespace-nowrap ${dropBtn}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            dropBoth();
-          }}
-          disabled={tournamentComplete || (!left && !right)}
-        >
-          둘 다 탈락
-        </button>
-      </div>
+      {/*
+       * 사선 레이아웃 전용 공통 버튼 — % 기반으로 빈 공간에 고정
+       * 카드 A: left-0 top-0 w-[60%] h-[75%]
+       * 카드 B: right-0 bottom-0 w-[60%] h-[75%]
+       * 빈 우상단: left>60%, top<25% → right-[4%] top-[15%]
+       * 빈 좌하단: left<40%, bottom<25% → left-[4%] bottom-[15%]
+       */}
+      {layoutMode === 'split_diagonal' ? (
+        <>
+          <button
+            type="button"
+            className={`absolute right-[4%] top-[15%] z-[45] whitespace-normal text-center ${tieBtn}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              keepBoth();
+            }}
+            disabled={tieDisabled}
+          >
+            둘 다 올리기 (무승부)
+          </button>
+          <button
+            type="button"
+            className={`absolute bottom-[15%] left-[4%] z-[45] whitespace-normal text-center ${dropBtn}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              dropBoth();
+            }}
+            disabled={tieDisabled}
+          >
+            둘 다 탈락
+          </button>
+        </>
+      ) : null}
     </>
   );
 
@@ -155,7 +169,7 @@ export function WorldCupPlayClient({ templateId }: WorldCupPlayClientProps) {
             </div>
           </>
         ) : (
-          <div className="flex h-full min-h-0 flex-row gap-3 px-4 pb-6 pt-24 sm:gap-4 md:px-6">
+          <div className="flex h-full min-h-0 flex-row gap-2 px-4 pb-6 pt-24 sm:gap-3 md:px-6">
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
               <CandidateCard
                 side="A"
@@ -169,16 +183,41 @@ export function WorldCupPlayClient({ templateId }: WorldCupPlayClientProps) {
                 rootClassName={cardShellRow}
               />
             </div>
-            <div
-              className="flex shrink-0 flex-col items-center justify-center px-2 text-zinc-500 dark:text-zinc-500"
-              aria-hidden
-            >
-              <div className="flex flex-col items-center gap-1 rounded-xl border border-zinc-200 bg-white px-3 py-4 shadow-inner dark:border-white/10 dark:bg-zinc-900/90">
-                <Zap className="size-8 text-amber-500 drop-shadow-md dark:text-amber-400 sm:size-9" strokeWidth={2} />
+            <div className="flex w-[min(7.5rem,calc(100vw-2rem))] shrink-0 flex-col items-stretch justify-center gap-3 py-2 text-zinc-500 dark:text-zinc-500">
+              <button
+                type="button"
+                className={`w-full shrink-0 whitespace-normal px-3 py-2.5 text-center text-xs font-semibold leading-snug sm:text-sm ${tieBtn}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  keepBoth();
+                }}
+                disabled={tieDisabled}
+              >
+                둘 다 올리기 (무승부)
+              </button>
+              <div
+                className="flex flex-col items-center gap-1 rounded-xl border border-zinc-200 bg-white px-2 py-3 shadow-inner dark:border-white/10 dark:bg-zinc-900/90"
+                aria-hidden
+              >
+                <Zap
+                  className="size-7 text-amber-500 drop-shadow-md dark:text-amber-400 sm:size-8"
+                  strokeWidth={2}
+                />
                 <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-500">
                   VS
                 </span>
               </div>
+              <button
+                type="button"
+                className={`w-full shrink-0 whitespace-normal px-3 py-2.5 text-center text-xs font-semibold leading-snug sm:text-sm ${dropBtn}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  dropBoth();
+                }}
+                disabled={tieDisabled}
+              >
+                둘 다 탈락
+              </button>
             </div>
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
               <CandidateCard
@@ -227,7 +266,7 @@ function CandidateCard({
 
   return (
     <div className={outer}>
-      <div className="relative min-h-0 flex-1 overflow-hidden rounded-t-2xl bg-zinc-100 dark:bg-black">
+      <div className="relative min-h-0 flex-1 overflow-hidden rounded-t-2xl bg-black">
         <WorldCupCardMedia item={item} fit={mediaFit} />
       </div>
       <div className="flex h-16 shrink-0 gap-2 rounded-b-2xl border-t border-zinc-200 bg-zinc-100 p-3 dark:border-white/10 dark:bg-zinc-900">
@@ -261,26 +300,97 @@ function WorldCupCardMedia({
   fit: 'cover' | 'contain';
 }) {
   const fitClass = fit === 'contain' ? 'object-contain' : 'object-cover';
+
   if (!item) {
     return (
-      <div className="absolute inset-0 flex min-h-[80px] items-center justify-center bg-zinc-100 text-sm text-zinc-500 dark:bg-zinc-900">
+      <div className="absolute inset-0 flex min-h-[80px] items-center justify-center text-sm text-zinc-500 dark:text-zinc-400">
         대기
       </div>
     );
   }
-  if (!item.imageUrl) {
+  if (!item.imageUrl?.trim()) {
     return (
-      <div className="absolute inset-0 flex min-h-[80px] items-center justify-center bg-zinc-100 text-sm text-zinc-500 dark:bg-zinc-900">
+      <div className="absolute inset-0 flex min-h-[80px] items-center justify-center text-sm text-zinc-500 dark:text-zinc-400">
         이미지 없음
       </div>
     );
   }
+
+  const raw = item.imageUrl.trim();
+  const kind = classifyWorldCupMediaUrl(raw);
+  const videoId = parseYoutubeVideoId(raw);
+
+  if (kind === 'youtube' && videoId) {
+    return <WorldCupYouTubePlayer videoId={videoId} />;
+  }
+
+  /* 이미지: absolute inset-0 으로 부모 전체를 꽉 채운다 (레터박스 없음) */
+  const imgSrc = picktyImageDisplaySrc(raw);
   return (
+    // eslint-disable-next-line @next/next/no-img-element -- 외부·R2·동일출처 프록시 혼합
     <img
-      src={item.imageUrl}
+      src={imgSrc}
       alt=""
       className={`absolute inset-0 h-full w-full rounded-t-2xl ${fitClass}`}
       draggable={false}
     />
+  );
+}
+
+/**
+ * YouTube embed 는 크기와 무관하게 항상 상단 타이틀바(제목 + 우상단 뮤트/CC/설정)를 표시한다.
+ * 이 컴포넌트는 iframe 을 위로 56px 밀어 타이틀바를 overflow-hidden 으로 클립하고,
+ * 대신 좌하단에 직접 만든 뮤트 버튼을 배치한다.
+ * enablejsapi=1 + postMessage 로 뮤트 상태를 iframe 에 전달한다.
+ */
+function WorldCupYouTubePlayer({ videoId }: { videoId: string }) {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [muted, setMuted] = useState(false);
+
+  const src = `${buildWorldCupYoutubePlayEmbedSrc(videoId)}&enablejsapi=1`;
+
+  const toggleMute = () => {
+    const win = iframeRef.current?.contentWindow;
+    if (!win) return;
+    win.postMessage(
+      JSON.stringify({ event: 'command', func: muted ? 'unMute' : 'mute', args: '' }),
+      '*',
+    );
+    setMuted((prev) => !prev);
+  };
+
+  return (
+    <div className="absolute inset-0 overflow-hidden bg-black">
+      {/*
+       * marginTop: -56px → iframe 을 위로 56px 밀어 타이틀바를 overflow-hidden 영역 밖으로 보냄
+       * height: calc(100% + 56px) → 하단 컨트롤바가 잘리지 않도록 높이를 56px 연장
+       */}
+      <div
+        style={{ marginTop: '-56px', height: 'calc(100% + 56px)' }}
+        className="flex justify-center"
+      >
+        <iframe
+          ref={iframeRef}
+          src={src}
+          title=""
+          className="h-full min-w-[640px] w-full shrink-0 border-0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
+        />
+      </div>
+      {/* 클립된 우상단 뮤트 버튼 대신 좌하단에 배치 */}
+      <button
+        type="button"
+        onClick={toggleMute}
+        className="absolute bottom-10 left-2 z-20 flex size-7 items-center justify-center rounded bg-black/60 text-white transition hover:bg-black/90"
+        title={muted ? '음소거 해제' : '음소거'}
+      >
+        {muted ? (
+          <VolumeX className="size-3.5" aria-hidden />
+        ) : (
+          <Volume2 className="size-3.5" aria-hidden />
+        )}
+      </button>
+    </div>
   );
 }

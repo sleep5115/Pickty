@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { ImageIcon, Film, Link2 } from 'lucide-react';
+import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
 import {
   classifyWorldCupMediaUrl,
   getYoutubeThumbnailUrl,
@@ -21,10 +22,11 @@ function TryLoadImage({ url }: { url: string }) {
       </div>
     );
   }
+  const src = picktyImageDisplaySrc(url);
   return (
     <div className="size-14 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100 dark:border-zinc-600 dark:bg-zinc-800">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={url} alt="" className="size-full object-cover" onError={() => setBad(true)} />
+      <img src={src} alt="" className="size-full object-cover" onError={() => setBad(true)} />
     </div>
   );
 }

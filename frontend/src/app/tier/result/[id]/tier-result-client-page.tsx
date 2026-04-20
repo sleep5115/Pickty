@@ -206,7 +206,7 @@ export function TierResultClientPage() {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-4 py-20 px-4">
         <p className="text-red-600 dark:text-red-400 text-center">{error}</p>
-        <Link href="/templates" className="text-violet-600 dark:text-violet-400 text-sm underline">
+        <Link href="/tier/templates" className="text-violet-600 dark:text-violet-400 text-sm underline">
           템플릿 목록으로
         </Link>
       </div>

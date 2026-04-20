@@ -15,7 +15,7 @@ export default function Home() {
 
       <div className="flex flex-col sm:flex-row gap-4">
         <Link
-          href="/templates"
+          href="/tier/templates"
           className="px-8 py-3.5 rounded-2xl font-semibold text-white bg-linear-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 shadow-lg shadow-violet-500/20 dark:shadow-violet-900/40 transition-all duration-200 hover:scale-105"
         >
           티어표 만들기

@@ -3,6 +3,13 @@ import type { NextConfig } from "next";
 const devLanOrigin = process.env.NEXT_DEV_ALLOWED_ORIGIN?.trim();
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      { source: '/templates', destination: '/tier/templates', permanent: true },
+      { source: '/templates/mine', destination: '/tier/templates/mine', permanent: true },
+      { source: '/template/new', destination: '/tier/template/new', permanent: true },
+    ];
+  },
   // 로컬·LAN·운영 도메인에서 Next dev HMR 허용 — LAN IP는 `.env.local` 의 NEXT_DEV_ALLOWED_ORIGIN (레포에 실 IP 금지)
   allowedDevOrigins: [
     ...(devLanOrigin ? [devLanOrigin] : []),

@@ -37,9 +37,23 @@ export function getYoutubeThumbnailUrl(videoId: string, quality: 'hq' | 'mq' | '
   return `https://img.youtube.com/vi/${videoId}/${q}.jpg`;
 }
 
-/** iframe embed용 watch URL (플레이 UI에서 사용 예정) */
+/** iframe embed 기본 경로 (쿼리 없음) */
 export function getYoutubeEmbedUrl(videoId: string): string {
   return `https://www.youtube.com/embed/${videoId}`;
+}
+
+/**
+ * 월드컵 플레이 화면용 embed URL.
+ * 자동재생·강제 음소거 없음 — 사용자가 재생 시 소리 재생 가능.
+ * `controls=1`으로 유튜브 기본 컨트롤바 표시.
+ */
+export function buildWorldCupYoutubePlayEmbedSrc(videoId: string): string {
+  const u = new URL(`https://www.youtube.com/embed/${encodeURIComponent(videoId)}`);
+  u.searchParams.set('controls', '1');
+  u.searchParams.set('playsinline', '1');
+  u.searchParams.set('rel', '0');
+  u.searchParams.set('modestbranding', '1');
+  return u.toString();
 }
 
 const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|avif|bmp|svg)(\?|#|$)/i;
@@ -58,12 +72,35 @@ export function classifyWorldCupMediaUrl(raw: string): WorldCupMediaKind {
   return 'unknown';
 }
 
+/** 파일명에서 확장자 제거·경로 문자 정리 (업로드 행 이름 자동 완성용) */
+export function stripUploadedImageBaseName(filename: string): string {
+  const raw = filename?.trim();
+  if (!raw) return '';
+  const base = raw.replace(/\.[^.\\/]+$/i, '').replace(/[/\\]/g, '_');
+  return base.slice(0, 100) || '이미지';
+}
+
+/** noembed / YouTube oEmbed — 영상 제목 (실패 시 null) */
+export async function fetchYoutubeOembedTitle(videoPageUrl: string): Promise<string | null> {
+  const u = videoPageUrl.trim();
+  if (!u || !parseYoutubeVideoId(u)) return null;
+  try {
+    const r = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(u)}`);
+    if (!r.ok) return null;
+    const j = (await r.json()) as { title?: unknown };
+    const title = typeof j.title === 'string' ? j.title.trim() : '';
+    return title ? title.slice(0, 200) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** 일괄 추가 시 표시 이름 후보 */
 export function suggestItemNameFromUrl(raw: string): string {
   const url = raw.trim();
   if (!url) return '항목';
   const vid = parseYoutubeVideoId(url);
-  if (vid) return `유튜브 ${vid}`;
+  if (vid) return '유튜브';
   try {
     const u = new URL(url);
     const seg = u.pathname.split('/').filter(Boolean).pop();
