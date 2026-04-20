@@ -41,8 +41,8 @@ export default function BoardPage() {
   }, []);
 
   return (
-    <main className="min-h-[calc(100dvh-3.5rem)] w-full bg-[var(--bg-base)] text-[var(--text-primary)]">
-      <div className="flex w-full flex-col gap-6 px-1 py-8 sm:px-2">
+    <div className="min-h-[calc(100dvh-3.5rem)] w-full bg-[var(--bg-base)] text-[var(--text-primary)]">
+      <div className="flex w-full flex-col gap-6 py-8">
         <header className="flex items-end justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">커뮤니티</h1>
@@ -104,6 +104,6 @@ export default function BoardPage() {
           </ul>
         </section>
       </div>
-    </main>
+    </div>
   );
 }

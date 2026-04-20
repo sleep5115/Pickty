@@ -4,6 +4,7 @@ import { GoogleAnalytics } from "@next/third-parties/google";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { SonnerToaster } from "@/components/providers/sonner-toaster";
 import { GNB } from "@/components/layout/gnb";
+import { SiteMain } from "@/components/layout/site-main";
 import { SiteFooter } from "@/components/layout/site-footer";
 import "./globals.css";
 
@@ -58,8 +59,8 @@ export default function RootLayout({
            */}
           <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-zinc-950 text-slate-900 dark:text-zinc-100 transition-colors duration-200">
             <GNB />
-            <main className="flex-1 flex flex-col max-w-6xl mx-auto w-full px-4">
-              {children}
+            <main className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
+              <SiteMain>{children}</SiteMain>
             </main>
             <SiteFooter />
           </div>

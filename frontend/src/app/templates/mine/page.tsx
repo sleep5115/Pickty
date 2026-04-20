@@ -90,7 +90,7 @@ export default function MyTemplatesPage() {
   }
 
   return (
-    <div className="flex w-full flex-col gap-8 px-1 py-8 sm:px-2">
+    <div className="flex w-full flex-col gap-8 py-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">내 템플릿</h1>
@@ -166,7 +166,7 @@ export default function MyTemplatesPage() {
         )}
 
         {!loading && !error && rows.length > 0 && (
-          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
             {rows.map((t) => (
               <TemplateCard
                 key={t.id}

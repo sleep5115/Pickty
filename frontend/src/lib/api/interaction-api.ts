@@ -1,6 +1,11 @@
 import { apiFetch } from '@/lib/api-fetch';
 
-export type InteractionTargetType = 'TIER_TEMPLATE' | 'TIER_RESULT' | 'community_post';
+export type InteractionTargetType =
+  | 'TIER_TEMPLATE'
+  | 'TIER_RESULT'
+  | 'WORLDCUP_TEMPLATE'
+  | 'WORLDCUP_RESULT'
+  | 'community_post';
 
 export type ReactionType = 'LIKE' | 'UPVOTE' | 'DOWNVOTE';
 

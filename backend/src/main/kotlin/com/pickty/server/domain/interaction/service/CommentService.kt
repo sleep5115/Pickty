@@ -15,6 +15,7 @@ import com.pickty.server.domain.tier.service.TierResultCacheService
 import com.pickty.server.domain.tier.repository.TierResultRepository
 import com.pickty.server.domain.tier.repository.TierTemplateRepository
 import com.pickty.server.domain.user.repository.UserRepository
+import com.pickty.server.domain.worldcup.repository.WorldCupTemplateRepository
 import com.pickty.server.global.util.IpPrefixFormatter
 import com.pickty.server.global.util.Sha256Hex
 import com.pickty.server.global.web.ClientIpResolver
@@ -37,6 +38,7 @@ class CommentService(
     private val tierTemplateRepository: TierTemplateRepository,
     private val tierResultRepository: TierResultRepository,
     private val communityPostRepository: CommunityPostRepository,
+    private val worldCupTemplateRepository: WorldCupTemplateRepository,
     private val passwordEncoder: PasswordEncoder,
     private val tierResultCacheService: TierResultCacheService,
 ) {
@@ -189,11 +191,10 @@ class CommentService(
             ReactionTargetType.TIER_TEMPLATE,
             ReactionTargetType.TIER_RESULT,
             ReactionTargetType.community_post,
+            ReactionTargetType.WORLDCUP_TEMPLATE,
             -> Unit
 
-            ReactionTargetType.WORLDCUP_TEMPLATE,
-            ReactionTargetType.WORLDCUP_RESULT,
-            ->
+            ReactionTargetType.WORLDCUP_RESULT ->
                 throw ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, "아직 이 대상에는 댓글을 지원하지 않습니다.")
         }
     }
@@ -221,7 +222,17 @@ class CommentService(
                     ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "게시글을 찾을 수 없습니다.")
             }
 
-            else -> throw ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, "지원하지 않는 대상입니다.")
+            ReactionTargetType.WORLDCUP_TEMPLATE -> {
+                val t =
+                    worldCupTemplateRepository.findById(targetId).orElse(null)
+                        ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "월드컵 템플릿을 찾을 수 없습니다.")
+                if (t.templateStatus != TemplateStatus.ACTIVE) {
+                    throw ResponseStatusException(HttpStatus.GONE, "삭제되었거나 비공개인 템플릿입니다.")
+                }
+            }
+
+            ReactionTargetType.WORLDCUP_RESULT ->
+                throw ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, "아직 이 대상에는 댓글을 지원하지 않습니다.")
         }
     }
 
@@ -231,6 +242,7 @@ class CommentService(
                 ReactionTargetType.TIER_TEMPLATE -> tierTemplateRepository.incrementCommentCount(targetId)
                 ReactionTargetType.TIER_RESULT -> tierResultRepository.incrementCommentCount(targetId)
                 ReactionTargetType.community_post -> communityPostRepository.incrementCommentCount(targetId)
+                ReactionTargetType.WORLDCUP_TEMPLATE -> worldCupTemplateRepository.incrementCommentCount(targetId)
                 else -> 0
             }
         if (rows == 0) {
@@ -244,6 +256,7 @@ class CommentService(
                 ReactionTargetType.TIER_TEMPLATE -> tierTemplateRepository.decrementCommentCount(targetId)
                 ReactionTargetType.TIER_RESULT -> tierResultRepository.decrementCommentCount(targetId)
                 ReactionTargetType.community_post -> communityPostRepository.decrementCommentCount(targetId)
+                ReactionTargetType.WORLDCUP_TEMPLATE -> worldCupTemplateRepository.decrementCommentCount(targetId)
                 else -> 0
             }
         if (rows == 0) {
