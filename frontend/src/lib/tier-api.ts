@@ -1,4 +1,4 @@
-import type { CommunityReactionType } from '@/lib/api/community-api';
+import type { ReactionType } from '@/lib/api/interaction-api';
 import { apiFetch } from '@/lib/api-fetch';
 import { resolvePicktyUploadsUrl } from '@/lib/pickty-image-url';
 import {
@@ -38,7 +38,7 @@ export interface TemplateDetailResponse {
   likeCount?: number;
   commentCount?: number;
   viewCount?: number;
-  myReaction?: CommunityReactionType | null;
+  myReaction?: ReactionType | null;
 }
 
 export interface TemplateMetaPatchResponse {
@@ -60,7 +60,7 @@ export interface TemplateSummaryResponse {
   likeCount?: number;
   commentCount?: number;
   viewCount?: number;
-  myReaction?: CommunityReactionType | null;
+  myReaction?: ReactionType | null;
 }
 
 /** 템플릿 items JSONB의 `description` 문자열 (없으면 null) */
@@ -82,8 +82,22 @@ export function templatePayloadToTierItems(payload: Record<string, unknown>): Ti
     const rawUrl =
       typeof o.imageUrl === 'string' && o.imageUrl.length > 0 ? o.imageUrl : undefined;
     const imageUrl = rawUrl ? resolvePicktyUploadsUrl(rawUrl) : undefined;
+
+    let focusRect: TierItem['focusRect'] | undefined;
+    if (o.focusRect && typeof o.focusRect === 'object') {
+      const f = o.focusRect as Record<string, unknown>;
+      if (
+        typeof f.x === 'number' &&
+        typeof f.y === 'number' &&
+        typeof f.w === 'number' &&
+        typeof f.h === 'number'
+      ) {
+        focusRect = { x: f.x, y: f.y, w: f.w, h: f.h };
+      }
+    }
+
     if (!id) continue;
-    out.push({ id, name, imageUrl });
+    out.push({ id, name, imageUrl, focusRect });
   }
   return out;
 }
@@ -139,7 +153,7 @@ export interface TierResultResponse {
   downCount?: number;
   commentCount?: number;
   viewCount?: number;
-  myReaction?: CommunityReactionType | null;
+  myReaction?: ReactionType | null;
 }
 
 export interface TierResultSummaryResponse {
@@ -159,7 +173,7 @@ export interface TierResultSummaryResponse {
   downCount?: number;
   commentCount?: number;
   viewCount?: number;
-  myReaction?: CommunityReactionType | null;
+  myReaction?: ReactionType | null;
 }
 
 export interface PageTierResultSummary {
@@ -215,7 +229,7 @@ function optLongField(row: Record<string, unknown>, camel: string, snake: string
   return Number.isFinite(n) ? n : 0;
 }
 
-function parseMyReaction(row: Record<string, unknown>): CommunityReactionType | null {
+function parseMyReaction(row: Record<string, unknown>): ReactionType | null {
   const v = row.myReaction ?? row.my_reaction;
   if (v === 'LIKE' || v === 'UPVOTE' || v === 'DOWNVOTE') return v;
   return null;

@@ -1,7 +1,7 @@
 package com.pickty.server.global.oauth2
 
-import com.pickty.server.domain.user.AccountStatus
-import com.pickty.server.domain.user.UserRepository
+import com.pickty.server.domain.user.enums.AccountStatus
+import com.pickty.server.domain.user.repository.UserRepository
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Controller

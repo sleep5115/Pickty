@@ -14,6 +14,7 @@ export interface TierItem {
   id: string;
   name: string;
   imageUrl?: string;
+  focusRect?: { x: number; y: number; w: number; h: number };
 }
 
 /** @dnd-kit/sortable `arrayMove`와 동일 — 이 모듈에서 dnd-kit을 import하면 RSC 번들에서 createContext 오류 발생 */
@@ -259,11 +260,11 @@ interface TierState {
 
   setWorkspaceBoardSurface: (surface: TemplateBoardSurface | null) => void;
 
-  /** `/template/new` 전용 — 스토어를 도화지 초기 상태로 리셋(템플릿 id 없음) */
+  /** `/tier/templates/new` 전용 — 스토어를 도화지 초기 상태로 리셋(템플릿 id 없음) */
   initTemplateBoardEditor: (cfg: TemplateBoardConfig) => void;
 
   /**
-   * `/template/new` 미리보기 풀 — 폼 아이템과 동기화.
+   * `/tier/templates/new` 미리보기 풀 — 폼 아이템과 동기화.
    * 폼에 없는 id는 티어·풀에서 제거, 티어에 올라간 카드는 위치 유지, 나머지는 풀에 둠.
    */
   syncTemplatePreviewPoolFromForm: (entries: TierItem[]) => void;

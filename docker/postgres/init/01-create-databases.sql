@@ -1,5 +1,5 @@
--- pickty 는 compose 의 POSTGRES_DB 로 이미 생성됨.
--- 단일 인스턴스·다중 DB 운용용 (로컬 compose / Lightsail 수동 생성 동일 개념).
+-- pickty 는 compose 의 POSTGRES_DB 로 이미 생성됨
+-- 단일 인스턴스·다중 DB 운용용 (로컬 compose / Lightsail 수동 생성 동일 개념)
 DO
 $do$
 BEGIN

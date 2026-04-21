@@ -6,10 +6,10 @@ import { toast } from 'sonner';
 import { MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { TierBoard } from '@/components/tier/tier-board';
 import { ImagePreviewModal } from '@/components/tier/image-preview-modal';
-import { CommentSection } from '@/components/community/comment-section';
+import { CommentSection } from '@/components/interaction/comment-section';
 import { PopularTierResults } from '@/components/tier/popular-tier-results';
-import { TemplateLikeButton } from '@/components/community/template-like-button';
-import { ViewCountInline } from '@/components/community/view-count-inline';
+import { TemplateLikeButton } from '@/components/interaction/template-like-button';
+import { ViewCountInline } from '@/components/interaction/view-count-inline';
 import { TemplateDeleteConfirmDialog } from '@/components/template/template-delete-confirm-dialog';
 import { TemplateEditMetaModal } from '@/components/template/template-edit-meta-modal';
 import { apiFetch } from '@/lib/api-fetch';
@@ -18,7 +18,7 @@ import { useAuthStore } from '@/lib/store/auth-store';
 import { useTierStore } from '@/lib/store/tier-store';
 import { useTierPersistHydrated } from '@/lib/hooks/use-tier-persist-hydrated';
 import { usePointerDevice } from '@/hooks/use-pointer-device';
-import type { CommunityReactionType } from '@/lib/api/community-api';
+import type { ReactionType } from '@/lib/api/interaction-api';
 import {
   getTemplate,
   getTierResult,
@@ -27,10 +27,13 @@ import {
 } from '@/lib/tier-api';
 import { parseSnapshotDataToBoard } from '@/lib/tier-snapshot';
 
-function TierPageInner() {
+function TierPageInner({ routeTemplateId }: { routeTemplateId?: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const templateIdParam = searchParams.get('templateId');
+  const trimmedRouteId = routeTemplateId?.trim();
+  const templateIdParam =
+    (trimmedRouteId && trimmedRouteId.length > 0 ? trimmedRouteId : null) ??
+    searchParams.get('templateId');
   const sourceResultIdParam = searchParams.get('sourceResultId');
   const loadTemplateWorkspace = useTierStore((s) => s.loadTemplateWorkspace);
   const hydrateFromResultSnapshot = useTierStore((s) => s.hydrateFromResultSnapshot);
@@ -50,7 +53,7 @@ function TierPageInner() {
   const [templateCreatorId, setTemplateCreatorId] = useState<number | null>(null);
   const [templateLikeCount, setTemplateLikeCount] = useState(0);
   const [templateViewCount, setTemplateViewCount] = useState(0);
-  const [templateMyReaction, setTemplateMyReaction] = useState<CommunityReactionType | null>(null);
+  const [templateMyReaction, setTemplateMyReaction] = useState<ReactionType | null>(null);
   const [me, setMe] = useState<{ id: number; role: string } | null>(null);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [editMetaOpen, setEditMetaOpen] = useState(false);
@@ -63,7 +66,7 @@ function TierPageInner() {
 
   const copyTemplateShareLink = useCallback(async () => {
     if (!templateId || typeof window === 'undefined') return;
-    const url = `${window.location.origin}/tier?templateId=${encodeURIComponent(templateId)}`;
+    const url = `${window.location.origin}/tier/templates/${encodeURIComponent(templateId)}`;
     try {
       await navigator.clipboard.writeText(url);
       toast.success('클립보드에 복사했어요.');
@@ -481,7 +484,7 @@ function TierPageInner() {
           onDeleted={() => {
             setDeleteOpen(false);
             toast.success('삭제했어요.');
-            router.push('/templates');
+            router.push('/tier/templates');
           }}
         />
       )}
@@ -491,7 +494,7 @@ function TierPageInner() {
   );
 }
 
-export function TierPageClient() {
+export function TierPageClient({ routeTemplateId }: { routeTemplateId?: string } = {}) {
   return (
     <Suspense
       fallback={
@@ -500,7 +503,7 @@ export function TierPageClient() {
         </div>
       }
     >
-      <TierPageInner />
+      <TierPageInner routeTemplateId={routeTemplateId} />
     </Suspense>
   );
 }

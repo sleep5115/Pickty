@@ -1,4 +1,4 @@
-import type { CommunityReactionType } from '@/lib/api/community-api';
+import type { ReactionType } from '@/lib/api/interaction-api';
 
 const STORAGE_KEY = 'pickty.community.reactions.v1';
 
@@ -31,18 +31,18 @@ function writeMap(map: StoredMap): void {
   }
 }
 
-function isReactionType(v: string): v is CommunityReactionType {
+function isReactionType(v: string): v is ReactionType {
   return v === 'LIKE' || v === 'UPVOTE' || v === 'DOWNVOTE';
 }
 
-export function getStoredReaction(targetId: string): CommunityReactionType | null {
+export function getStoredReaction(targetId: string): ReactionType | null {
   if (!targetId) return null;
   const v = readMap()[targetId];
   if (typeof v !== 'string' || !isReactionType(v)) return null;
   return v;
 }
 
-export function setStoredReaction(targetId: string, reaction: CommunityReactionType | null): void {
+export function setStoredReaction(targetId: string, reaction: ReactionType | null): void {
   if (!targetId) return;
   const map = readMap();
   if (reaction == null) {

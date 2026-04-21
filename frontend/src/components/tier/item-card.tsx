@@ -145,7 +145,11 @@ function ItemCardChrome({
           .join(' ')}
       >
         {!isSpacer && item.imageUrl ? (
-          <TierItemTileImages imageUrl={item.imageUrl} alt={item.name} />
+          <TierItemTileImages
+            imageUrl={item.imageUrl}
+            alt={item.name}
+            focusRect={item.focusRect}
+          />
         ) : !isSpacer ? (
           <span className="text-center leading-tight px-0.5 drop-shadow pointer-events-none">
             {initials}

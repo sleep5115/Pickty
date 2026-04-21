@@ -1,6 +1,6 @@
 # pickty.app (Lightsail) — main 브랜치 push + 아래 paths 변경 시에만 운영 배포
 # dev 브랜치는 로컬/개발용, 운영은 prod 프로필 + pickty_prod
-# frontend/** 만 바뀐 push 는 이 워크플로우를 돌리지 않음
+# frontend/** 만 바뀐 push 는 이 워크플로를 돌리지 않음
 #
 # application-secrets.yaml 은 Pickty 레포·GitHub Secret 이 아니라
 # pickty-config 레포의 deploy-secrets 워크플로(또는 수동 scp)로 서버에 둔다.

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/lib/store/auth-store';
@@ -33,6 +33,7 @@ const LIST_DESCRIPTION_MAX_LEN = 10000;
 
 export function ExportModal({ captureRef, onClose }: ExportModalProps) {
   const router = useRouter();
+  const pathname = usePathname() ?? '/tier';
   const accessToken = useAuthStore((s) => s.accessToken);
   const isLoggedIn = !!accessToken;
 
@@ -109,8 +110,8 @@ export function ExportModal({ captureRef, onClose }: ExportModalProps) {
       listTitle: listTitle.trim() || null,
       listDescription: listDescription.trim() || null,
     });
-    router.push('/login?returnTo=%2Ftier');
-  }, [listTitle, listDescription, router, previewUrl]);
+    router.push(`/login?returnTo=${encodeURIComponent(pathname || '/tier')}`);
+  }, [listTitle, listDescription, router, previewUrl, pathname]);
 
   const handleDownload = async () => {
     const el = captureRef.current;
@@ -182,7 +183,7 @@ export function ExportModal({ captureRef, onClose }: ExportModalProps) {
         },
         accessToken,
       );
-      setSavedPath(`/tier/result/${result.id}`);
+      setSavedPath(`/tier/results/${result.id}`);
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : '저장에 실패했습니다.');
     } finally {

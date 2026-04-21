@@ -1,7 +1,7 @@
 package com.pickty.server.domain.tier.dto
 
-import com.pickty.server.domain.community.ReactionType
-import com.pickty.server.domain.tier.ResultStatus
+import com.pickty.server.domain.interaction.enums.ReactionType
+import com.pickty.server.domain.tier.enums.ResultStatus
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotEmpty

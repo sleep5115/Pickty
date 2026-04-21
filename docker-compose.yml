@@ -1,4 +1,4 @@
-# 선택 사항: PC 로컬 Postgres/Valkey (오프라인·장애 폴백). 팀이 Lightsail 단일 DB만 쓰면 생략 가능.
+# 선택 사항: PC 로컬 Postgres/Valkey (오프라인·장애 폴백).
 # 공용 개발은 Lightsail Postgres 의 pickty_dev 등 + Valkey — 연결은 application-secrets / 환경 변수.
 # 로컬 전용 비밀·OAuth 등은 application-local.yaml (gitignore).
 #

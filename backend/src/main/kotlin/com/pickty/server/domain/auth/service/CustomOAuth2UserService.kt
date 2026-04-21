@@ -1,13 +1,13 @@
 package com.pickty.server.domain.auth.service
 
-import com.pickty.server.domain.auth.PrincipalDetails
+import com.pickty.server.domain.auth.security.PrincipalDetails
 import com.pickty.server.domain.auth.dto.OAuth2UserInfo
-import com.pickty.server.domain.user.AccountMergeService
-import com.pickty.server.domain.user.AccountStatus
-import com.pickty.server.domain.user.SocialAccount
-import com.pickty.server.domain.user.SocialAccountRepository
-import com.pickty.server.domain.user.User
-import com.pickty.server.domain.user.UserRepository
+import com.pickty.server.domain.user.service.AccountMergeService
+import com.pickty.server.domain.user.enums.AccountStatus
+import com.pickty.server.domain.user.entity.SocialAccount
+import com.pickty.server.domain.user.repository.SocialAccountRepository
+import com.pickty.server.domain.user.entity.User
+import com.pickty.server.domain.user.repository.UserRepository
 import com.pickty.server.global.oauth2.CookieUtils
 import com.pickty.server.global.oauth2.OAuthLinkConstants
 import jakarta.servlet.http.HttpServletRequest

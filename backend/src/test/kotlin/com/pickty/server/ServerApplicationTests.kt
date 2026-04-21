@@ -1,7 +1,7 @@
 package com.pickty.server
 
-import com.pickty.server.domain.tier.TierTemplate
-import com.pickty.server.domain.tier.TierTemplateRepository
+import com.pickty.server.domain.tier.entity.TierTemplate
+import com.pickty.server.domain.tier.repository.TierTemplateRepository
 import jakarta.persistence.EntityManager
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test

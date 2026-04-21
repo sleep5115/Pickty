@@ -1,8 +1,8 @@
 package com.pickty.server.global.jwt
 
 import com.pickty.server.domain.auth.service.JwtBlacklistService
-import com.pickty.server.domain.user.AccountStatus
-import com.pickty.server.domain.user.UserRepository
+import com.pickty.server.domain.user.enums.AccountStatus
+import com.pickty.server.domain.user.repository.UserRepository
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse

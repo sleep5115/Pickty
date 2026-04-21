@@ -3,7 +3,7 @@
 import { startTransition, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutGrid, List, MessagesSquare } from 'lucide-react';
+import { LayoutGrid, List, MessagesSquare, Trophy } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useTierStore } from '@/lib/store/tier-store';
@@ -11,25 +11,30 @@ import { logoutSession } from '@/lib/auth-session';
 
 const NAV_LINKS = [
   {
-    href: '/templates',
-    label: '템플릿',
+    href: '/tier/templates',
+    label: '티어 만들기',
     Icon: LayoutGrid,
-    isActive: (p: string) => p.startsWith('/templates') || p.startsWith('/template'),
+    isActive: (p: string) =>
+      p.startsWith('/tier/templates') || p === '/tier' || p.startsWith('/tier?'),
   },
   {
-    href: '/tier/feed',
-    label: '티어표',
+    href: '/tier/results',
+    label: '티어 피드',
     Icon: List,
-    isActive: (p: string) => p.startsWith('/tier/feed'),
+    isActive: (p: string) => p.startsWith('/tier/results'),
   },
   {
-    href: '/board',
+    href: '/community',
     label: '커뮤니티',
     Icon: MessagesSquare,
-    isActive: (p: string) => p.startsWith('/board'),
+    isActive: (p: string) => p.startsWith('/community'),
   },
-  // 후순위 미구현: 이상형 월드컵
-  // { href: '/worldcup', label: '이상형 월드컵' },
+  {
+    href: '/worldcup/templates',
+    label: '월드컵',
+    Icon: Trophy,
+    isActive: (p: string) => p.startsWith('/worldcup'),
+  },
 ] as const;
 
 export function GNB() {
@@ -51,7 +56,6 @@ export function GNB() {
     })();
   };
 
-  // 햄버거 메뉴 외부 클릭
   useEffect(() => {
     if (!menuOpen) return;
     const handlePointerDown = (e: PointerEvent) => {
@@ -63,7 +67,6 @@ export function GNB() {
     return () => document.removeEventListener('pointerdown', handlePointerDown);
   }, [menuOpen]);
 
-  // 내 정보 드롭다운 외부 클릭
   useEffect(() => {
     if (!accountOpen) return;
     const handlePointerDown = (e: PointerEvent) => {
@@ -86,19 +89,18 @@ export function GNB() {
     'block w-full text-left text-sm px-3 py-2 rounded-lg text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors';
 
   return (
-    <nav className="shrink-0 w-full border-b border-slate-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-sm transition-colors duration-200 relative z-40">
-      <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
-
+    <nav className="relative z-40 w-full shrink-0 border-b border-slate-200 bg-white/95 backdrop-blur-sm transition-colors duration-200 dark:border-zinc-800 dark:bg-zinc-950/95">
+      <div className="mx-auto flex h-14 w-full max-w-[1600px] items-center justify-between gap-4 px-4 sm:px-6 md:px-8">
         <Link
           href="/"
-          className="text-lg font-black bg-linear-to-r from-violet-500 via-fuchsia-500 to-pink-500 bg-clip-text text-transparent shrink-0 select-none"
+          className="shrink-0 select-none bg-linear-to-r from-violet-500 via-fuchsia-500 to-pink-500 bg-clip-text text-lg font-black text-transparent"
         >
           Pickty
         </Link>
 
-        <div className="hidden md:flex items-center">
+        <div className="hidden min-w-0 flex-1 items-center justify-center md:flex">
           <div
-            className="flex items-center gap-0.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50/90 dark:bg-zinc-900/70 p-1 shadow-sm shadow-slate-200/40 dark:shadow-black/20"
+            className="flex items-center gap-0.5 rounded-xl border border-slate-200 bg-slate-50/90 p-1 shadow-sm shadow-slate-200/40 dark:border-zinc-700 dark:bg-zinc-900/70 dark:shadow-black/20"
             role="navigation"
             aria-label="주요 메뉴"
           >
@@ -109,13 +111,13 @@ export function GNB() {
                   key={href}
                   href={href}
                   className={[
-                    'inline-flex items-center gap-2 h-9 px-3 rounded-lg text-sm font-medium transition-all duration-200',
+                    'inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-all duration-200',
                     active
-                      ? 'bg-white dark:bg-zinc-800 text-violet-700 dark:text-violet-300 shadow-sm ring-1 ring-slate-200/80 dark:ring-zinc-600'
-                      : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-white/70 dark:hover:bg-zinc-800/80',
+                      ? 'bg-white text-violet-700 shadow-sm ring-1 ring-slate-200/80 dark:bg-zinc-800 dark:text-violet-300 dark:ring-zinc-600'
+                      : 'text-slate-600 hover:bg-white/70 hover:text-slate-900 dark:text-zinc-400 dark:hover:bg-zinc-800/80 dark:hover:text-zinc-100',
                   ].join(' ')}
                 >
-                  <Icon className="w-4 h-4 shrink-0 opacity-90" aria-hidden />
+                  <Icon className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
                   {label}
                 </Link>
               );
@@ -123,7 +125,7 @@ export function GNB() {
           </div>
         </div>
 
-        <div className="hidden md:flex items-center gap-2 shrink-0">
+        <div className="hidden shrink-0 items-center gap-2 md:flex">
           <ThemeToggle />
           {accessToken ? (
             <div className="relative" ref={accountRef}>
@@ -140,10 +142,10 @@ export function GNB() {
                 aria-expanded={accountOpen}
                 aria-haspopup="menu"
                 className={[
-                  'h-9 text-sm px-3 rounded-xl border transition-colors inline-flex items-center gap-1.5',
+                  'inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-sm transition-colors',
                   accountOpen
-                    ? 'border-violet-400 dark:border-violet-600 bg-violet-50 dark:bg-violet-950/40 text-slate-900 dark:text-zinc-100'
-                    : 'border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:border-slate-300 dark:hover:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-900',
+                    ? 'border-violet-400 bg-violet-50 text-slate-900 dark:border-violet-600 dark:bg-violet-950/40 dark:text-zinc-100'
+                    : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-900',
                 ].join(' ')}
               >
                 내 정보
@@ -154,7 +156,7 @@ export function GNB() {
               {accountOpen && (
                 <div
                   role="menu"
-                  className="absolute right-0 mt-1 min-w-[11rem] rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 py-1 shadow-lg shadow-black/10 dark:shadow-black/40 z-50"
+                  className="absolute right-0 z-50 mt-1 min-w-[11rem] rounded-xl border border-slate-200 bg-white py-1 shadow-lg shadow-black/10 dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-black/40"
                 >
                   <Link
                     href="/account"
@@ -165,7 +167,7 @@ export function GNB() {
                     내 계정
                   </Link>
                   <Link
-                    href="/tier/my"
+                    href="/tier/results/my"
                     role="menuitem"
                     onClick={() => setAccountOpen(false)}
                     className={accountLinkClass}
@@ -173,7 +175,7 @@ export function GNB() {
                     내 티어표
                   </Link>
                   <Link
-                    href="/templates/mine"
+                    href="/tier/templates/my"
                     role="menuitem"
                     onClick={() => setAccountOpen(false)}
                     className={accountLinkClass}
@@ -185,7 +187,7 @@ export function GNB() {
                     type="button"
                     role="menuitem"
                     onClick={handleLogout}
-                    className={`${accountLinkClass} text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30`}
+                    className={`${accountLinkClass} text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30`}
                   >
                     로그아웃
                   </button>
@@ -195,14 +197,14 @@ export function GNB() {
           ) : (
             <Link
               href="/login"
-              className="h-9 inline-flex items-center justify-center rounded-xl px-4 text-sm font-medium bg-violet-600 hover:bg-violet-500 text-white transition-colors shadow-sm shadow-violet-600/25 hover:shadow-violet-500/30"
+              className="inline-flex h-9 items-center justify-center rounded-xl bg-violet-600 px-4 text-sm font-medium text-white shadow-sm shadow-violet-600/25 transition-colors hover:bg-violet-500 hover:shadow-violet-500/30"
             >
               로그인
             </Link>
           )}
         </div>
 
-        <div className="flex md:hidden items-center gap-1 shrink-0" ref={menuRef}>
+        <div className="flex shrink-0 items-center gap-1 md:hidden" ref={menuRef}>
           <ThemeToggle />
           <button
             type="button"
@@ -216,34 +218,41 @@ export function GNB() {
             }}
             aria-label="메뉴 열기"
             className={[
-              'w-9 h-9 flex flex-col items-center justify-center gap-1.5 rounded-lg transition-colors',
+              'flex h-9 w-9 flex-col items-center justify-center gap-1.5 rounded-lg transition-colors',
               menuOpen
-                ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-zinc-100'
-                : 'text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800/60',
+                ? 'bg-slate-100 text-slate-900 dark:bg-zinc-800 dark:text-zinc-100'
+                : 'text-slate-500 hover:bg-slate-100 dark:text-zinc-400 dark:hover:bg-zinc-800/60',
             ].join(' ')}
           >
-            <span className={`block w-4 h-0.5 bg-current rounded-full transition-all duration-200 ${menuOpen ? 'translate-y-2 rotate-45' : ''}`} />
-            <span className={`block w-4 h-0.5 bg-current rounded-full transition-all duration-200 ${menuOpen ? 'opacity-0 scale-x-0' : ''}`} />
-            <span className={`block w-4 h-0.5 bg-current rounded-full transition-all duration-200 ${menuOpen ? '-translate-y-2 -rotate-45' : ''}`} />
+            <span
+              className={`block h-0.5 w-4 rounded-full bg-current transition-all duration-200 ${menuOpen ? 'translate-y-2 rotate-45' : ''}`}
+            />
+            <span
+              className={`block h-0.5 w-4 rounded-full bg-current transition-all duration-200 ${menuOpen ? 'scale-x-0 opacity-0' : ''}`}
+            />
+            <span
+              className={`block h-0.5 w-4 rounded-full bg-current transition-all duration-200 ${menuOpen ? '-translate-y-2 -rotate-45' : ''}`}
+            />
           </button>
 
           {menuOpen && (
-            <div className="absolute top-14 right-0 left-0 border-b border-slate-200 dark:border-zinc-800 bg-white/98 dark:bg-zinc-950/98 backdrop-blur-sm shadow-lg">
-              <div className="max-w-6xl mx-auto px-4 py-2 flex flex-col gap-1">
+            <div className="absolute left-0 right-0 top-14 border-b border-slate-200 bg-white/98 shadow-lg backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-950/98">
+              <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-1 px-4 py-2 sm:px-6 md:px-8">
                 {NAV_LINKS.map(({ href, label, Icon, isActive }) => {
                   const active = isActive(pathname);
                   return (
                     <Link
                       key={href}
                       href={href}
+                      onClick={() => setMenuOpen(false)}
                       className={[
-                        'flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-xl border transition-colors',
+                        'flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm transition-colors',
                         active
-                          ? 'text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/40 border-violet-200 dark:border-violet-800 font-medium'
-                          : 'text-slate-600 dark:text-zinc-300 border-transparent hover:bg-slate-100 dark:hover:bg-zinc-800/60 hover:border-slate-200 dark:hover:border-zinc-700',
+                          ? 'border-violet-200 bg-violet-50 font-medium text-violet-700 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-300'
+                          : 'border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-100 dark:text-zinc-300 dark:hover:border-zinc-700 dark:hover:bg-zinc-800/60',
                       ].join(' ')}
                     >
-                      <Icon className="w-4 h-4 shrink-0 opacity-90" aria-hidden />
+                      <Icon className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
                       {label}
                     </Link>
                   );
@@ -255,25 +264,29 @@ export function GNB() {
                   <>
                     <Link
                       href="/account"
-                      className="text-sm px-3 py-2.5 rounded-lg text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800/60 transition-colors"
+                      onClick={() => setMenuOpen(false)}
+                      className="rounded-lg px-3 py-2.5 text-sm text-slate-600 transition-colors hover:bg-slate-100 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
                     >
                       내 계정
                     </Link>
                     <Link
-                      href="/tier/my"
-                      className="text-sm px-3 py-2.5 rounded-lg text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800/60 transition-colors"
+                      href="/tier/results/my"
+                      onClick={() => setMenuOpen(false)}
+                      className="rounded-lg px-3 py-2.5 text-sm text-slate-600 transition-colors hover:bg-slate-100 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
                     >
                       내 티어표
                     </Link>
                     <Link
-                      href="/templates/mine"
-                      className="text-sm px-3 py-2.5 rounded-lg text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800/60 transition-colors"
+                      href="/tier/templates/my"
+                      onClick={() => setMenuOpen(false)}
+                      className="rounded-lg px-3 py-2.5 text-sm text-slate-600 transition-colors hover:bg-slate-100 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
                     >
                       내 템플릿
                     </Link>
                     <button
+                      type="button"
                       onClick={handleLogout}
-                      className="text-sm px-3 py-2.5 rounded-lg text-left text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+                      className="rounded-lg px-3 py-2.5 text-left text-sm text-red-500 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
                     >
                       로그아웃
                     </button>
@@ -282,7 +295,7 @@ export function GNB() {
                   <Link
                     href="/login"
                     onClick={() => setMenuOpen(false)}
-                    className="h-9 flex items-center justify-center text-sm rounded-xl text-center bg-violet-600 hover:bg-violet-500 text-white font-medium transition-colors shadow-sm"
+                    className="flex h-9 items-center justify-center rounded-xl bg-violet-600 text-center text-sm font-medium text-white shadow-sm transition-colors hover:bg-violet-500"
                   >
                     로그인
                   </Link>
@@ -291,7 +304,6 @@ export function GNB() {
             </div>
           )}
         </div>
-
       </div>
     </nav>
   );

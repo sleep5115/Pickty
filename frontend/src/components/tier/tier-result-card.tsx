@@ -3,10 +3,10 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { MoreVertical, Pencil, RefreshCw, Trash2 } from 'lucide-react';
-import { ResultVoteButtons } from '@/components/community/result-vote-buttons';
-import { ViewCountInline } from '@/components/community/view-count-inline';
+import { ResultVoteButtons } from '@/components/interaction/result-vote-buttons';
+import { ViewCountInline } from '@/components/interaction/view-count-inline';
 import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
-import type { CommunityReactionType } from '@/lib/api/community-api';
+import type { ReactionType } from '@/lib/api/interaction-api';
 import type { TierResultSummaryResponse } from '@/lib/tier-api';
 
 export function formatTierResultSavedAt(isoLocal: string): string {
@@ -31,7 +31,7 @@ export type TierResultCardProps = {
   onEdit: (r: TierResultSummaryResponse) => void;
   onDelete: (r: TierResultSummaryResponse) => void;
   onVoteCountsChange?: (resultId: string, upCount: number, downCount: number) => void;
-  onResultMyReactionResolved?: (resultId: string, reaction: CommunityReactionType | null) => void;
+  onResultMyReactionResolved?: (resultId: string, reaction: ReactionType | null) => void;
 };
 
 /**
@@ -85,7 +85,7 @@ export function TierResultCard({
       ].join(' ')}
     >
       <Link
-        href={`/tier/result/${encodeURIComponent(r.id)}`}
+        href={`/tier/results/${encodeURIComponent(r.id)}`}
         className="group flex min-h-0 flex-1 flex-col transition-colors hover:border-violet-400 dark:hover:border-violet-600"
       >
         <div
@@ -143,7 +143,7 @@ export function TierResultCard({
           />
         )}
         <Link
-          href={`/tier?templateId=${encodeURIComponent(r.templateId)}&sourceResultId=${encodeURIComponent(r.id)}`}
+          href={`/tier/templates/${encodeURIComponent(r.templateId)}?sourceResultId=${encodeURIComponent(r.id)}`}
           className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800"
         >
           <RefreshCw className="h-3.5 w-3.5 shrink-0" aria-hidden />

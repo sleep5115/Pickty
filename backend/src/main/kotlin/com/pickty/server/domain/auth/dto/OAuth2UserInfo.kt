@@ -1,6 +1,6 @@
 package com.pickty.server.domain.auth.dto
 
-import com.pickty.server.domain.user.Provider
+import com.pickty.server.domain.user.enums.Provider
 
 sealed class OAuth2UserInfo {
     abstract val provider: Provider

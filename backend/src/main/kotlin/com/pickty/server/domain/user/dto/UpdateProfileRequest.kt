@@ -1,6 +1,6 @@
 package com.pickty.server.domain.user.dto
 
-import com.pickty.server.domain.user.Gender
+import com.pickty.server.domain.user.enums.Gender
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size
 
