@@ -1,7 +1,8 @@
 import type { WorldCupItem, WorldCupLayoutMode } from '@/lib/store/worldcup-store';
 
 /** `tier_templates` / 월드컵 템플릿 `items` JSON — `items: [{ id, name, imageUrl? }, ...]` */
-export function parseWorldCupItemsPayload(items: Record<string, unknown>): WorldCupItem[] {
+export function parseWorldCupItemsPayload(items: Record<string, unknown> | null | undefined): WorldCupItem[] {
+  if (items == null || typeof items !== 'object') return [];
   const raw = items.items;
   if (!Array.isArray(raw)) return [];
   const out: WorldCupItem[] = [];

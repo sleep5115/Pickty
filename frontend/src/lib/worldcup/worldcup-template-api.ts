@@ -43,8 +43,8 @@ export interface WorldCupTemplateDetailDto {
   viewCount: number;
 }
 
-export function fetchWorldCupTemplate(templateId: string) {
-  return apiFetch(`/api/v1/worldcup/templates/${encodeURIComponent(templateId)}`);
+export function fetchWorldCupTemplate(templateId: string, init?: RequestInit) {
+  return apiFetch(`/api/v1/worldcup/templates/${encodeURIComponent(templateId)}`, init ?? {});
 }
 
 export interface CreateWorldCupTemplatePayload {
@@ -109,23 +109,32 @@ export interface PatchWorldCupMetaResponse {
   title: string;
   version: number;
   description: string | null;
+  layoutMode: string;
 }
 
 export async function patchWorldCupTemplateMeta(
   id: string,
-  body: { title: string; description: string | null },
+  body: {
+    title: string;
+    description: string | null;
+    layoutMode?: 'split_lr' | 'split_diagonal';
+  },
   accessToken: string | null,
 ): Promise<PatchWorldCupMetaResponse> {
+  const payload: Record<string, unknown> = {
+    title: body.title,
+    description: body.description,
+  };
+  if (body.layoutMode != null) {
+    payload.layoutMode = body.layoutMode;
+  }
   const res = await apiFetch(`/api/v1/worldcup/templates/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
       ...authHeaders(accessToken),
     },
-    body: JSON.stringify({
-      title: body.title,
-      description: body.description,
-    }),
+    body: JSON.stringify(payload),
   });
   if (!res.ok) {
     const t = await res.text();
@@ -133,11 +142,13 @@ export async function patchWorldCupTemplateMeta(
   }
   const row = (await res.json()) as Record<string, unknown>;
   const desc = row.description;
+  const lm = row.layoutMode;
   return {
     id: String(row.id ?? ''),
     title: typeof row.title === 'string' ? row.title : '',
     version: typeof row.version === 'number' ? row.version : Number(row.version) || 0,
     description: typeof desc === 'string' ? desc : null,
+    layoutMode: typeof lm === 'string' ? lm : 'split_lr',
   };
 }
 

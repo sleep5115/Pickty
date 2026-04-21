@@ -3,6 +3,9 @@ package com.pickty.server.domain.worldcup.controller
 import com.pickty.server.domain.worldcup.dto.WorldCupRankingRowResponse
 import com.pickty.server.domain.worldcup.dto.WorldCupResultSubmitRequest
 import com.pickty.server.domain.worldcup.service.WorldCupStatService
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
+import org.springframework.data.web.PageableDefault
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
@@ -29,6 +32,9 @@ class WorldCupStatController(
     }
 
     @GetMapping("/{templateId}/ranking")
-    fun ranking(@PathVariable templateId: UUID): List<WorldCupRankingRowResponse> =
-        worldCupStatService.ranking(templateId)
+    fun ranking(
+        @PathVariable templateId: UUID,
+        @PageableDefault(size = 20) pageable: Pageable,
+    ): ResponseEntity<Page<WorldCupRankingRowResponse>> =
+        ResponseEntity.ok(worldCupStatService.ranking(templateId, pageable))
 }

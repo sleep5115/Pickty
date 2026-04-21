@@ -12,6 +12,7 @@ import {
   downloadPngDataUrl,
   formatImageCaptureError,
 } from '@/lib/worldcup/worldcup-bracket-capture';
+import { WorldCupUrlHeroMedia } from '@/components/worldcup/worldcup-url-media';
 import { useWorldCupStore, type WorldCupItem } from '@/lib/store/worldcup-store';
 
 const btnPrimary =
@@ -110,13 +111,8 @@ export function WorldCupResultClient({
               <Crown className="size-4 shrink-0 text-amber-600 dark:text-amber-300" aria-hidden />
               <span className="font-medium">최종 우승: {champion.name}</span>
             </div>
-            {champion.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element -- 외부 URL 미디어
-              <img
-                src={champion.imageUrl}
-                alt=""
-                className="h-full w-full object-contain"
-              />
+            {champion.imageUrl?.trim() ? (
+              <WorldCupUrlHeroMedia url={champion.imageUrl} name={champion.name} />
             ) : (
               <div className="flex h-full min-h-[240px] items-center justify-center text-zinc-500 dark:text-zinc-500">
                 이미지 없음

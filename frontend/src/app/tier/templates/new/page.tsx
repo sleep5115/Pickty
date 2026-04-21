@@ -554,7 +554,7 @@ function NewTemplatePageInner() {
               }
               className="inline-flex items-center justify-center rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold px-5 py-2.5 transition-colors"
             >
-              티어표 만들기
+              이 템플릿으로 플레이
             </button>
             <Link
               href="/tier/templates"

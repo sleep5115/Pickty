@@ -6,8 +6,11 @@ import { fetchWorldCupTemplate, type WorldCupTemplateDetailDto } from '@/lib/wor
 import { parseWorldCupItemsPayload } from '@/lib/worldcup/worldcup-template-items';
 import {
   fetchWorldCupRanking,
+  WORLDCUP_RANKING_PAGE_SIZE,
   type WorldCupRankingRowDto,
 } from '@/lib/worldcup/worldcup-ranking-api';
+import { WorldCupListRasterThumb } from '@/components/worldcup/worldcup-list-raster-thumb';
+import { WorldCupUrlAccordionMedia } from '@/components/worldcup/worldcup-url-media';
 
 function MiniBar({ label, value, tone }: { label: string; value: number; tone: 'amber' | 'rose' | 'sky' }) {
   const bar =
@@ -29,6 +32,34 @@ function MiniBar({ label, value, tone }: { label: string; value: number; tone: '
   );
 }
 
+function RankingMetricsLegend() {
+  return (
+    <div className="mb-4 grid gap-4 rounded-xl border border-zinc-200 bg-white p-5 text-xs text-zinc-600 shadow-sm dark:border-white/10 dark:bg-zinc-900/40 dark:text-zinc-500 sm:grid-cols-3">
+      <p className="flex gap-2">
+        <Swords className="size-4 shrink-0 text-zinc-400 dark:text-zinc-600" aria-hidden />
+        <span>
+          <strong className="text-zinc-800 dark:text-zinc-400">승률</strong> · 해당 후보가 이긴 횟수 ÷ 실제 맞대결
+          참가 수
+        </span>
+      </p>
+      <p className="flex gap-2">
+        <Skull className="size-4 shrink-0 text-zinc-400 dark:text-zinc-600" aria-hidden />
+        <span>
+          <strong className="text-zinc-800 dark:text-zinc-400">광탈·접전</strong> · 라운드에서 두 후보 모두에게 적용되는
+          액션 비율
+        </span>
+      </p>
+      <p className="flex gap-2">
+        <BarChart3 className="size-4 shrink-0 text-zinc-400 dark:text-zinc-600" aria-hidden />
+        <span>
+          <strong className="text-zinc-800 dark:text-zinc-400">우승 비율</strong> · 최종 우승 횟수 ÷ 완료된 플레이(게임)
+          총 횟수
+        </span>
+      </p>
+    </div>
+  );
+}
+
 interface Props {
   templateId: string;
   onBackToResult: () => void;
@@ -45,24 +76,72 @@ function buildItemMeta(
   return m;
 }
 
+/** DB 집계 행이 없을 때 — 템플릿 후보만큼 0% 행을 채워 표에 이름·썸네일이 보이게 함 */
+function isAbortLike(e: unknown): boolean {
+  return (
+    (typeof DOMException !== 'undefined' && e instanceof DOMException && e.name === 'AbortError') ||
+    (e !== null && typeof e === 'object' && (e as { name?: string }).name === 'AbortError')
+  );
+}
+
+function syntheticRankingFromItemsPayload(
+  itemsPayload: Record<string, unknown>,
+): WorldCupRankingRowDto[] {
+  const list = parseWorldCupItemsPayload(itemsPayload);
+  return list.map((it, idx) => ({
+    rank: idx + 1,
+    itemId: it.id,
+    matchCount: 0,
+    winCount: 0,
+    rerolledCount: 0,
+    droppedCount: 0,
+    keptBothCount: 0,
+    finalWinCount: 0,
+    winRatePct: 0,
+    championshipRatePct: 0,
+    skipRatePct: 0,
+    dropRatePct: 0,
+    nailBiterRatePct: 0,
+  }));
+}
+
 export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
   const [phase, setPhase] = useState<'loading' | 'error' | 'ready'>('loading');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const [rows, setRows] = useState<WorldCupRankingRowDto[]>([]);
   const [itemMeta, setItemMeta] = useState<Map<string, { name: string; imageUrl?: string }>>(new Map());
+  /** 서버 `worldcup_item_stats` 에서 온 행이 1건 이상일 때만 true (0이면 합성 행만 표시 중) */
+  const [hasServerRanking, setHasServerRanking] = useState(false);
+  const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
 
   const aliveRef = useRef(true);
+  const hasMoreRef = useRef(false);
+  const scrollRootRef = useRef<HTMLDivElement | null>(null);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const nextPageRef = useRef(0);
+  const loadingRef = useRef(false);
+  /** 초기 로드 겹침(Strict Mode 이중 마운트 등) 시 이전 요청의 finally가 loadingRef를 건드리지 않게 함 */
+  const initialLoadSeqRef = useRef(0);
 
-  const load = useCallback(async () => {
-    if (!aliveRef.current) return;
+  const loadInitial = useCallback(async (signal?: AbortSignal) => {
+    const mySeq = ++initialLoadSeqRef.current;
+    const stale = () =>
+      signal?.aborted === true || !aliveRef.current || initialLoadSeqRef.current !== mySeq;
+    loadingRef.current = true;
     setPhase('loading');
     setErrorMessage(null);
+    setLoadMoreError(null);
+    setExpandedItemId(null);
+    setLoadingMore(false);
+    setHasMore(false);
+    hasMoreRef.current = false;
+    nextPageRef.current = 0;
     try {
-      const [rankRes, tplRes] = await Promise.all([
-        fetchWorldCupRanking(templateId),
-        fetchWorldCupTemplate(templateId),
-      ]);
-      if (!aliveRef.current) return;
+      const tplRes = await fetchWorldCupTemplate(templateId, { signal });
+      if (stale()) return;
 
       if (!tplRes.ok) {
         setErrorMessage(
@@ -73,39 +152,101 @@ export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
       }
 
       const tplJson = (await tplRes.json()) as WorldCupTemplateDetailDto;
-      if (!aliveRef.current) return;
-      setItemMeta(buildItemMeta(tplJson.items));
+      if (stale()) return;
+      const itemsPayload = (tplJson.items ?? {}) as Record<string, unknown>;
+      setItemMeta(buildItemMeta(itemsPayload));
 
-      if (!rankRes.ok) {
-        setErrorMessage(
-          rankRes.status === 404
-            ? '랭킹을 불러올 수 없습니다.'
-            : `랭킹 조회 실패 (${rankRes.status})`,
-        );
+      let rankData;
+      try {
+        rankData = await fetchWorldCupRanking(templateId, 0, WORLDCUP_RANKING_PAGE_SIZE, { signal });
+      } catch (e) {
+        if (stale() || isAbortLike(e)) return;
+        setErrorMessage('랭킹을 불러올 수 없습니다.');
         setPhase('error');
         return;
       }
+      if (stale()) return;
 
-      const rankingJson = (await rankRes.json()) as WorldCupRankingRowDto[];
-      if (!aliveRef.current) return;
-      setRows(Array.isArray(rankingJson) ? rankingJson : []);
+      const serverHasRows = rankData.totalElements > 0;
+      setHasServerRanking(serverHasRows);
+      if (serverHasRows) {
+        setRows(rankData.content);
+        const more = !rankData.last;
+        setHasMore(more);
+        hasMoreRef.current = more;
+        nextPageRef.current = rankData.number + 1;
+      } else {
+        setRows(syntheticRankingFromItemsPayload(itemsPayload));
+        setHasMore(false);
+        hasMoreRef.current = false;
+        nextPageRef.current = 0;
+      }
       setPhase('ready');
-    } catch {
-      if (!aliveRef.current) return;
+    } catch (e) {
+      if (stale() || isAbortLike(e)) return;
       setErrorMessage('네트워크 오류가 발생했습니다.');
       setPhase('error');
+    } finally {
+      if (mySeq === initialLoadSeqRef.current) {
+        loadingRef.current = false;
+      }
     }
   }, [templateId]);
 
+  const fetchNextPage = useCallback(async () => {
+    if (!aliveRef.current || loadingRef.current || !hasServerRanking || !hasMoreRef.current) return;
+    loadingRef.current = true;
+    setLoadingMore(true);
+    setLoadMoreError(null);
+    try {
+      const pageToLoad = nextPageRef.current;
+      const data = await fetchWorldCupRanking(templateId, pageToLoad, WORLDCUP_RANKING_PAGE_SIZE);
+      if (!aliveRef.current) return;
+      setRows((prev) => [...prev, ...data.content]);
+      const more = !data.last;
+      setHasMore(more);
+      hasMoreRef.current = more;
+      nextPageRef.current = data.number + 1;
+    } catch {
+      if (!aliveRef.current) return;
+      setLoadMoreError('다음 랭킹을 불러오지 못했습니다.');
+    } finally {
+      if (!aliveRef.current) return;
+      loadingRef.current = false;
+      setLoadingMore(false);
+    }
+  }, [templateId, hasServerRanking]);
+
   useEffect(() => {
     aliveRef.current = true;
-    queueMicrotask(() => {
-      void load();
-    });
+    const ac = new AbortController();
+    void loadInitial(ac.signal);
     return () => {
+      ac.abort();
       aliveRef.current = false;
     };
-  }, [load]);
+  }, [loadInitial]);
+
+  useEffect(() => {
+    if (phase !== 'ready' || !hasServerRanking || !hasMoreRef.current) return;
+    const el = sentinelRef.current;
+    if (!el) return;
+    /**
+     * 레이아웃은 `layout.tsx` 기준 **문서(페이지) 전체 스크롤**이 흔함.
+     * `root`를 내부 overflow div에 두면 window 스크롤 시 교차가 갱신되지 않아 다음 페이지가 영원히 안 불림.
+     * 티어 피드(`/tier/results`)와 같이 root는 뷰포트(기본값)로 둔다.
+     */
+    const obs = new IntersectionObserver(
+      (entries) => {
+        const hit = entries.some((e) => e.isIntersecting);
+        if (!hit || loadingRef.current || !hasMoreRef.current || !aliveRef.current) return;
+        void fetchNextPage();
+      },
+      { root: null, rootMargin: '0px', threshold: 0 },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [phase, hasServerRanking, hasMore, fetchNextPage, rows.length]);
 
   return (
     <div
@@ -136,7 +277,10 @@ export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-[1200px] flex-1 overflow-auto px-4 py-6 sm:px-6">
+      <div
+        ref={scrollRootRef}
+        className="mx-auto w-full max-w-[1200px] flex-1 overflow-auto px-4 py-6 sm:px-6"
+      >
         {phase === 'loading' && (
           <div className="flex flex-col items-center justify-center gap-3 py-24 text-zinc-500 dark:text-zinc-400">
             <Loader2 className="size-9 animate-spin text-violet-600 dark:text-violet-400" aria-hidden />
@@ -149,7 +293,7 @@ export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
             <p className="text-center text-sm text-rose-600 dark:text-rose-400">{errorMessage}</p>
             <button
               type="button"
-              onClick={() => void load()}
+              onClick={() => void loadInitial(undefined)}
               className="rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-violet-500"
             >
               다시 시도
@@ -159,6 +303,18 @@ export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
 
         {phase === 'ready' && (
           <>
+            <RankingMetricsLegend />
+
+            {!hasServerRanking && rows.length > 0 ? (
+              <div
+                role="status"
+                className="mb-4 rounded-xl border border-amber-200/80 bg-amber-50/90 px-4 py-3 text-sm text-amber-950 dark:border-amber-500/30 dark:bg-amber-950/35 dark:text-amber-100"
+              >
+                아직 이 템플릿으로 서버에 쌓인 플레이 통계가 없어요. 한 판을 끝까지 완료하면 비율이 집계됩니다. 아래는
+                템플릿 후보 목록이에요 (현재는 모두 0%).
+              </div>
+            ) : null}
+
             <div className="overflow-x-auto rounded-2xl border border-zinc-200 bg-zinc-50/80 shadow-inner ring-1 ring-zinc-200/80 dark:border-white/10 dark:bg-zinc-900/35 dark:ring-white/5">
               <table className="w-full min-w-[760px] border-collapse text-left text-sm">
                 <thead>
@@ -173,53 +329,68 @@ export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
                   {rows.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="px-5 py-12 text-center text-zinc-500 dark:text-zinc-500">
-                        아직 집계된 플레이가 없습니다.
+                        템플릿에 후보가 없거나, 집계할 데이터가 없습니다.
                       </td>
                     </tr>
                   ) : (
-                    rows.map((row) => {
+                    rows.flatMap((row) => {
                       const meta = itemMeta.get(row.itemId);
                       const name = meta?.name ?? row.itemId;
-                      const imageUrl = meta?.imageUrl;
+                      const imageUrl = meta?.imageUrl?.trim() ?? '';
+                      const expanded = expandedItemId === row.itemId;
 
-                      return (
+                      const headerRow = (
                         <tr
                           key={row.itemId}
-                          className="border-b border-zinc-200 last:border-0 odd:bg-white/80 hover:bg-zinc-100/90 dark:border-white/5 dark:odd:bg-black/15 dark:hover:bg-white/[0.03]"
+                          role="button"
+                          tabIndex={0}
+                          aria-expanded={expanded}
+                          onClick={() =>
+                            setExpandedItemId((id) => (id === row.itemId ? null : row.itemId))
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              setExpandedItemId((id) => (id === row.itemId ? null : row.itemId));
+                            }
+                          }}
+                          className="border-b border-zinc-200 odd:bg-white/80 hover:bg-zinc-100/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-violet-500 dark:border-white/5 dark:odd:bg-black/15 dark:hover:bg-white/[0.03] cursor-pointer"
                         >
-                          <td className="px-5 py-5 align-middle">
-                            <div className="flex items-center gap-4">
+                          <td className="px-5 py-4 align-middle">
+                            <div className="flex items-center gap-3">
                               <span className="w-7 shrink-0 text-center font-mono text-xs text-zinc-500 tabular-nums dark:text-zinc-500">
                                 {row.rank}
                               </span>
                               {imageUrl ? (
-                                // eslint-disable-next-line @next/next/no-img-element -- 랭킹 썸네일 URL
-                                <img
-                                  src={imageUrl}
+                                <WorldCupListRasterThumb
+                                  rawUrl={imageUrl}
                                   alt=""
-                                  className="size-24 shrink-0 rounded-lg bg-zinc-200 object-cover ring-1 ring-zinc-300 dark:bg-zinc-800 dark:ring-white/10"
+                                  className="size-14 shrink-0 rounded-md bg-zinc-200 object-cover ring-1 ring-zinc-300 dark:bg-zinc-800 dark:ring-white/10"
                                 />
                               ) : (
-                                <div className="flex size-24 shrink-0 items-center justify-center rounded-lg bg-zinc-200 text-xs text-zinc-500 ring-1 ring-zinc-300 dark:bg-zinc-800 dark:ring-white/10">
-                                  이미지 없음
+                                <div className="flex size-14 shrink-0 items-center justify-center rounded-md bg-zinc-200 text-[10px] text-zinc-500 ring-1 ring-zinc-300 dark:bg-zinc-800 dark:ring-white/10">
+                                  없음
                                 </div>
                               )}
                               <span className="min-w-0 font-medium text-zinc-900 dark:text-white">{name}</span>
+                              <span className="ml-auto shrink-0 text-xs text-zinc-400 dark:text-zinc-500">
+                                {expanded ? '접기' : '펼치기'}
+                              </span>
                             </div>
                           </td>
-                          <td className="px-5 py-5 align-middle tabular-nums text-zinc-800 dark:text-zinc-200">
+                          <td className="px-5 py-4 align-middle tabular-nums text-zinc-800 dark:text-zinc-200">
                             <span className="text-base font-semibold">{row.championshipRatePct}%</span>
                             <span className="mt-1 block text-[11px] font-normal text-zinc-500 dark:text-zinc-500">
                               우승 / 전체 플레이 수
                             </span>
                           </td>
-                          <td className="px-5 py-5 align-middle tabular-nums text-zinc-800 dark:text-zinc-200">
+                          <td className="px-5 py-4 align-middle tabular-nums text-zinc-800 dark:text-zinc-200">
                             <span className="text-base font-semibold">{row.winRatePct}%</span>
                             <span className="mt-1 block text-[11px] font-normal text-zinc-500 dark:text-zinc-500">
                               승 / 대결 수
                             </span>
                           </td>
-                          <td className="px-5 py-5 align-top">
+                          <td className="px-5 py-4 align-top">
                             <div className="flex max-w-md flex-col gap-3.5">
                               <MiniBar label="스킵률 (리롤당함)" value={row.skipRatePct} tone="amber" />
                               <MiniBar label="광탈률 (둘 다 탈락)" value={row.dropRatePct} tone="rose" />
@@ -228,35 +399,61 @@ export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
                           </td>
                         </tr>
                       );
+
+                      if (!expanded) {
+                        return [headerRow];
+                      }
+
+                      const detailRow = (
+                        <tr
+                          key={`${row.itemId}-detail`}
+                          className="border-b border-zinc-200 odd:bg-white/80 dark:border-white/5 dark:odd:bg-black/15"
+                        >
+                          <td colSpan={4} className="p-0">
+                            <div className="overflow-hidden border-t border-zinc-200 bg-zinc-50/95 dark:border-white/10 dark:bg-zinc-900/60">
+                              <div className="worldcup-ranking-panel-in px-4 py-5 sm:px-6">
+                                {imageUrl ? (
+                                  <WorldCupUrlAccordionMedia url={imageUrl} name={name} />
+                                ) : (
+                                  <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
+                                    표시할 미디어 URL이 없습니다.
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+
+                      return [headerRow, detailRow];
                     })
                   )}
                 </tbody>
               </table>
             </div>
 
-            <div className="mt-6 grid gap-4 rounded-xl border border-zinc-200 bg-white p-5 text-xs text-zinc-600 shadow-sm dark:border-white/10 dark:bg-zinc-900/40 dark:text-zinc-500 sm:grid-cols-3">
-              <p className="flex gap-2">
-                <Swords className="size-4 shrink-0 text-zinc-400 dark:text-zinc-600" aria-hidden />
-                <span>
-                  <strong className="text-zinc-800 dark:text-zinc-400">승률</strong> · 해당 후보가 이긴 횟수 ÷ 실제
-                  맞대결 참가 수
-                </span>
-              </p>
-              <p className="flex gap-2">
-                <Skull className="size-4 shrink-0 text-zinc-400 dark:text-zinc-600" aria-hidden />
-                <span>
-                  <strong className="text-zinc-800 dark:text-zinc-400">광탈·접전</strong> · 라운드에서 두 후보 모두에게
-                  적용되는 액션 비율
-                </span>
-              </p>
-              <p className="flex gap-2">
-                <BarChart3 className="size-4 shrink-0 text-zinc-400 dark:text-zinc-600" aria-hidden />
-                <span>
-                  <strong className="text-zinc-800 dark:text-zinc-400">우승 비율</strong> · 최종 우승 횟수 ÷ 완료된
-                  플레이(게임) 총 횟수
-                </span>
-              </p>
-            </div>
+            {hasServerRanking && hasMore ? (
+              <div ref={sentinelRef} className="h-4 w-full shrink-0" aria-hidden />
+            ) : null}
+
+            {loadMoreError ? (
+              <div className="mt-4 flex flex-col items-center gap-3 rounded-xl border border-rose-200/80 bg-rose-50/90 px-4 py-4 text-sm text-rose-800 dark:border-rose-500/30 dark:bg-rose-950/35 dark:text-rose-100">
+                <p>{loadMoreError}</p>
+                <button
+                  type="button"
+                  onClick={() => void fetchNextPage()}
+                  className="rounded-lg bg-rose-600 px-4 py-2 text-xs font-medium text-white hover:bg-rose-500"
+                >
+                  다시 시도
+                </button>
+              </div>
+            ) : null}
+
+            {hasServerRanking && loadingMore ? (
+              <div className="flex justify-center py-6">
+                <div className="size-8 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" />
+              </div>
+            ) : null}
           </>
         )}
       </div>

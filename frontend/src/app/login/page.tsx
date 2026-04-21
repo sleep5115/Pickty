@@ -157,7 +157,9 @@ function LoginPageContent() {
               Pickty
             </span>
           </Link>
-          <p className="mt-2 text-sm text-slate-500 dark:text-zinc-400">티어표 만들기</p>
+          <p className="mt-2 text-sm text-slate-500 dark:text-zinc-400">
+            티어표 만들기 & 이상형 월드컵
+          </p>
         </div>
 
         <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-8 shadow-xl shadow-black/10 dark:shadow-black/50">

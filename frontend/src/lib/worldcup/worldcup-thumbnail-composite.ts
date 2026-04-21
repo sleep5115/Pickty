@@ -1,18 +1,25 @@
-import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
+import { picktyImageCanvasFetchSrc, picktyImageDisplaySrc } from '@/lib/pickty-image-url';
 import { getYoutubeThumbnailUrl, parseYoutubeVideoId } from '@/lib/worldcup/worldcup-media-url';
 
 const BASE_W = 640;
 const BASE_H = 400;
 const CANVAS_DPR = 2;
 
-function loadImageForCanvas(src: string, originalForError: string): Promise<HTMLImageElement> {
+/**
+ * 합성용 — 원본 `imageUrl`만 받고, `crossOrigin='anonymous'` 후 `src`는 표시용 URL을 거친 뒤
+ * 절대 `http(s)`는 `/api/pickty-image?url=` 로만 로드.
+ */
+function loadImageForCanvas(originalItemUrl: string, originalForError: string): Promise<HTMLImageElement> {
+  const t = originalItemUrl.trim();
+  if (!t) {
+    return Promise.reject(new Error(`이미지를 불러오지 못했습니다: ${originalForError.slice(0, 80)}`));
+  }
+  const vid = parseYoutubeVideoId(t);
+  const base = vid ? getYoutubeThumbnailUrl(vid, 'mq') : picktyImageDisplaySrc(t);
+  const src = picktyImageCanvasFetchSrc(base);
   return new Promise((resolve, reject) => {
     const img = new Image();
-    const needsCors =
-      src.startsWith('http://') || src.startsWith('https://') || src.startsWith('//');
-    if (needsCors) {
-      img.crossOrigin = 'anonymous';
-    }
+    img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
     img.onerror = () =>
       reject(new Error(`이미지를 불러오지 못했습니다: ${originalForError.slice(0, 80)}`));
@@ -40,12 +47,23 @@ function drawImageCover(
   ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dWidth, dHeight);
 }
 
-function resolveCompositeRasterSrc(raw: string): string {
-  const t = raw.trim();
-  if (!t) throw new Error('썸네일 합성용 미디어 URL이 비어 있습니다.');
-  const vid = parseYoutubeVideoId(t);
-  if (vid) return getYoutubeThumbnailUrl(vid, 'mq');
-  return picktyImageDisplaySrc(t);
+/**
+ * GIF 등에서 목적지 좌표가 어긋해 보이는 경우를 막기 위해, 목적지 직사각형에 **하드 클립** 후 cover 그리기.
+ */
+function drawImageCoverClippedToRect(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  clipX: number,
+  clipY: number,
+  clipW: number,
+  clipH: number,
+): void {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(clipX, clipY, clipW, clipH);
+  ctx.clip();
+  drawImageCover(ctx, img, clipX, clipY, clipW, clipH);
+  ctx.restore();
 }
 
 function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
@@ -68,20 +86,19 @@ export async function createWorldCupCompositeThumbnail(
 ): Promise<Blob> {
   const u0 = items[0]?.imageUrl?.trim() ?? '';
   const u1 = items[1]?.imageUrl?.trim() ?? '';
-  const leftSrc = u0 ? resolveCompositeRasterSrc(u0) : '';
-  const rightSrc = u1 ? resolveCompositeRasterSrc(u1) : leftSrc;
-  if (!leftSrc) {
+  if (!u0) {
     throw new Error('썸네일 자동 합성을 위해 최소 한 개의 미디어 URL이 필요합니다.');
   }
-  const finalRight = rightSrc || leftSrc;
+  const rightRaw = u1 || u0;
 
   const W = BASE_W * CANVAS_DPR;
   const H = BASE_H * CANVAS_DPR;
-  const half = W / 2;
+  const half = Math.floor(W / 2);
+  const rightW = W - half;
 
   const [imgL, imgR] = await Promise.all([
-    loadImageForCanvas(leftSrc, u0 || leftSrc),
-    loadImageForCanvas(finalRight, u1 || u0 || finalRight),
+    loadImageForCanvas(u0, u0),
+    loadImageForCanvas(rightRaw, rightRaw),
   ]);
 
   await Promise.all(
@@ -101,8 +118,8 @@ export async function createWorldCupCompositeThumbnail(
   ctx.fillStyle = '#e2e8f0';
   ctx.fillRect(0, 0, W, H);
 
-  drawImageCover(ctx, imgL, 0, 0, half, H);
-  drawImageCover(ctx, imgR, half, 0, half, H);
+  drawImageCoverClippedToRect(ctx, imgL, 0, 0, half, H);
+  drawImageCoverClippedToRect(ctx, imgR, half, 0, rightW, H);
 
   return canvasToPngBlob(canvas);
 }

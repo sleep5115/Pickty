@@ -6,7 +6,7 @@ import {
 } from '@/lib/tier-result-opengraph';
 import { PUBLIC_SITE_URL } from '@/lib/public-site-config';
 
-const FALLBACK_METADATA_TITLE = 'Pickty — 티어표 만들기';
+const FALLBACK_METADATA_TITLE = 'Pickty';
 
 function siteOrigin(): string {
   return PUBLIC_SITE_URL.replace(/\/$/, '');

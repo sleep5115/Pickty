@@ -1,5 +1,10 @@
 'use client';
 
+/**
+ * 인게임 UI. 강수 선택·N명 출전·리롤 풀 분배 정책은 `WorldCupBracketSelect` +
+ * `worldcupSelectableBracketSizes` + 스토어 `initialize`(셔플 후 N명 slice, 나머지 reserve)와 맞춘다.
+ */
+
 import { useRef, useState } from 'react';
 import { Dices, Undo2, Volume2, VolumeX, Zap } from 'lucide-react';
 import {
@@ -13,6 +18,9 @@ import {
   classifyWorldCupMediaUrl,
   parseYoutubeVideoId,
 } from '@/lib/worldcup/worldcup-media-url';
+import {
+  formatWorldCupRoundLabel,
+} from '@/lib/worldcup/worldcup-bracket-sizes';
 
 const pillCounter =
   'rounded-full border border-zinc-300 bg-white/90 px-4 py-2 text-sm font-medium text-zinc-900 shadow-lg backdrop-blur-sm tabular-nums dark:border-white/15 dark:bg-black/55 dark:text-white';
@@ -37,9 +45,54 @@ const undoBtn =
 
 interface WorldCupPlayClientProps {
   templateId: string;
+  templateTitle: string;
 }
 
-export function WorldCupPlayClient({ templateId }: WorldCupPlayClientProps) {
+function WorldCupPlayProgressHeader({ templateTitle }: { templateTitle: string }) {
+  const roundDisplayPlayerCount = useWorldCupStore((s) => s.roundDisplayPlayerCount);
+  const roundPlayingInitialLength = useWorldCupStore((s) => s.roundPlayingInitialLength);
+  const currentRoundLen = useWorldCupStore((s) => s.currentRoundBracket.length);
+
+  const roundLabel =
+    roundDisplayPlayerCount > 0
+      ? formatWorldCupRoundLabel(roundDisplayPlayerCount)
+      : '준비';
+  const totalMatches =
+    roundPlayingInitialLength > 0 ? Math.max(1, roundPlayingInitialLength / 2) : 1;
+  const currentMatch =
+    roundPlayingInitialLength > 0
+      ? Math.max(1, (roundPlayingInitialLength - currentRoundLen) / 2 + 1)
+      : 1;
+  const pct = Math.min(100, Math.max(0, (currentMatch / totalMatches) * 100));
+
+  return (
+    <header className="shrink-0 border-b border-zinc-200 bg-white px-4 py-3 dark:border-white/10 dark:bg-zinc-950">
+      <p className="text-center text-xs font-medium leading-snug text-zinc-800 dark:text-zinc-100 sm:text-sm">
+        <span className="inline-block max-w-full truncate align-bottom">{templateTitle}</span>
+        <span className="text-zinc-400 dark:text-zinc-500"> | </span>
+        <span>{roundLabel}</span>
+        <span className="text-zinc-400 dark:text-zinc-500"> | </span>
+        <span className="tabular-nums">
+          {currentMatch} / {totalMatches}
+        </span>
+      </p>
+      <div
+        className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700"
+        role="progressbar"
+        aria-valuenow={Math.round(pct)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
+        <div
+          className="h-full bg-primary transition-[width] duration-300 ease-out"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </header>
+  );
+}
+
+export function WorldCupPlayClient({ templateId, templateTitle }: WorldCupPlayClientProps) {
   const [topCard, setTopCard] = useState<'A' | 'B'>('A');
 
   const rerollItem = useWorldCupStore((s) => s.rerollItem);
@@ -85,12 +138,6 @@ export function WorldCupPlayClient({ templateId }: WorldCupPlayClientProps) {
         </div>
       </div>
 
-      <div className="pointer-events-none absolute left-4 top-4 z-40 max-w-[min(100%-12rem,calc(100vw-18rem))] md:left-8 md:top-6">
-        <p className="text-base font-semibold leading-tight text-zinc-900 drop-shadow-sm dark:text-white md:text-lg">
-          이상형 월드컵
-        </p>
-      </div>
-
       {/*
        * 사선 레이아웃 전용 공통 버튼 — % 기반으로 빈 공간에 고정
        * 카드 A: left-0 top-0 w-[60%] h-[75%]
@@ -129,10 +176,12 @@ export function WorldCupPlayClient({ templateId }: WorldCupPlayClientProps) {
 
   return (
     <div
-      className="flex min-h-0 flex-1 flex-col bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100"
+      className="flex w-full min-h-[calc(100dvh-5rem)] flex-1 flex-col bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100"
       data-template-id={templateId}
     >
-      <div className="relative h-[calc(100vh-80px)] min-h-[600px] w-full overflow-hidden bg-zinc-50 dark:bg-zinc-950">
+      <WorldCupPlayProgressHeader templateTitle={templateTitle} />
+      {/* flex-1만 주면 부모 높이가 안 잡혀 %·대각 카드 높이가 무너짐 — 루트에 min-h로 뷰포트 기준 확보 */}
+      <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-zinc-50 dark:bg-zinc-950">
         {playChrome}
 
         {layoutMode === 'split_diagonal' ? (
@@ -169,7 +218,7 @@ export function WorldCupPlayClient({ templateId }: WorldCupPlayClientProps) {
             </div>
           </>
         ) : (
-          <div className="flex h-full min-h-0 flex-row gap-2 px-4 pb-6 pt-24 sm:gap-3 md:px-6">
+          <div className="flex h-full min-h-0 flex-row gap-2 px-4 pb-6 pt-6 sm:gap-3 md:px-6">
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
               <CandidateCard
                 side="A"

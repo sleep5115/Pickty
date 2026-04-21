@@ -144,16 +144,6 @@ export default function WorldcupDashboard() {
                 currentUserId={me?.id ?? null}
                 isAdmin={me?.role === 'ADMIN'}
                 accessToken={accessToken}
-                onMyReactionResolved={(templateId, reaction) => {
-                  setTemplates((prev) =>
-                    prev.map((r) => (r.id === templateId ? { ...r, myReaction: reaction } : r)),
-                  );
-                }}
-                onLikeCountChange={(templateId, likeCount) => {
-                  setTemplates((prev) =>
-                    prev.map((r) => (r.id === templateId ? { ...r, likeCount } : r)),
-                  );
-                }}
                 onEdit={(target) => {
                   if (!accessToken) {
                     router.push('/login?returnTo=/worldcup/templates');
@@ -182,6 +172,7 @@ export default function WorldcupDashboard() {
           accessToken={accessToken}
           initialTitle={editTarget.title}
           initialDescription={editTarget.description ?? ''}
+          initialLayoutMode={editTarget.layoutMode}
           onSaved={(u) => {
             setTemplates((prev) =>
               prev.map((r) =>
@@ -191,6 +182,7 @@ export default function WorldcupDashboard() {
                       title: u.title,
                       description: u.description,
                       version: u.version,
+                      layoutMode: u.layoutMode,
                     }
                   : r,
               ),

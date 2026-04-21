@@ -37,6 +37,9 @@ data class UpdateWorldCupTemplateMetaRequest(
     val title: String,
     @field:Size(max = 10000, message = "설명은 10000자 이하로 입력해 주세요.")
     val description: String? = null,
+    /** 생략 시 기존 값 유지. `split_lr` | `split_diagonal` */
+    @field:Size(max = 32, message = "레이아웃 값이 너무 깁니다.")
+    val layoutMode: String? = null,
 )
 
 data class PatchWorldCupTemplateMetaResponse(
@@ -44,6 +47,7 @@ data class PatchWorldCupTemplateMetaResponse(
     val title: String,
     val version: Int,
     val description: String?,
+    val layoutMode: String,
 )
 
 data class WorldCupTemplateCreatedResponse(

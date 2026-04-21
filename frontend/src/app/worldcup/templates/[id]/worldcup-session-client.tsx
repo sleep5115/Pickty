@@ -11,8 +11,13 @@ import {
   parseWorldCupItemsPayload,
   parseWorldCupLayoutMode,
 } from '@/lib/worldcup/worldcup-template-items';
-import type { WorldCupItem, WorldCupLayoutMode } from '@/lib/store/worldcup-store';
-import { useWorldCupStore } from '@/lib/store/worldcup-store';
+import {
+  aggregateItemStatsFromMatchHistory,
+  useWorldCupStore,
+  type WorldCupItem,
+  type WorldCupLayoutMode,
+} from '@/lib/store/worldcup-store';
+import { WorldCupBracketSelect } from '@/components/worldcup/worldcup-bracket-select';
 import { WorldCupPlayClient } from './worldcup-play-client';
 import { WorldCupRankingClient } from './worldcup-ranking-client';
 import { WorldCupResultClient } from './worldcup-result-client';
@@ -26,6 +31,8 @@ type LoadPhase = 'loading' | 'error' | 'ready';
 export function WorldCupSessionClient({ templateId }: Props) {
   const reset = useWorldCupStore((s) => s.reset);
   const initialize = useWorldCupStore((s) => s.initialize);
+  const leaveToBracketSelection = useWorldCupStore((s) => s.leaveToBracketSelection);
+  const isPlaying = useWorldCupStore((s) => s.isPlaying);
   const champion = useWorldCupStore((s) => s.champion);
   const tournamentComplete = useWorldCupStore((s) => s.tournamentComplete);
 
@@ -36,7 +43,12 @@ export function WorldCupSessionClient({ templateId }: Props) {
   const resultsSubmittedRef = useRef(false);
 
   /** 재시작 시 동일 세션 데이터로 초기화 */
-  const sessionRef = useRef<{ items: WorldCupItem[]; layout: WorldCupLayoutMode } | null>(null);
+  const sessionRef = useRef<{
+    items: WorldCupItem[];
+    layout: WorldCupLayoutMode;
+    title: string;
+  } | null>(null);
+  const [templateTitle, setTemplateTitle] = useState('');
   const aliveRef = useRef(true);
 
   const loadTemplate = useCallback(async () => {
@@ -67,12 +79,13 @@ export function WorldCupSessionClient({ templateId }: Props) {
     }
 
     const layout = parseWorldCupLayoutMode(data.layoutMode);
-    sessionRef.current = { items, layout };
+    const title = typeof data.title === 'string' && data.title.trim() ? data.title.trim() : '이상형 월드컵';
+    sessionRef.current = { items, layout, title };
+    setTemplateTitle(title);
     reset();
-    initialize(items, 128, { layoutMode: layout });
     if (!aliveRef.current) return;
     setPhase('ready');
-  }, [templateId, reset, initialize]);
+  }, [templateId, reset]);
 
   useEffect(() => {
     aliveRef.current = true;
@@ -91,11 +104,15 @@ export function WorldCupSessionClient({ templateId }: Props) {
     if (resultsSubmittedRef.current) return;
     resultsSubmittedRef.current = true;
     const state = useWorldCupStore.getState();
+    const winnerItemId = state.champion?.id ?? champion.id;
+    const itemStats = aggregateItemStatsFromMatchHistory(state.matchHistory);
+    // eslint-disable-next-line no-console -- 개발 중 제출 페이로드 확인용(임시)
+    console.log('Submitting Worldcup Results:', { winnerItemId, itemStats });
     void submitWorldCupPlayResult({
       templateId,
-      winnerItemId: champion.id,
+      winnerItemId,
       matchHistory: state.matchHistory,
-      itemStats: state.itemStats,
+      itemStats,
     }).then((res) => {
       if (!res.ok) resultsSubmittedRef.current = false;
     });
@@ -105,9 +122,19 @@ export function WorldCupSessionClient({ templateId }: Props) {
     const s = sessionRef.current;
     if (!s) return;
     resultsSubmittedRef.current = false;
-    initialize(s.items, 128, { layoutMode: s.layout });
+    leaveToBracketSelection();
+    setTemplateTitle(s.title);
     setShowRanking(false);
-  }, [initialize]);
+  }, [leaveToBracketSelection]);
+
+  const handleBracketChosen = useCallback(
+    (bracketSize: number) => {
+      const s = sessionRef.current;
+      if (!s) return;
+      initialize(s.items, bracketSize, { layoutMode: s.layout });
+    },
+    [initialize],
+  );
 
   if (phase === 'loading') {
     return (
@@ -139,6 +166,17 @@ export function WorldCupSessionClient({ templateId }: Props) {
     );
   }
 
+  if (phase === 'ready' && !isPlaying && sessionRef.current) {
+    const total = sessionRef.current.items.length;
+    return (
+      <WorldCupBracketSelect
+        templateTitle={templateTitle || sessionRef.current.title}
+        totalItems={total}
+        onSelectBracket={handleBracketChosen}
+      />
+    );
+  }
+
   if (tournamentComplete && champion) {
     return (
       <WorldCupResultClient
@@ -150,5 +188,9 @@ export function WorldCupSessionClient({ templateId }: Props) {
     );
   }
 
-  return <WorldCupPlayClient templateId={templateId} />;
+  return (
+    <div className="flex min-h-0 w-full flex-1 flex-col">
+      <WorldCupPlayClient templateId={templateId} templateTitle={templateTitle || '이상형 월드컵'} />
+    </div>
+  );
 }

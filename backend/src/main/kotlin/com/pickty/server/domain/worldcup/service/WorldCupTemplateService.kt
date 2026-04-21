@@ -108,7 +108,19 @@ class WorldCupTemplateService(
         if (!allowed) {
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "not owner")
         }
-        entity.applyMeta(request.title.trim(), request.description?.trim()?.takeIf { it.isNotEmpty() })
+        val layoutPatch =
+            request.layoutMode?.trim()?.takeIf { it.isNotEmpty() }?.let {
+                normalizeLayoutMode(it)
+                    ?: throw ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "layoutMode 는 split_lr 또는 split_diagonal 이어야 합니다.",
+                    )
+            }
+        entity.applyMeta(
+            request.title.trim(),
+            request.description?.trim()?.takeIf { it.isNotEmpty() },
+            layoutPatch,
+        )
         worldCupTemplateRepository.flush()
         val tid = entity.id ?: throw IllegalStateException("worldcup template id missing")
         return PatchWorldCupTemplateMetaResponse(
@@ -116,6 +128,7 @@ class WorldCupTemplateService(
             title = entity.title,
             version = entity.version,
             description = entity.description?.trim()?.takeIf { it.isNotEmpty() },
+            layoutMode = entity.layoutMode,
         )
     }
 

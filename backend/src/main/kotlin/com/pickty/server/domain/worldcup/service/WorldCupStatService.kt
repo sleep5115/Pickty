@@ -6,6 +6,10 @@ import com.pickty.server.domain.worldcup.dto.WorldCupRankingRowResponse
 import com.pickty.server.domain.worldcup.dto.WorldCupResultSubmitRequest
 import com.pickty.server.domain.worldcup.repository.WorldCupItemStatRepository
 import com.pickty.server.domain.worldcup.repository.WorldCupTemplateRepository
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.PageImpl
+import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Pageable
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -73,7 +77,7 @@ class WorldCupStatService(
     }
 
     @Transactional(readOnly = true)
-    fun ranking(templateId: UUID): List<WorldCupRankingRowResponse> {
+    fun ranking(templateId: UUID, pageable: Pageable): Page<WorldCupRankingRowResponse> {
         val tpl =
             worldCupTemplateRepository.findById(templateId).orElse(null)
                 ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "월드컵 템플릿을 찾을 수 없습니다.")
@@ -81,35 +85,37 @@ class WorldCupStatService(
             throw ResponseStatusException(HttpStatus.GONE, "삭제되었거나 비공개인 템플릿입니다.")
         }
 
-        val stats = worldCupItemStatRepository.findAllByTemplate_Id(templateId)
-        val totalGames = stats.sumOf { it.finalWinCount }.coerceAtLeast(0)
+        val safePage = pageable.pageNumber.coerceAtLeast(0)
+        val safeSize = pageable.pageSize.coerceIn(1, 100)
+        val fixedPageable = PageRequest.of(safePage, safeSize)
 
-        val rows =
-            stats
-                .map { row ->
-                    val mc = row.matchCount
-                    WorldCupRankingRowResponse(
-                        rank = 0,
-                        itemId = row.itemId,
-                        matchCount = mc,
-                        winCount = row.winCount,
-                        rerolledCount = row.rerolledCount,
-                        droppedCount = row.droppedCount,
-                        keptBothCount = row.keptBothCount,
-                        finalWinCount = row.finalWinCount,
-                        winRatePct = pct(row.winCount, mc),
-                        championshipRatePct = pct(row.finalWinCount, totalGames),
-                        skipRatePct = pct(row.rerolledCount, mc),
-                        dropRatePct = pct(row.droppedCount, mc),
-                        nailBiterRatePct = pct(row.keptBothCount, mc),
-                    )
-                }.sortedWith(
-                    compareByDescending<WorldCupRankingRowResponse> { it.finalWinCount }
-                        .thenByDescending { it.winRatePct }
-                        .thenBy { it.itemId },
+        val totalGames =
+            worldCupItemStatRepository.sumFinalWinCountByTemplateId(templateId).coerceAtLeast(0L)
+
+        val statPage = worldCupItemStatRepository.findRankingPage(templateId, fixedPageable)
+        val baseRank = statPage.number * statPage.size + 1
+
+        val content =
+            statPage.content.mapIndexed { index, row ->
+                val mc = row.matchCount
+                WorldCupRankingRowResponse(
+                    rank = baseRank + index,
+                    itemId = row.itemId,
+                    matchCount = mc,
+                    winCount = row.winCount,
+                    rerolledCount = row.rerolledCount,
+                    droppedCount = row.droppedCount,
+                    keptBothCount = row.keptBothCount,
+                    finalWinCount = row.finalWinCount,
+                    winRatePct = pct(row.winCount, mc),
+                    championshipRatePct = pct(row.finalWinCount, totalGames),
+                    skipRatePct = pct(row.rerolledCount, mc),
+                    dropRatePct = pct(row.droppedCount, mc),
+                    nailBiterRatePct = pct(row.keptBothCount, mc),
                 )
+            }
 
-        return rows.mapIndexed { i, r -> r.copy(rank = i + 1) }
+        return PageImpl(content, fixedPageable, statPage.totalElements)
     }
 
     private fun coerceNonNegative(v: Long): Long = if (v < 0) 0 else v

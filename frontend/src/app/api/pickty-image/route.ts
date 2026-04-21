@@ -3,18 +3,145 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 
+const MAX_EXTERNAL_PROXY_URL_LEN = 8192;
+const MAX_EXTERNAL_IMAGE_BYTES = 20 * 1024 * 1024;
+
+/** Canvas `crossOrigin=anonymous` 등에서 읽을 수 있도록 모든 응답에 동일 적용 */
+const CORS_HEADERS: Record<string, string> = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+  'Access-Control-Allow-Headers': '*',
+};
+
+function mergeCors(base: HeadersInit | undefined): Headers {
+  const h = new Headers(base);
+  for (const [k, v] of Object.entries(CORS_HEADERS)) {
+    h.set(k, v);
+  }
+  return h;
+}
+
+export function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: mergeCors({}) });
+}
+
+function isBlockedHostname(host: string): boolean {
+  const h = host.toLowerCase().trim();
+  if (!h) return true;
+  if (h === 'localhost' || h.endsWith('.localhost')) return true;
+  if (h === '0.0.0.0' || h === '[::1]' || h === '::1') return true;
+
+  const ipv4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(h);
+  if (ipv4) {
+    const a = Number(ipv4[1]);
+    const b = Number(ipv4[2]);
+    const c = Number(ipv4[3]);
+    const d = Number(ipv4[4]);
+    if ([a, b, c, d].some((n) => n > 255)) return true;
+    if (a === 10) return true;
+    if (a === 127) return true;
+    if (a === 0) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT
+    return false;
+  }
+
+  if (h === 'metadata.google.internal' || h.endsWith('.metadata.google.internal')) return true;
+
+  return false;
+}
+
+/** SSRF 완화 — `http(s)`만, 비밀·루프백 호스트 제외, 프록시 자기참조 방지 */
+function parseAllowedExternalImageUrl(urlString: string): URL | null {
+  if (urlString.length > MAX_EXTERNAL_PROXY_URL_LEN) return null;
+  let u: URL;
+  try {
+    u = new URL(urlString);
+  } catch {
+    return null;
+  }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+  if (u.username || u.password) return null;
+  if (isBlockedHostname(u.hostname)) return null;
+  const pathLower = u.pathname.toLowerCase();
+  if (pathLower.includes('/api/pickty-image')) return null;
+  return u;
+}
+
+async function handleExternalImageProxy(urlString: string): Promise<NextResponse> {
+  const plain = 'text/plain; charset=utf-8';
+  const u = parseAllowedExternalImageUrl(urlString);
+  if (!u) {
+    return new NextResponse('Bad Request', { status: 400, headers: mergeCors({ 'Content-Type': plain }) });
+  }
+
+  let upstream: Response;
+  try {
+    upstream = await fetch(u.toString(), {
+      method: 'GET',
+      redirect: 'follow',
+      headers: {
+        Accept: 'image/*,*/*;q=0.8',
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+      next: { revalidate: 3600 },
+      signal: AbortSignal.timeout(25_000),
+    });
+  } catch (e) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[pickty-image] external fetch failed', u.hostname, e);
+    }
+    return new NextResponse('Bad Gateway', { status: 502, headers: mergeCors({ 'Content-Type': plain }) });
+  }
+
+  if (!upstream.ok) {
+    const status = upstream.status >= 400 && upstream.status < 600 ? upstream.status : 502;
+    return new NextResponse(null, { status, headers: mergeCors({}) });
+  }
+
+  const clen = upstream.headers.get('content-length');
+  if (clen) {
+    const n = Number(clen);
+    if (Number.isFinite(n) && n > MAX_EXTERNAL_IMAGE_BYTES) {
+      return new NextResponse('Payload Too Large', { status: 413, headers: mergeCors({ 'Content-Type': plain }) });
+    }
+  }
+
+  const buf = await upstream.arrayBuffer();
+  if (buf.byteLength > MAX_EXTERNAL_IMAGE_BYTES) {
+    return new NextResponse('Payload Too Large', { status: 413, headers: mergeCors({ 'Content-Type': plain }) });
+  }
+
+  const contentType = upstream.headers.get('content-type') || 'application/octet-stream';
+  return new NextResponse(buf, {
+    status: 200,
+    headers: mergeCors({
+      'Content-Type': contentType,
+      'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
+    }),
+  });
+}
+
 /**
  * 브라우저 → img.pickty.app 직접 요청은 Referer(로컬 dev)·ORB·CF 규칙으로 403일 수 있음.
  * 순서: 커스텀 공개 도메인 → PICKTY_IMAGE_PUBLIC_FALLBACK_BASE(pub-*.r2.dev) → API file → FILE_FALLBACK API.
  */
 export async function GET(request: NextRequest) {
+  const urlParam = request.nextUrl.searchParams.get('url')?.trim();
+  if (urlParam) {
+    return handleExternalImageProxy(urlParam);
+  }
+
   const raw = request.nextUrl.searchParams.get('key')?.trim();
   if (!raw || raw.includes('..')) {
-    return new NextResponse('Not Found', { status: 404 });
+    return new NextResponse('Not Found', { status: 404, headers: mergeCors({ 'Content-Type': 'text/plain; charset=utf-8' }) });
   }
   const normalized = raw.toLowerCase();
   if (!PICKTY_STORED_IMAGE_KEY_RE.test(normalized)) {
-    return new NextResponse('Not Found', { status: 404 });
+    return new NextResponse('Not Found', { status: 404, headers: mergeCors({ 'Content-Type': 'text/plain; charset=utf-8' }) });
   }
 
   const imgBase =
@@ -89,16 +216,16 @@ export async function GET(request: NextRequest) {
     }
     const out =
       lastStatus >= 400 && lastStatus < 500 ? lastStatus : 502;
-    return new NextResponse(null, { status: out });
+    return new NextResponse(null, { status: out, headers: mergeCors({}) });
   }
 
   const contentType = upstream.headers.get('content-type') || 'application/octet-stream';
   const contentLength = upstream.headers.get('content-length');
 
-  const headers = new Headers();
-  headers.set('Content-Type', contentType);
-  headers.set('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
-  headers.set('Access-Control-Allow-Origin', '*');
+  const headers = mergeCors({
+    'Content-Type': contentType,
+    'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+  });
   if (contentLength) {
     headers.set('Content-Length', contentLength);
   }

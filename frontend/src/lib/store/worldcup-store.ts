@@ -98,6 +98,31 @@ function mergeItemStats(
   };
 }
 
+/**
+ * 현재 판의 `matchHistory`만으로 `itemStats` 누적치를 재계산한다.
+ * - `POST /api/v1/worldcup/results` 제출 시 **이 값을 쓰면** 스토어 `itemStats`와 어긋나도 이력 정본으로 서버와 맞출 수 있다.
+ * - `walkover` 는 1:1 대결이 아니므로 여기서는 반영하지 않는다.
+ */
+export function aggregateItemStatsFromMatchHistory(history: WorldCupMatchHistory): WorldCupItemStatsMap {
+  let stats: WorldCupItemStatsMap = {};
+  for (const e of history) {
+    if (e.kind === 'selectWinner') {
+      stats = mergeItemStats(stats, e.leftId, { matchCount: 1 });
+      stats = mergeItemStats(stats, e.rightId, { matchCount: 1 });
+      stats = mergeItemStats(stats, e.winnerId, { winCount: 1 });
+    } else if (e.kind === 'dropBoth') {
+      stats = mergeItemStats(stats, e.leftId, { matchCount: 1, droppedCount: 1 });
+      stats = mergeItemStats(stats, e.rightId, { matchCount: 1, droppedCount: 1 });
+    } else if (e.kind === 'keepBoth') {
+      stats = mergeItemStats(stats, e.leftId, { matchCount: 1, keptBothCount: 1 });
+      stats = mergeItemStats(stats, e.rightId, { matchCount: 1, keptBothCount: 1 });
+    } else if (e.kind === 'reroll') {
+      stats = mergeItemStats(stats, e.removedId, { rerolledCount: 1 });
+    }
+  }
+  return stats;
+}
+
 function cloneChampionshipWins(m: WorldCupChampionshipWinsMap): WorldCupChampionshipWinsMap {
   return { ...m };
 }
@@ -150,6 +175,12 @@ function cloneItemStats(stats: WorldCupItemStatsMap): WorldCupItemStatsMap {
 /** undo용 — play 필드만 (history 제외) */
 export interface WorldCupPlaySnapshot {
   bracketSize: number;
+  /** 강수 선택 후 실제 플레이 중일 때만 true */
+  isPlaying: boolean;
+  /** 현재 라운드 시작 시 `currentRoundBracket` 길이(대기열 기준, 매치 수 계산용) */
+  roundPlayingInitialLength: number;
+  /** 라운드 헤더 라벨용 — 라운드 진입 시점의 참가자 수(결승전은 2) */
+  roundDisplayPlayerCount: number;
   reservePool: WorldCupItem[];
   currentRoundBracket: WorldCupItem[];
   nextRoundBracket: WorldCupItem[];
@@ -176,6 +207,8 @@ export interface WorldCupPlayActions {
     bracketSize: number,
     options?: { layoutMode?: WorldCupLayoutMode },
   ) => void;
+  /** 결과 화면에서 다시 하기 → 강수 선택으로 (누적 우승·완료 판 수는 유지) */
+  leaveToBracketSelection: () => void;
   rerollItem: (index: 0 | 1) => void;
   selectWinner: (index: 0 | 1) => void;
   dropBoth: () => void;
@@ -191,6 +224,9 @@ function cloneItem(i: WorldCupItem): WorldCupItem {
 function cloneSnapshot(s: WorldCupPlayState): WorldCupPlaySnapshot {
   return {
     bracketSize: s.bracketSize,
+    isPlaying: s.isPlaying,
+    roundPlayingInitialLength: s.roundPlayingInitialLength,
+    roundDisplayPlayerCount: s.roundDisplayPlayerCount,
     reservePool: s.reservePool.map(cloneItem),
     currentRoundBracket: s.currentRoundBracket.map(cloneItem),
     nextRoundBracket: s.nextRoundBracket.map(cloneItem),
@@ -208,6 +244,9 @@ function cloneSnapshot(s: WorldCupPlayState): WorldCupPlaySnapshot {
 function applySnapshot(snap: WorldCupPlaySnapshot): Omit<WorldCupPlayState, 'history'> {
   return {
     bracketSize: snap.bracketSize,
+    isPlaying: snap.isPlaying,
+    roundPlayingInitialLength: snap.roundPlayingInitialLength,
+    roundDisplayPlayerCount: snap.roundDisplayPlayerCount,
     reservePool: snap.reservePool.map(cloneItem),
     currentRoundBracket: snap.currentRoundBracket.map(cloneItem),
     nextRoundBracket: snap.nextRoundBracket.map(cloneItem),
@@ -243,6 +282,15 @@ function randomIndex(n: number): number {
   return Math.floor(Math.random() * n);
 }
 
+function shuffleArray<T>(items: T[]): T[] {
+  const a = [...items];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j]!, a[i]!];
+  }
+  return a;
+}
+
 function applyOddRoundBye(pool: WorldCupItem[]): {
   playing: WorldCupItem[];
   bracket: WorldCupItem[];
@@ -261,6 +309,9 @@ function applyOddRoundBye(pool: WorldCupItem[]): {
 function emptyPlayFields(): Omit<WorldCupPlayState, 'history'> {
   return {
     bracketSize: 0,
+    isPlaying: false,
+    roundPlayingInitialLength: 0,
+    roundDisplayPlayerCount: 0,
     reservePool: [],
     currentRoundBracket: [],
     nextRoundBracket: [],
@@ -291,18 +342,23 @@ function transitionToNextRound(
   get: () => WorldCupPlayState & WorldCupPlayActions,
   incomingPool: WorldCupItem[],
 ) {
-  if (incomingPool.length === 0) {
+  const shuffled = shuffleArray(incomingPool);
+  const displayCount = shuffled.length;
+
+  if (shuffled.length === 0) {
     set({
       champion: null,
       tournamentComplete: true,
       currentRoundBracket: [],
       nextRoundBracket: [],
       reservePoolCount: get().reservePool.length,
+      roundPlayingInitialLength: 0,
+      roundDisplayPlayerCount: 0,
     });
     return;
   }
-  if (incomingPool.length === 1) {
-    const champ = incomingPool[0]!;
+  if (shuffled.length === 1) {
+    const champ = shuffled[0]!;
     set((state) => ({
       champion: champ,
       tournamentComplete: true,
@@ -311,16 +367,21 @@ function transitionToNextRound(
       reservePoolCount: state.reservePool.length,
       championshipWinsByItemId: bumpChampionWin(state.championshipWinsByItemId, champ.id),
       completedWorldCupRuns: state.completedWorldCupRuns + 1,
+      roundPlayingInitialLength: 0,
+      roundDisplayPlayerCount: 0,
     }));
     return;
   }
-  const { playing, bracket } = applyOddRoundBye(incomingPool);
+  const { playing, bracket } = applyOddRoundBye(shuffled);
   set({
     currentRoundBracket: playing,
     nextRoundBracket: bracket,
     champion: null,
     tournamentComplete: false,
     reservePoolCount: get().reservePool.length,
+    isPlaying: true,
+    roundDisplayPlayerCount: displayCount,
+    roundPlayingInitialLength: playing.length,
   });
 }
 
@@ -356,6 +417,14 @@ export const useWorldCupStore = create<WorldCupPlayState & WorldCupPlayActions>(
 
   reset: () => set(initialState()),
 
+  leaveToBracketSelection: () =>
+    set((state) => ({
+      ...emptyPlayFields(),
+      history: [],
+      championshipWinsByItemId: state.championshipWinsByItemId,
+      completedWorldCupRuns: state.completedWorldCupRuns,
+    })),
+
   undo: () =>
     set((state) => {
       if (state.history.length === 0) return state;
@@ -370,15 +439,21 @@ export const useWorldCupStore = create<WorldCupPlayState & WorldCupPlayActions>(
   initialize: (allItems, bracketSize, options) => {
     const playLayout = options?.layoutMode ?? 'split_lr';
     const cap = Math.max(2, bracketSize);
-    const n = Math.min(cap, allItems.length);
-    const head = allItems.slice(0, n);
-    const reserve = allItems.slice(n);
+    const shuffled = shuffleArray(allItems);
+    /** N강 = N명 출전. 선택한 강 수만큼만 대진에 넣고 나머지는 reserve(리롤 풀). */
+    const n = Math.min(cap, shuffled.length);
+    const head = shuffled.slice(0, n);
+    const reserve = shuffled.slice(n);
     const { playing, bracket } = applyOddRoundBye(head);
+    const displayCount = n;
 
     if (playing.length === 1 && bracket.length === 0) {
       const only = playing[0]!;
       set((state) => ({
         bracketSize: cap,
+        isPlaying: true,
+        roundPlayingInitialLength: 0,
+        roundDisplayPlayerCount: 0,
         reservePool: reserve,
         reservePoolCount: reserve.length,
         currentRoundBracket: [],
@@ -403,6 +478,9 @@ export const useWorldCupStore = create<WorldCupPlayState & WorldCupPlayActions>(
 
     set({
       bracketSize: cap,
+      isPlaying: true,
+      roundDisplayPlayerCount: displayCount,
+      roundPlayingInitialLength: playing.length,
       reservePool: reserve,
       reservePoolCount: reserve.length,
       currentRoundBracket: playing,
@@ -424,6 +502,9 @@ export const useWorldCupStore = create<WorldCupPlayState & WorldCupPlayActions>(
         nextRoundBracket: [],
         reservePoolCount: reserve.length,
         history: [],
+        isPlaying: true,
+        roundPlayingInitialLength: 0,
+        roundDisplayPlayerCount: 0,
         championshipWinsByItemId: bumpChampionWin(state.championshipWinsByItemId, c.id),
         completedWorldCupRuns: state.completedWorldCupRuns + 1,
         matchHistory: [
@@ -437,6 +518,7 @@ export const useWorldCupStore = create<WorldCupPlayState & WorldCupPlayActions>(
     }
   },
 
+  /** 교체된 쪽 후보: `rerolledCount+1` (리롤당함). 새로 들어온 풀 아이템은 여기서 카운트하지 않는다. */
   rerollItem: (index) => {
     const { reservePool, currentRoundBracket } = get();
     if (reservePool.length === 0 || currentRoundBracket.length < 2) return;
@@ -466,6 +548,10 @@ export const useWorldCupStore = create<WorldCupPlayState & WorldCupPlayActions>(
     }));
   },
 
+  /**
+   * 좌(0)·우(1) 중 승자 선택.
+   * 통계: 양쪽 `matchCount+1`, 승자만 `winCount+1`.
+   */
   selectWinner: (index) => {
     if (index !== 0 && index !== 1) return;
     const { currentRoundBracket, nextRoundBracket } = get();
@@ -495,6 +581,7 @@ export const useWorldCupStore = create<WorldCupPlayState & WorldCupPlayActions>(
     afterMatchConsumed(set, get, rest, updatedNext);
   },
 
+  /** 광탈: 양쪽 `matchCount+1`, `droppedCount+1`. */
   dropBoth: () => {
     const { currentRoundBracket, nextRoundBracket } = get();
     if (currentRoundBracket.length < 2 || get().tournamentComplete) return;
@@ -519,6 +606,7 @@ export const useWorldCupStore = create<WorldCupPlayState & WorldCupPlayActions>(
     afterMatchConsumed(set, get, rest, updatedNext);
   },
 
+  /** 둘 다 올리기: 양쪽 `matchCount+1`, `keptBothCount+1`. */
   keepBoth: () => {
     const { currentRoundBracket, nextRoundBracket } = get();
     if (currentRoundBracket.length < 2 || get().tournamentComplete) return;

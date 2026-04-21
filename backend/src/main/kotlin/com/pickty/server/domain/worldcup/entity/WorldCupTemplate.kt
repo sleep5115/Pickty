@@ -85,10 +85,13 @@ class WorldCupTemplate(
     @ColumnDefault("0")
     var viewCount: Long = 0
 
-    /** 제목·설명만 갱신 — 아이템 JSONB 불변 */
-    fun applyMeta(newTitle: String, newDescription: String?) {
+    /** 제목·설명·(선택) 레이아웃 갱신 — 아이템 JSONB 불변 */
+    fun applyMeta(newTitle: String, newDescription: String?, newLayoutMode: String? = null) {
         title = newTitle.trim()
         description = newDescription?.trim()?.takeIf { it.isNotEmpty() }
+        if (newLayoutMode != null) {
+            layoutMode = newLayoutMode
+        }
         version = version + 1
     }
 

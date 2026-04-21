@@ -118,6 +118,24 @@ export function picktyImageDisplaySrc(imageUrl: string): string {
   return resolved;
 }
 
+const MAX_CANVAS_PROXY_URL_LEN = 8192;
+
+/**
+ * Canvas `drawImage` / `toDataURL`용 — 절대 `http(s)` URL은 브라우저 CORS 없이 읽도록
+ * 동일 출처 **`/api/pickty-image?url=`** 프록시로 감싼다. (R2 `?key=` 상대 경로는 그대로 둠)
+ */
+export function picktyImageCanvasFetchSrc(resolvedUrl: string): string {
+  const u = resolvedUrl.trim();
+  if (!u) return u;
+  if (u.length > MAX_CANVAS_PROXY_URL_LEN) {
+    return u;
+  }
+  if (u.startsWith('http://') || u.startsWith('https://')) {
+    return `/api/pickty-image?url=${encodeURIComponent(u)}`;
+  }
+  return u;
+}
+
 /**
  * Pickty가 제공하는 이미지 자산(레거시 `/uploads/` 또는 R2 공개 URL)이면 true.
  * html-to-image 등에서 `crossOrigin="anonymous"` 필요 여부 판별용.

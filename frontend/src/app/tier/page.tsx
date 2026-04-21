@@ -4,7 +4,7 @@ import { TierPageClient } from './tier-page-client';
 import { fetchTemplateForOpenGraph } from '@/lib/template-opengraph';
 import { PUBLIC_SITE_URL } from '@/lib/public-site-config';
 
-const FALLBACK_TITLE = 'Pickty — 티어표 만들기';
+const FALLBACK_TITLE = 'Pickty';
 
 function siteOrigin(): string {
   return PUBLIC_SITE_URL.replace(/\/$/, '');

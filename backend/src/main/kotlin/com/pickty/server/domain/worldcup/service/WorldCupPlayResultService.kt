@@ -1,5 +1,7 @@
 package com.pickty.server.domain.worldcup.service
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.kotlinModule
 import com.pickty.server.domain.tier.enums.TemplateStatus
 import com.pickty.server.domain.worldcup.dto.WorldCupPlayResultRequest
 import com.pickty.server.domain.worldcup.dto.WorldCupResultSubmitRequest
@@ -10,6 +12,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
+import tools.jackson.databind.json.JsonMapper
 
 /**
  * 월드컵 플레이 결과 제출 — 이력 DB 저장 후 동일 트랜잭션에서 템플릿·아이템 통계 누적.
@@ -43,7 +46,7 @@ class WorldCupPlayResultService(
             WorldCupPlayResult(
                 template = tpl,
                 winnerItemId = winnerId,
-                matchHistory = request.matchHistory,
+                matchHistory = matchHistoryForPersistence(request.matchHistory),
             ),
         )
 
@@ -54,5 +57,14 @@ class WorldCupPlayResultService(
                 itemStats = request.itemStats,
             ),
         )
+    }
+
+    companion object {
+        /** HTTP 바디는 Jackson 3(`tools.jackson`) — jsonb·Hibernate 는 `HibernateJsonFormatMapper` 의 Jackson 2 전용 */
+        private val toolsJsonMapper = JsonMapper.builder().build()
+        private val legacyJsonMapper = ObjectMapper().registerModule(kotlinModule())
+
+        private fun matchHistoryForPersistence(node: tools.jackson.databind.JsonNode): com.fasterxml.jackson.databind.JsonNode =
+            legacyJsonMapper.readTree(toolsJsonMapper.writeValueAsString(node))
     }
 }

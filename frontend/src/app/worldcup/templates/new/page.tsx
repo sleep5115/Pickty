@@ -36,7 +36,7 @@ const formSchema = z.object({
   title: z.string().min(1, '제목을 입력해 주세요.').max(100),
   description: z.string().max(10000).optional().or(z.literal('')),
   layoutMode: z.enum(['split_diagonal', 'split_lr']),
-  items: z.array(itemSchema).min(1, '아이템을 1개 이상 추가해 주세요.'),
+  items: z.array(itemSchema).min(20, '최소 20개의 후보를 등록해주세요'),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -264,12 +264,14 @@ export default function WorldCupTemplateNewPage() {
     try {
       let thumbnailUrl: string | null = null;
       try {
-        const blob = await createWorldCupCompositeThumbnail(
+        const compositeBlob = await createWorldCupCompositeThumbnail(
           data.items.map((it) => ({ imageUrl: it.imageUrl })),
         );
-        const pngFile = new File([blob], 'worldcup-thumbnail.png', { type: 'image/png' });
-        const [u] = await uploadPicktyImages([pngFile], accessToken);
-        thumbnailUrl = u ?? null;
+        const thumbnailFile = new File([compositeBlob], 'worldcup-thumbnail.png', {
+          type: 'image/png',
+        });
+        const uploadResult = await uploadPicktyImages([thumbnailFile], accessToken);
+        thumbnailUrl = uploadResult[0] ?? null;
       } catch {
         thumbnailUrl = null;
       }
@@ -515,7 +517,7 @@ export default function WorldCupTemplateNewPage() {
                         <IconDiagonalSplit className="mt-0.5 size-7 shrink-0 text-violet-600 dark:text-violet-400" />
                         <span>
                           <span className="block text-sm font-medium text-slate-900 dark:text-zinc-100">
-                            사선 50:50
+                            대각 배치
                           </span>
                           <span className="mt-0.5 block text-xs text-slate-500 dark:text-zinc-500">
                             좌상·우하 대각 배치
@@ -529,10 +531,10 @@ export default function WorldCupTemplateNewPage() {
                         <IconSplitLeftRight className="mt-0.5 size-7 shrink-0 text-violet-600 dark:text-violet-400" />
                         <span>
                           <span className="block text-sm font-medium text-slate-900 dark:text-zinc-100">
-                            좌우 50:50
+                            좌우 배치
                           </span>
                           <span className="mt-0.5 block text-xs text-slate-500 dark:text-zinc-500">
-                            좌우 분할 대결
+                            좌우 분할 배치
                           </span>
                         </span>
                       </span>
@@ -647,7 +649,7 @@ export default function WorldCupTemplateNewPage() {
                           <button
                             type="button"
                             onClick={() => remove(index)}
-                            disabled={fields.length <= 1}
+                            disabled={fields.length <= 20}
                             className="inline-flex items-center justify-center rounded-lg border border-red-200 p-2 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-red-900/40 dark:text-red-400 dark:hover:bg-red-950/40"
                             aria-label={`행 ${index + 1} 삭제`}
                           >
@@ -663,11 +665,6 @@ export default function WorldCupTemplateNewPage() {
               {errors.items && typeof errors.items.message === 'string' ? (
                 <p className="mt-3 text-xs text-red-600 dark:text-red-400">{errors.items.message}</p>
               ) : null}
-
-              <p className="mt-4 text-[11px] leading-relaxed text-slate-500 dark:text-zinc-500">
-                저장 시 템플릿은 목록에 공개(<span className="font-medium">ACTIVE</span>)되며, 삭제 시에는
-                소프트 삭제됩니다. 유튜브 URL은 oEmbed로 제목을 가져올 수 있습니다.
-              </p>
             </section>
 
             {errors.root?.message ? (

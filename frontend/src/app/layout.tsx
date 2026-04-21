@@ -19,9 +19,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  // 후순위 미구현 시 description/title에서 월드컵 문구 제외
-  title: "Pickty — 티어표 만들기",
-  description: "나만의 티어표를 만들고 공유하세요.",
+  /** 브랜드만 — 특정 도메인(티어·월드컵 등)을 대표 문구로 쓰지 않음 */
+  title: "Pickty",
+  description: "티어표 만들기 & 이상형 월드컵.",
   icons: {
     icon: [
       {
