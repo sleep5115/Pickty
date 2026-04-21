@@ -36,7 +36,7 @@ const formSchema = z.object({
   title: z.string().min(1, '제목을 입력해 주세요.').max(100),
   description: z.string().max(10000).optional().or(z.literal('')),
   layoutMode: z.enum(['split_diagonal', 'split_lr']),
-  items: z.array(itemSchema).min(20, '최소 20개의 후보를 등록해주세요'),
+  items: z.array(itemSchema).min(2, '최소 2개의 후보를 등록해 주세요'),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -649,7 +649,7 @@ export default function WorldCupTemplateNewPage() {
                           <button
                             type="button"
                             onClick={() => remove(index)}
-                            disabled={fields.length <= 20}
+                            disabled={fields.length <= 2}
                             className="inline-flex items-center justify-center rounded-lg border border-red-200 p-2 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-red-900/40 dark:text-red-400 dark:hover:bg-red-950/40"
                             aria-label={`행 ${index + 1} 삭제`}
                           >

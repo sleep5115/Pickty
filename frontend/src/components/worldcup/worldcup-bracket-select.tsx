@@ -31,7 +31,7 @@ export function WorldCupBracketSelect({ templateTitle, totalItems, onSelectBrack
 
       {sizes.length === 0 ? (
         <p className="text-center text-sm text-rose-600 dark:text-rose-400">
-          16강 이상으로 플레이하려면 후보가 16명 이상이어야 해요.
+          플레이하려면 후보가 2명 이상이어야 해요.
         </p>
       ) : (
         <div className="flex w-full max-w-md flex-wrap items-center justify-center gap-3">
