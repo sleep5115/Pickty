@@ -62,7 +62,7 @@ export function TemplateCard({
   return (
     <li className="flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
       <Link
-        href={`/tier?templateId=${encodeURIComponent(id)}`}
+        href={`/tier/templates/${encodeURIComponent(id)}`}
         className="group flex w-full flex-col transition-colors"
       >
         <div

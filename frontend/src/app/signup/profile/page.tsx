@@ -180,7 +180,7 @@ export default function OnboardingProfilePage() {
 
       const autoSave = await runPersistedTierAutoSave(accessToken);
       if (autoSave.ok) {
-        router.replace(`/tier/result/${autoSave.resultId}`);
+        router.replace(`/tier/results/${autoSave.resultId}`);
         return;
       }
       if (autoSave.reason === 'error' && autoSave.message) {

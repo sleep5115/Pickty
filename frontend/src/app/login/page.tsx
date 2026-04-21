@@ -100,7 +100,7 @@ function LoginPageContent() {
           try {
             const nav = await resolvePostOAuthTierFlow(token, searchParams.get('returnTo'));
             if (nav.kind === 'tier_result') {
-              router.replace(`/tier/result/${nav.resultId}`);
+              router.replace(`/tier/results/${nav.resultId}`);
             } else if (nav.kind === 'signup_profile') {
               router.replace('/signup/profile');
             } else {

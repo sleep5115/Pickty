@@ -2,26 +2,42 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { MoreVertical, Pencil, Trash2, Trophy } from 'lucide-react';
+import { MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import type { ReactionType } from '@/lib/api/interaction-api';
+import { TierItemTileImages } from '@/components/tier/tier-item-tile-images';
+import { TemplateLikeButton } from '@/components/interaction/template-like-button';
+import { ViewCountInline } from '@/components/interaction/view-count-inline';
 import type { WorldCupTemplateSummaryDto } from '@/lib/worldcup/worldcup-template-api';
 
 export function WorldCupTemplateHubCard({
   row,
   currentUserId,
+  isAdmin,
   accessToken,
   onEdit,
   onDelete,
+  onLikeCountChange,
+  onMyReactionResolved,
 }: {
   row: WorldCupTemplateSummaryDto;
   currentUserId: number | null;
+  isAdmin: boolean;
   accessToken: string | null;
   onEdit: (t: WorldCupTemplateSummaryDto) => void;
   onDelete: (t: WorldCupTemplateSummaryDto) => void;
+  onLikeCountChange: (templateId: string, likeCount: number) => void;
+  onMyReactionResolved?: (templateId: string, reaction: ReactionType | null) => void;
 }) {
   const { id, title, description, thumbnailUrl, creatorId } = row;
+  const itemCount = row.itemCount ?? 0;
   const descTrimmed = description?.trim() ? description.trim() : null;
-  const isOwner = currentUserId != null && creatorId != null && currentUserId === creatorId;
-  const showMenu = Boolean(accessToken && isOwner);
+  const itemLine = `아이템 ${itemCount}개`;
+  const hasThumb = Boolean(thumbnailUrl);
+  const isOwner =
+    currentUserId != null && creatorId != null && currentUserId === creatorId;
+  const showEdit = Boolean(accessToken && (isOwner || isAdmin));
+  const showDelete = Boolean(accessToken && (isOwner || isAdmin));
+  const showMenu = Boolean(accessToken && (showEdit || showDelete));
 
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -45,90 +61,120 @@ export function WorldCupTemplateHubCard({
   }, [menuOpen]);
 
   return (
-    <li className="relative">
-      {showMenu ? (
-        <div className="absolute right-3 top-3 z-20" ref={menuRef}>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setMenuOpen((v) => !v);
-            }}
-            aria-expanded={menuOpen}
-            aria-haspopup="menu"
-            aria-label="더 보기"
-            className={[
-              'inline-flex h-9 w-9 items-center justify-center rounded-lg border bg-white/95 shadow-sm backdrop-blur-sm transition-colors dark:bg-zinc-900/95',
-              menuOpen
-                ? 'border-violet-400 text-slate-900 dark:border-violet-600 dark:text-zinc-100'
-                : 'border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-zinc-600 dark:text-zinc-400 dark:hover:bg-zinc-800',
-            ].join(' ')}
-          >
-            <MoreVertical className="h-4 w-4" strokeWidth={2} aria-hidden />
-          </button>
-          {menuOpen && (
-            <div
-              role="menu"
-              className="absolute right-0 top-full z-[100] mt-1 min-w-[9.5rem] rounded-xl border border-slate-200 bg-white py-1 shadow-lg shadow-black/10 dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-black/40"
-            >
-              <button
-                type="button"
-                role="menuitem"
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                onClick={() => {
-                  setMenuOpen(false);
-                  onEdit(row);
-                }}
-              >
-                <Pencil className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
-                수정
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
-                onClick={() => {
-                  setMenuOpen(false);
-                  onDelete(row);
-                }}
-              >
-                <Trash2 className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
-                삭제
-              </button>
-            </div>
-          )}
-        </div>
-      ) : null}
-
+    <li className="flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
       <Link
-        href={`/worldcup/${id}`}
-        className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm ring-1 ring-slate-200/80 transition hover:border-violet-300 hover:shadow-md hover:ring-violet-200/60 dark:border-zinc-700 dark:bg-zinc-900 dark:ring-white/5 dark:hover:border-violet-600/50 dark:hover:ring-violet-500/20"
+        href={`/worldcup/templates/${encodeURIComponent(id)}`}
+        className="group flex w-full flex-col transition-colors"
       >
-        <div className="aspect-[16/10] w-full overflow-hidden bg-slate-100 dark:bg-zinc-800">
-          {thumbnailUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element -- API 썸네일 URL
-            <img
-              src={thumbnailUrl}
-              alt=""
-              className="h-full w-full object-cover transition group-hover:opacity-95"
-            />
+        <div
+          className="relative aspect-[8/5] w-full shrink-0 overflow-hidden rounded-t-xl border-b border-slate-100 bg-linear-to-br from-slate-200 to-slate-100 dark:border-zinc-800 dark:from-zinc-800 dark:to-zinc-900"
+        >
+          {hasThumb ? (
+            <div className="absolute inset-0 min-h-0 w-full">
+              <TierItemTileImages imageUrl={thumbnailUrl!} alt={`${title} 썸네일`} />
+            </div>
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-slate-400 dark:text-zinc-600">
-              <Trophy className="size-10 opacity-40" aria-hidden />
+            <div className="flex h-full min-h-0 w-full items-center justify-center">
+              <span
+                className="select-none text-4xl opacity-40 transition-opacity group-hover:opacity-60"
+                aria-hidden
+              >
+                ◆
+              </span>
             </div>
           )}
         </div>
-        <div className="flex flex-1 flex-col gap-1 p-4">
-          <span className="font-semibold text-slate-900 line-clamp-2 dark:text-zinc-100">{title}</span>
-          {descTrimmed ? (
-            <span className="text-xs text-slate-500 line-clamp-2 dark:text-zinc-500">{descTrimmed}</span>
-          ) : null}
-          <span className="mt-2 text-xs font-medium text-violet-600 dark:text-violet-400">
-            플레이하기 →
+        <div className="min-w-0 px-3 py-2.5">
+          <span className="line-clamp-1 min-w-0 font-semibold text-slate-900 transition-colors group-hover:text-violet-700 dark:text-zinc-100 dark:group-hover:text-violet-300">
+            {title}
           </span>
+          <div className="mt-1 min-h-[calc(2*0.875rem*1.375)] text-sm leading-snug">
+            <p
+              className={
+                descTrimmed
+                  ? 'line-clamp-2 text-slate-600 dark:text-zinc-400'
+                  : 'line-clamp-2 text-slate-500 dark:text-zinc-500'
+              }
+            >
+              {descTrimmed ?? '설명 없음'}
+            </p>
+          </div>
         </div>
       </Link>
+      <div className="flex h-11 shrink-0 items-center justify-between gap-2 rounded-b-xl border-t border-slate-100 px-3 dark:border-zinc-800/80">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <TemplateLikeButton
+            appearance="plain"
+            interactionTargetType="WORLDCUP_TEMPLATE"
+            templateId={id}
+            initialLikeCount={row.likeCount ?? 0}
+            initialMyReaction={row.myReaction ?? null}
+            onMyReactionResolved={(reaction) => {
+              onMyReactionResolved?.(id, reaction);
+            }}
+            onLikeCountChange={(n) => onLikeCountChange(id, n)}
+            className="shrink-0"
+          />
+          <ViewCountInline count={row.viewCount ?? 0} />
+          <span className="min-w-0 truncate text-xs leading-none text-slate-500 dark:text-zinc-500">
+            {itemLine}
+          </span>
+        </div>
+        {showMenu ? (
+          <div className="relative flex shrink-0 items-center justify-center" ref={menuRef}>
+            <button
+              type="button"
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-expanded={menuOpen}
+              aria-haspopup="menu"
+              aria-label="더 보기"
+              className={[
+                'inline-flex h-8 w-8 items-center justify-center rounded-lg border transition-colors',
+                menuOpen
+                  ? 'border-violet-400 bg-violet-50 text-slate-900 dark:border-violet-600 dark:bg-violet-950/40 dark:text-zinc-100'
+                  : 'border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800',
+              ].join(' ')}
+            >
+              <MoreVertical className="h-4 w-4" strokeWidth={2} aria-hidden />
+            </button>
+            {menuOpen && (
+              <div
+                role="menu"
+                className="absolute right-0 top-full z-[100] mt-1 min-w-[9.5rem] rounded-xl border border-slate-200 bg-white py-1 shadow-lg shadow-black/10 dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-black/40"
+              >
+                {showEdit && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onEdit(row);
+                    }}
+                  >
+                    <Pencil className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
+                    수정
+                  </button>
+                )}
+                {showDelete && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onDelete(row);
+                    }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
+                    삭제
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        ) : null}
+      </div>
     </li>
   );
 }

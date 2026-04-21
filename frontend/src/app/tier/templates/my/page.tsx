@@ -35,7 +35,7 @@ export default function MyTemplatesPage() {
       const msg = e instanceof Error ? e.message : '목록을 불러오지 못했습니다.';
       if (msg.includes('401')) {
         clearAuth();
-        router.replace('/login?returnTo=/tier/templates/mine');
+        router.replace('/login?returnTo=/tier/templates/my');
         return;
       }
       setError(msg);
@@ -48,7 +48,7 @@ export default function MyTemplatesPage() {
     if (!hydrated) return;
     if (!accessToken) {
       setLoading(false);
-      router.replace('/login?returnTo=/tier/templates/mine');
+      router.replace('/login?returnTo=/tier/templates/my');
       return;
     }
     void load();
@@ -99,7 +99,7 @@ export default function MyTemplatesPage() {
           </p>
         </div>
         <Link
-          href="/tier/template/new"
+          href="/tier/templates/new"
           className="inline-flex shrink-0 items-center justify-center rounded-xl bg-violet-600 px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-violet-500/25 transition-colors hover:bg-violet-500 dark:bg-violet-600 dark:shadow-violet-900/30 dark:hover:bg-violet-500"
         >
           새 템플릿 만들기
@@ -115,7 +115,7 @@ export default function MyTemplatesPage() {
         </Link>
         <span className="text-slate-300 dark:text-zinc-700">|</span>
         <Link
-          href="/tier/my"
+          href="/tier/results/my"
           className="font-medium text-violet-600 hover:underline dark:text-violet-400"
         >
           내 티어표
@@ -157,7 +157,7 @@ export default function MyTemplatesPage() {
               아직 만든 템플릿이 없어요. <strong>새 템플릿 만들기</strong>로 첫 템플릿을 만들어 보세요.
             </p>
             <Link
-              href="/tier/template/new"
+              href="/tier/templates/new"
               className="mt-4 inline-flex text-sm font-semibold text-violet-600 hover:underline dark:text-violet-400"
             >
               새 템플릿 만들기 →

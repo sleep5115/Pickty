@@ -46,7 +46,7 @@ function CallbackHandler() {
           setAccessToken(accessToken);
           const nav = await resolvePostOAuthTierFlow(accessToken, null);
           if (nav.kind === 'tier_result') {
-            window.location.href = `/tier/result/${nav.resultId}`;
+            window.location.href = `/tier/results/${nav.resultId}`;
           } else if (nav.kind === 'signup_profile') {
             window.location.href = '/signup/profile';
           } else {

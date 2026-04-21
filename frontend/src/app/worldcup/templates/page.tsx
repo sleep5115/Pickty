@@ -4,33 +4,43 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { TemplateCard } from '@/components/template/template-card';
-import { TemplateEditMetaModal } from '@/components/template/template-edit-meta-modal';
 import { apiFetch } from '@/lib/api-fetch';
+import {
+  fetchWorldCupTemplateList,
+  type WorldCupTemplateSummaryDto,
+} from '@/lib/worldcup/worldcup-template-api';
+import { WorldCupDeleteConfirmDialog } from '@/components/worldcup/worldcup-delete-confirm-dialog';
+import { WorldCupEditMetaModal } from '@/components/worldcup/worldcup-edit-meta-modal';
+import { WorldCupTemplateHubCard } from '@/components/worldcup/worldcup-template-hub-card';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useAuthPersistHydrated } from '@/lib/hooks/use-auth-persist-hydrated';
-import { listTemplates, type TemplateSummaryResponse } from '@/lib/tier-api';
-import { TemplateDeleteConfirmDialog } from '@/components/template/template-delete-confirm-dialog';
 
-export default function TemplatesPage() {
+export default function WorldcupDashboard() {
   const router = useRouter();
   const hydrated = useAuthPersistHydrated();
   const accessToken = useAuthStore((s) => s.accessToken);
-  const [rows, setRows] = useState<TemplateSummaryResponse[]>([]);
+
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<WorldCupTemplateSummaryDto[]>([]);
   const [me, setMe] = useState<{ id: number; role: string } | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<TemplateSummaryResponse | null>(null);
-  const [editMetaTarget, setEditMetaTarget] = useState<TemplateSummaryResponse | null>(null);
+
+  const [editTarget, setEditTarget] = useState<WorldCupTemplateSummaryDto | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<WorldCupTemplateSummaryDto | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
-    setError(null);
+    setErrorMessage(null);
     try {
-      const data = await listTemplates(accessToken ?? null);
-      setRows(data);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '목록을 불러오지 못했습니다.');
+      const res = await fetchWorldCupTemplateList(accessToken ?? null);
+      if (!res.ok) {
+        setErrorMessage(`목록을 불러오지 못했습니다. (${res.status})`);
+        return;
+      }
+      const data = (await res.json()) as WorldCupTemplateSummaryDto[];
+      setTemplates(Array.isArray(data) ? data : []);
+    } catch {
+      setErrorMessage('네트워크 오류가 발생했습니다.');
     } finally {
       setLoading(false);
     }
@@ -72,23 +82,26 @@ export default function TemplatesPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">
-            티어 템플릿
+            이상형 월드컵 템플릿
           </h1>
           <p className="mt-1 text-sm text-slate-600 dark:text-zinc-400">
-            템플릿을 고르면 바로 티어표를 만들어 볼 수 있어요.
+            템플릿을 고르면 바로 대진이 시작됩니다. 링크로 공유해 친구와 같이 즐길 수 있어요.
           </p>
         </div>
         <Link
-          href={accessToken ? '/tier/templates/new' : '/login?returnTo=/tier/templates/new'}
+          href={accessToken ? '/worldcup/templates/new' : '/login?returnTo=/worldcup/templates/new'}
           className="inline-flex shrink-0 items-center justify-center rounded-xl bg-violet-600 px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-violet-500/25 transition-colors hover:bg-violet-500 dark:bg-violet-600 dark:shadow-violet-900/30 dark:hover:bg-violet-500"
         >
           새 템플릿 만들기
         </Link>
       </div>
 
-      <section aria-labelledby="templates-real-heading">
+      <section aria-labelledby="worldcup-templates-heading">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 id="templates-real-heading" className="text-sm font-semibold text-slate-800 dark:text-zinc-200">
+          <h2
+            id="worldcup-templates-heading"
+            className="text-sm font-semibold text-slate-800 dark:text-zinc-200"
+          >
             등록된 템플릿
           </h2>
           <button
@@ -107,50 +120,50 @@ export default function TemplatesPage() {
           </div>
         )}
 
-        {!loading && error && (
+        {!loading && errorMessage && (
           <div
             role="alert"
             className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200"
           >
-            {error}
+            {errorMessage}
           </div>
         )}
 
-        {!loading && !error && rows.length === 0 && (
+        {!loading && !errorMessage && templates.length === 0 && (
           <p className="py-6 text-sm text-slate-600 dark:text-zinc-400">
-            아직 등록된 템플릿이 없습니다. 상단의 <strong>새 템플릿 만들기</strong>로 첫 티어표를 만들어 보세요.
+            아직 등록된 템플릿이 없습니다. 상단의 <strong>새 템플릿 만들기</strong>로 첫 월드컵을 만들어 보세요.
           </p>
         )}
 
-        {!loading && !error && rows.length > 0 && (
+        {!loading && !errorMessage && templates.length > 0 && (
           <ul className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-            {rows.map((t) => (
-              <TemplateCard
+            {templates.map((t) => (
+              <WorldCupTemplateHubCard
                 key={t.id}
                 row={t}
                 currentUserId={me?.id ?? null}
                 isAdmin={me?.role === 'ADMIN'}
                 accessToken={accessToken}
                 onMyReactionResolved={(templateId, reaction) => {
-                  setRows((prev) =>
+                  setTemplates((prev) =>
                     prev.map((r) => (r.id === templateId ? { ...r, myReaction: reaction } : r)),
                   );
                 }}
                 onLikeCountChange={(templateId, likeCount) => {
-                  setRows((prev) =>
+                  setTemplates((prev) =>
                     prev.map((r) => (r.id === templateId ? { ...r, likeCount } : r)),
                   );
                 }}
                 onEdit={(target) => {
                   if (!accessToken) {
-                    router.push('/login?returnTo=/tier/templates');
+                    router.push('/login?returnTo=/worldcup/templates');
                     return;
                   }
-                  setEditMetaTarget(target);
+                  setEditTarget(target);
                 }}
                 onDelete={(target) => {
                   if (!accessToken) {
-                    router.push('/login?returnTo=/tier/templates');
+                    router.push('/login?returnTo=/worldcup/templates');
                     return;
                   }
                   setDeleteTarget(target);
@@ -161,39 +174,45 @@ export default function TemplatesPage() {
         )}
       </section>
 
-      {accessToken && editMetaTarget && (
-        <TemplateEditMetaModal
-          open
-          onClose={() => setEditMetaTarget(null)}
-          templateId={editMetaTarget.id}
+      {accessToken && editTarget ? (
+        <WorldCupEditMetaModal
+          open={!!editTarget}
+          onClose={() => setEditTarget(null)}
+          templateId={editTarget.id}
           accessToken={accessToken}
-          initialTitle={editMetaTarget.title}
-          initialDescription={editMetaTarget.description ?? ''}
+          initialTitle={editTarget.title}
+          initialDescription={editTarget.description ?? ''}
           onSaved={(u) => {
-            setRows((prev) =>
+            setTemplates((prev) =>
               prev.map((r) =>
                 r.id === u.id
-                  ? { ...r, title: u.title, description: u.description, version: u.version }
+                  ? {
+                      ...r,
+                      title: u.title,
+                      description: u.description,
+                      version: u.version,
+                    }
                   : r,
               ),
             );
             toast.success('저장했어요.');
           }}
         />
-      )}
+      ) : null}
 
-      {accessToken && deleteTarget && (
-        <TemplateDeleteConfirmDialog
-          open
+      {accessToken && deleteTarget ? (
+        <WorldCupDeleteConfirmDialog
+          open={!!deleteTarget}
           onClose={() => setDeleteTarget(null)}
           templateId={deleteTarget.id}
           accessToken={accessToken}
           onDeleted={() => {
-            void load();
+            setTemplates((prev) => prev.filter((r) => r.id !== deleteTarget.id));
+            setDeleteTarget(null);
             toast.success('삭제했어요.');
           }}
         />
-      )}
+      ) : null}
     </div>
   );
 }

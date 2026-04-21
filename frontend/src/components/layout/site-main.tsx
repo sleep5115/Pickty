@@ -7,12 +7,15 @@ const centeredMainClass =
   'mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col px-4 sm:px-6 md:px-8';
 
 /**
- * `/worldcup/*` 만 풀 너비 — 그 외 페이지는 울트라와이드에서 `max-w-[1600px]` 로 읽기 폭 제한.
+ * 월드컵 **플레이**(`/worldcup/templates/{id}`)만 풀 너비.
+ * 허브·만들기(`/worldcup/templates`, `/worldcup/templates/new`)는 티어 도메인과 동일하게
+ * `max-w-[1600px]` + 좌우 패딩(`px-4 sm:px-6 md:px-8`).
  */
 export function SiteMain({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const worldcupFullBleed =
-    pathname === '/worldcup' || pathname.startsWith('/worldcup/');
+  const worldcupCenteredShell =
+    pathname === '/worldcup/templates' || pathname === '/worldcup/templates/new';
+  const worldcupFullBleed = pathname.startsWith('/worldcup') && !worldcupCenteredShell;
 
   if (worldcupFullBleed) {
     return (

@@ -35,7 +35,7 @@ export default function MyTierResultsPage() {
       const msg = e instanceof Error ? e.message : '불러오기 실패';
       if (msg.includes('401')) {
         clearAuth();
-        router.replace('/login?returnTo=/tier/my');
+        router.replace('/login?returnTo=/tier/results/my');
         return;
       }
       setError(msg);
@@ -75,7 +75,7 @@ export default function MyTierResultsPage() {
     if (!hydrated) return;
     if (!accessToken) {
       setLoading(false);
-      router.replace('/login?returnTo=/tier/my');
+      router.replace('/login?returnTo=/tier/results/my');
       return;
     }
     void load();
@@ -90,7 +90,7 @@ export default function MyTierResultsPage() {
   }
 
   return (
-    <div className="w-full py-8 px-1 sm:px-2 flex flex-col gap-6">
+    <div className="flex w-full flex-col gap-6 py-8">
       <div className="w-full">
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">내 티어표</h1>
         <p className="mt-1 text-sm text-slate-600 dark:text-zinc-400">
@@ -107,7 +107,7 @@ export default function MyTierResultsPage() {
         </Link>
         <span className="text-slate-300 dark:text-zinc-700">|</span>
         <Link
-          href="/tier/feed"
+          href="/tier/results"
           className="text-sm font-medium text-violet-600 dark:text-violet-400 hover:underline"
         >
           티어표
@@ -122,8 +122,6 @@ export default function MyTierResultsPage() {
           새로고침
         </button>
       </div>
-
-      <div className="w-full max-w-5xl mx-auto flex flex-col gap-6">
 
       {loading && (
         <div className="flex justify-center py-16">
@@ -155,7 +153,7 @@ export default function MyTierResultsPage() {
       )}
 
       {!loading && !error && rows.length > 0 && (
-        <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <ul className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
           {rows.map((r) => (
             <TierResultCard
               key={r.id}
@@ -196,7 +194,6 @@ export default function MyTierResultsPage() {
           }}
         />
       )}
-      </div>
     </div>
   );
 }

@@ -23,7 +23,7 @@ export default function Home() {
         {/*
         후순위 미구현: 이상형 월드컵
         <Link
-          href="/worldcup"
+          href="/worldcup/templates"
           className="px-8 py-3.5 rounded-2xl font-semibold text-slate-700 dark:text-zinc-100 border border-slate-300 dark:border-zinc-700 hover:border-fuchsia-400 dark:hover:border-fuchsia-500 hover:text-fuchsia-600 dark:hover:text-fuchsia-300 bg-white dark:bg-zinc-900 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all duration-200 hover:scale-105"
         >
           월드컵 시작하기

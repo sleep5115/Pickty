@@ -90,7 +90,7 @@ interface TierBoardProps {
   pointerModeReady?: boolean;
   /** 저장·다운로드 버튼 왼쪽에 붙는 슬롯 (예: 템플릿 좋아요) */
   templateLikeSlot?: ReactNode;
-  /** `/tier/template/new` 하단 — 저장·보내기 없이 풀·DnD만 */
+  /** `/tier/templates/new` 하단 — 저장·보내기 없이 풀·DnD만 */
   variant?: 'full' | 'template-preview';
   /** false: `/tier` — 티어 설정에서 라벨 이미지 업로드 비노출 */
   allowLabelImageUpload?: boolean;
@@ -558,8 +558,8 @@ export function TierBoard({
               <Link
                 href={
                   accessToken
-                    ? `/tier/template/new?forkTemplateId=${encodeURIComponent(templateId)}`
-                    : `/login?returnTo=${encodeURIComponent(`/tier/template/new?forkTemplateId=${templateId}`)}`
+                    ? `/tier/templates/new?forkTemplateId=${encodeURIComponent(templateId)}`
+                    : `/login?returnTo=${encodeURIComponent(`/tier/templates/new?forkTemplateId=${templateId}`)}`
                 }
                 onClick={(e) => e.stopPropagation()}
                 className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-lg border border-violet-400/70 bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-900 shadow-sm transition-colors hover:bg-violet-100 dark:border-violet-700 dark:bg-violet-950/45 dark:text-violet-100 dark:hover:bg-violet-950/75"

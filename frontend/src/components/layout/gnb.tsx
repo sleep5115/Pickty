@@ -15,15 +15,13 @@ const NAV_LINKS = [
     label: '티어 만들기',
     Icon: LayoutGrid,
     isActive: (p: string) =>
-      p.startsWith('/tier/templates') ||
-      p === '/tier/template' ||
-      p.startsWith('/tier/template/'),
+      p.startsWith('/tier/templates') || p === '/tier' || p.startsWith('/tier?'),
   },
   {
-    href: '/tier/feed',
+    href: '/tier/results',
     label: '티어 피드',
     Icon: List,
-    isActive: (p: string) => p.startsWith('/tier/feed'),
+    isActive: (p: string) => p.startsWith('/tier/results'),
   },
   {
     href: '/community',
@@ -32,7 +30,7 @@ const NAV_LINKS = [
     isActive: (p: string) => p.startsWith('/community'),
   },
   {
-    href: '/worldcup',
+    href: '/worldcup/templates',
     label: '월드컵',
     Icon: Trophy,
     isActive: (p: string) => p.startsWith('/worldcup'),
@@ -169,7 +167,7 @@ export function GNB() {
                     내 계정
                   </Link>
                   <Link
-                    href="/tier/my"
+                    href="/tier/results/my"
                     role="menuitem"
                     onClick={() => setAccountOpen(false)}
                     className={accountLinkClass}
@@ -177,7 +175,7 @@ export function GNB() {
                     내 티어표
                   </Link>
                   <Link
-                    href="/tier/templates/mine"
+                    href="/tier/templates/my"
                     role="menuitem"
                     onClick={() => setAccountOpen(false)}
                     className={accountLinkClass}
@@ -272,14 +270,14 @@ export function GNB() {
                       내 계정
                     </Link>
                     <Link
-                      href="/tier/my"
+                      href="/tier/results/my"
                       onClick={() => setMenuOpen(false)}
                       className="rounded-lg px-3 py-2.5 text-sm text-slate-600 transition-colors hover:bg-slate-100 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
                     >
                       내 티어표
                     </Link>
                     <Link
-                      href="/tier/templates/mine"
+                      href="/tier/templates/my"
                       onClick={() => setMenuOpen(false)}
                       className="rounded-lg px-3 py-2.5 text-sm text-slate-600 transition-colors hover:bg-slate-100 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
                     >

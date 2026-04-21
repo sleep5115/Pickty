@@ -1,5 +1,7 @@
 package com.pickty.server.domain.worldcup.service
 
+import com.pickty.server.domain.interaction.enums.ReactionTargetType
+import com.pickty.server.domain.interaction.service.MyReactionService
 import com.pickty.server.domain.tier.dto.TemplateItemPayload
 import com.pickty.server.domain.tier.enums.TemplateStatus
 import com.pickty.server.domain.worldcup.dto.CreateWorldCupTemplateRequest
@@ -19,12 +21,32 @@ import java.util.UUID
 @Service
 class WorldCupTemplateService(
     private val worldCupTemplateRepository: WorldCupTemplateRepository,
+    private val myReactionService: MyReactionService,
 ) {
 
-    fun listSummaries(): List<WorldCupTemplateSummaryResponse> {
+    fun listSummaries(viewerUserId: Long?): List<WorldCupTemplateSummaryResponse> {
         val rows =
             worldCupTemplateRepository.findAllByTemplateStatusOrderByCreatedAtDesc(TemplateStatus.ACTIVE)
-        return rows.map { it.toSummary() }
+        val ids = rows.mapNotNull { it.id }
+        val reactions =
+            myReactionService.mapByTargetIds(ReactionTargetType.WORLDCUP_TEMPLATE, ids, viewerUserId)
+        return rows.map { e ->
+            val id = e.id ?: throw IllegalStateException("worldcup template id missing")
+            WorldCupTemplateSummaryResponse(
+                id = id,
+                title = e.title,
+                version = e.version,
+                description = e.description?.trim()?.takeIf { it.isNotEmpty() },
+                thumbnailUrl = normalizeThumbnailUrl(e.thumbnailUrl),
+                creatorId = e.creatorId,
+                layoutMode = e.layoutMode,
+                itemCount = countItemsInPayload(e.items),
+                likeCount = e.likeCount,
+                commentCount = e.commentCount,
+                viewCount = e.viewCount,
+                myReaction = reactions[id],
+            )
+        }
     }
 
     @Transactional(readOnly = true)
@@ -73,6 +95,7 @@ class WorldCupTemplateService(
         id: UUID,
         request: UpdateWorldCupTemplateMetaRequest,
         userId: Long,
+        isAdmin: Boolean,
     ): PatchWorldCupTemplateMetaResponse {
         val entity =
             worldCupTemplateRepository.findById(id).orElse(null)
@@ -81,8 +104,8 @@ class WorldCupTemplateService(
             throw ResponseStatusException(HttpStatus.GONE, "삭제된 템플릿은 수정할 수 없습니다.")
         }
         val ownerId = entity.creatorId
-        val isOwner = ownerId != null && ownerId == userId
-        if (!isOwner) {
+        val allowed = isAdmin || (ownerId != null && ownerId == userId)
+        if (!allowed) {
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "not owner")
         }
         entity.applyMeta(request.title.trim(), request.description?.trim()?.takeIf { it.isNotEmpty() })
@@ -139,20 +162,9 @@ class WorldCupTemplateService(
     private fun normalizeThumbnailUrl(raw: String?): String? =
         raw?.trim()?.takeIf { it.isNotEmpty() }
 
-    private fun WorldCupTemplate.toSummary(): WorldCupTemplateSummaryResponse {
-        val tid = id ?: throw IllegalStateException("worldcup template id missing")
-        return WorldCupTemplateSummaryResponse(
-            id = tid,
-            title = title,
-            version = version,
-            description = description?.trim()?.takeIf { it.isNotEmpty() },
-            thumbnailUrl = normalizeThumbnailUrl(thumbnailUrl),
-            creatorId = creatorId,
-            layoutMode = layoutMode,
-            likeCount = likeCount,
-            commentCount = commentCount,
-            viewCount = viewCount,
-        )
+    private fun countItemsInPayload(items: Map<String, Any?>): Int {
+        val raw = items["items"] ?: return 0
+        return if (raw is List<*>) raw.size else 0
     }
 
     private fun WorldCupTemplate.toDetail(): WorldCupTemplateDetailResponse {

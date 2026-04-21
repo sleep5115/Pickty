@@ -1,3 +1,4 @@
+import type { ReactionType } from '@/lib/api/interaction-api';
 import { apiFetch } from '@/lib/api-fetch';
 
 function authHeaders(token: string | null): HeadersInit {
@@ -14,13 +15,17 @@ export interface WorldCupTemplateSummaryDto {
   thumbnailUrl: string | null;
   creatorId: number | null;
   layoutMode: string;
+  itemCount: number;
   likeCount: number;
   commentCount: number;
   viewCount: number;
+  myReaction?: ReactionType | null;
 }
 
-export function fetchWorldCupTemplateList() {
-  return apiFetch('/api/v1/worldcup/templates');
+export function fetchWorldCupTemplateList(accessToken: string | null = null) {
+  return apiFetch('/api/v1/worldcup/templates', {
+    headers: { ...authHeaders(accessToken) },
+  });
 }
 
 /** `GET /api/v1/worldcup/templates/{id}` 응답 */

@@ -376,13 +376,13 @@ export default function WorldCupTemplateNewPage() {
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <button
                 type="button"
-                onClick={() => router.push(`/worldcup/${encodeURIComponent(savedInfo.id)}`)}
+                onClick={() => router.push(`/worldcup/templates/${encodeURIComponent(savedInfo.id)}`)}
                 className="inline-flex items-center justify-center rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-500"
               >
                 바로 플레이하기
               </button>
               <Link
-                href="/worldcup"
+                href="/worldcup/templates"
                 className="inline-flex items-center justify-center rounded-lg border border-slate-300 px-5 py-2.5 text-center text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
               >
                 월드컵 목록
@@ -421,7 +421,7 @@ export default function WorldCupTemplateNewPage() {
       <div className="mx-auto w-full max-w-5xl">
         <div className="mb-10">
           <Link
-            href="/worldcup"
+            href="/worldcup/templates"
             className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-violet-600 dark:text-zinc-400 dark:hover:text-violet-400"
           >
             <ArrowLeft className="size-4 shrink-0" aria-hidden />
@@ -440,7 +440,7 @@ export default function WorldCupTemplateNewPage() {
           <div className="mb-8 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100">
             로그인 후 저장할 수 있습니다.{' '}
             <Link
-              href="/login?returnTo=/worldcup/new"
+              href="/login?returnTo=/worldcup/templates/new"
               className="font-semibold underline underline-offset-2 hover:text-amber-950 dark:hover:text-amber-50"
             >
               로그인하기
@@ -692,7 +692,7 @@ export default function WorldCupTemplateNewPage() {
                 )}
               </button>
               <Link
-                href="/worldcup"
+                href="/worldcup/templates"
                 className="text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-100"
               >
                 취소

@@ -115,7 +115,7 @@ export default function TierFeedPage() {
           <>
             <span className="text-slate-300 dark:text-zinc-700">|</span>
             <Link
-              href="/tier/my"
+              href="/tier/results/my"
               className="text-sm font-medium text-violet-600 dark:text-violet-400 hover:underline"
             >
               내 티어표

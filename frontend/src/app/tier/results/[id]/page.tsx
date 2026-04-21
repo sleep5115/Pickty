@@ -25,7 +25,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await resolveParams(params);
   const canonicalBase = siteOrigin();
-  const pagePath = `/tier/result/${encodeURIComponent(id)}`;
+  const pagePath = `/tier/results/${encodeURIComponent(id)}`;
   const canonicalUrl = `${canonicalBase}${pagePath}`;
 
   const og = await fetchTierResultForOpenGraph(id);

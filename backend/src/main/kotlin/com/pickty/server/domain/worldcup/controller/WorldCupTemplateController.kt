@@ -8,6 +8,7 @@ import com.pickty.server.domain.worldcup.dto.WorldCupTemplateDetailResponse
 import com.pickty.server.domain.worldcup.dto.WorldCupTemplateSummaryResponse
 import com.pickty.server.domain.worldcup.service.WorldCupTemplateService
 import com.pickty.server.global.security.isAdmin
+import com.pickty.server.global.security.resolveUserId
 import com.pickty.server.global.security.resolveUserIdOrThrow
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
@@ -30,8 +31,8 @@ class WorldCupTemplateController(
 ) {
 
     @GetMapping
-    fun list(): List<WorldCupTemplateSummaryResponse> =
-        worldCupTemplateService.listSummaries()
+    fun list(authentication: Authentication?): List<WorldCupTemplateSummaryResponse> =
+        worldCupTemplateService.listSummaries(resolveUserId(authentication))
 
     @GetMapping("/{id}")
     fun getById(@PathVariable id: UUID): WorldCupTemplateDetailResponse =
@@ -54,7 +55,7 @@ class WorldCupTemplateController(
         authentication: Authentication?,
     ): ResponseEntity<PatchWorldCupTemplateMetaResponse> {
         val userId = resolveUserIdOrThrow(authentication)
-        val updated = worldCupTemplateService.patchMeta(id, body, userId)
+        val updated = worldCupTemplateService.patchMeta(id, body, userId, isAdmin(authentication))
         return ResponseEntity.ok(updated)
     }
 

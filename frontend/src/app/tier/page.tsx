@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 import { TierPageClient } from './tier-page-client';
 import { fetchTemplateForOpenGraph } from '@/lib/template-opengraph';
 import { PUBLIC_SITE_URL } from '@/lib/public-site-config';
@@ -11,11 +12,22 @@ function siteOrigin(): string {
 
 type SearchParamsInput = Promise<Record<string, string | string[] | undefined>>;
 
-function pickTemplateId(sp: Record<string, string | string[] | undefined>): string | undefined {
-  const raw = sp.templateId;
+function pickString(
+  sp: Record<string, string | string[] | undefined>,
+  key: string,
+): string | undefined {
+  const raw = sp[key];
   if (typeof raw === 'string') return raw;
   if (Array.isArray(raw) && typeof raw[0] === 'string') return raw[0];
   return undefined;
+}
+
+function pickTemplateId(sp: Record<string, string | string[] | undefined>): string | undefined {
+  return pickString(sp, 'templateId');
+}
+
+function pickSourceResultId(sp: Record<string, string | string[] | undefined>): string | undefined {
+  return pickString(sp, 'sourceResultId');
 }
 
 export async function generateMetadata(props: { searchParams: SearchParamsInput }): Promise<Metadata> {
@@ -36,8 +48,8 @@ export async function generateMetadata(props: { searchParams: SearchParamsInput 
     };
   }
 
+  const pageUrl = `${canonicalBase}/tier/templates/${encodeURIComponent(templateId)}`;
   const og = await fetchTemplateForOpenGraph(templateId);
-  const pageUrl = `${canonicalBase}/tier?templateId=${encodeURIComponent(templateId)}`;
 
   if (!og) {
     return {
@@ -73,6 +85,16 @@ export async function generateMetadata(props: { searchParams: SearchParamsInput 
   };
 }
 
-export default function TierPage() {
+export default async function TierPage(props: { searchParams: SearchParamsInput }) {
+  const sp = await props.searchParams;
+  const tid = pickTemplateId(sp);
+  if (tid) {
+    const src = pickSourceResultId(sp);
+    const q =
+      src && src.length > 0
+        ? `?${new URLSearchParams({ sourceResultId: src }).toString()}`
+        : '';
+    redirect(`/tier/templates/${encodeURIComponent(tid)}${q}`);
+  }
   return <TierPageClient />;
 }

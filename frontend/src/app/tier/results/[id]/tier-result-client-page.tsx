@@ -140,7 +140,7 @@ export function TierResultClientPage() {
   const showOwnerMenu = Boolean(accessToken && (showEdit || showDelete));
   const remixHref =
     templateId != null
-      ? `/tier?templateId=${encodeURIComponent(templateId)}&sourceResultId=${encodeURIComponent(id)}`
+      ? `/tier/templates/${encodeURIComponent(templateId)}?sourceResultId=${encodeURIComponent(id)}`
       : null;
 
   useEffect(() => {
@@ -163,7 +163,7 @@ export function TierResultClientPage() {
 
   const copyShareLink = useCallback(async () => {
     if (typeof window === 'undefined' || !id) return;
-    const url = `${window.location.origin}/tier/result/${encodeURIComponent(id)}`;
+    const url = `${window.location.origin}/tier/results/${encodeURIComponent(id)}`;
     try {
       await navigator.clipboard.writeText(url);
       toast.success('공유 링크를 클립보드에 복사했어요.');
@@ -407,7 +407,7 @@ export function TierResultClientPage() {
               })
               .catch(() => {
                 toast.error('갱신에 실패했어요. 내 티어표에서 확인해 주세요.');
-                router.replace('/tier/my');
+                router.replace('/tier/results/my');
               });
           }}
         />

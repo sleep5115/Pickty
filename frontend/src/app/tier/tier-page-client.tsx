@@ -27,10 +27,13 @@ import {
 } from '@/lib/tier-api';
 import { parseSnapshotDataToBoard } from '@/lib/tier-snapshot';
 
-function TierPageInner() {
+function TierPageInner({ routeTemplateId }: { routeTemplateId?: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const templateIdParam = searchParams.get('templateId');
+  const trimmedRouteId = routeTemplateId?.trim();
+  const templateIdParam =
+    (trimmedRouteId && trimmedRouteId.length > 0 ? trimmedRouteId : null) ??
+    searchParams.get('templateId');
   const sourceResultIdParam = searchParams.get('sourceResultId');
   const loadTemplateWorkspace = useTierStore((s) => s.loadTemplateWorkspace);
   const hydrateFromResultSnapshot = useTierStore((s) => s.hydrateFromResultSnapshot);
@@ -63,7 +66,7 @@ function TierPageInner() {
 
   const copyTemplateShareLink = useCallback(async () => {
     if (!templateId || typeof window === 'undefined') return;
-    const url = `${window.location.origin}/tier?templateId=${encodeURIComponent(templateId)}`;
+    const url = `${window.location.origin}/tier/templates/${encodeURIComponent(templateId)}`;
     try {
       await navigator.clipboard.writeText(url);
       toast.success('클립보드에 복사했어요.');
@@ -491,7 +494,7 @@ function TierPageInner() {
   );
 }
 
-export function TierPageClient() {
+export function TierPageClient({ routeTemplateId }: { routeTemplateId?: string } = {}) {
   return (
     <Suspense
       fallback={
@@ -500,7 +503,7 @@ export function TierPageClient() {
         </div>
       }
     >
-      <TierPageInner />
+      <TierPageInner routeTemplateId={routeTemplateId} />
     </Suspense>
   );
 }

@@ -1,5 +1,6 @@
 package com.pickty.server.domain.worldcup.dto
 
+import com.pickty.server.domain.interaction.enums.ReactionType
 import com.pickty.server.domain.tier.dto.TemplateItemPayload
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
@@ -61,9 +62,12 @@ data class WorldCupTemplateSummaryResponse(
     val thumbnailUrl: String?,
     val creatorId: Long?,
     val layoutMode: String,
+    /** JSONB `items` 배열 길이 */
+    val itemCount: Int = 0,
     val likeCount: Long = 0,
     val commentCount: Long = 0,
     val viewCount: Long = 0,
+    val myReaction: ReactionType? = null,
 )
 
 /** 상세 — 아이템 JSONB 전체 */
