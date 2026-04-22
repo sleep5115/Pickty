@@ -47,6 +47,7 @@ export function WorldCupSessionClient({ templateId }: Props) {
     items: WorldCupItem[];
     layout: WorldCupLayoutMode;
     title: string;
+    likeCount: number;
   } | null>(null);
   const [templateTitle, setTemplateTitle] = useState('');
   const aliveRef = useRef(true);
@@ -80,7 +81,11 @@ export function WorldCupSessionClient({ templateId }: Props) {
 
     const layout = parseWorldCupLayoutMode(data.layoutMode);
     const title = typeof data.title === 'string' && data.title.trim() ? data.title.trim() : '이상형 월드컵';
-    sessionRef.current = { items, layout, title };
+    const likeCount =
+      typeof data.likeCount === 'number' && Number.isFinite(data.likeCount)
+        ? Math.max(0, Math.floor(data.likeCount))
+        : Math.max(0, Math.floor(Number(data.likeCount)) || 0);
+    sessionRef.current = { items, layout, title, likeCount };
     setTemplateTitle(title);
     reset();
     if (!aliveRef.current) return;
@@ -181,6 +186,8 @@ export function WorldCupSessionClient({ templateId }: Props) {
     return (
       <WorldCupResultClient
         templateId={templateId}
+        templateTitle={templateTitle || sessionRef.current?.title || '이상형 월드컵'}
+        initialTemplateLikeCount={sessionRef.current?.likeCount ?? 0}
         champion={champion}
         onRestart={handleRestart}
         onShowRanking={() => setShowRanking(true)}

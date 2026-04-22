@@ -2,12 +2,11 @@ package com.pickty.server.domain.worldcup.service
 
 import com.pickty.server.domain.tier.enums.TemplateStatus
 import com.pickty.server.domain.worldcup.dto.WorldCupItemStatPayload
+import com.pickty.server.domain.worldcup.dto.WorldCupRankingPageResponse
 import com.pickty.server.domain.worldcup.dto.WorldCupRankingRowResponse
 import com.pickty.server.domain.worldcup.dto.WorldCupResultSubmitRequest
 import com.pickty.server.domain.worldcup.repository.WorldCupItemStatRepository
 import com.pickty.server.domain.worldcup.repository.WorldCupTemplateRepository
-import org.springframework.data.domain.Page
-import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
 import org.springframework.http.HttpStatus
@@ -77,7 +76,7 @@ class WorldCupStatService(
     }
 
     @Transactional(readOnly = true)
-    fun ranking(templateId: UUID, pageable: Pageable): Page<WorldCupRankingRowResponse> {
+    fun ranking(templateId: UUID, pageable: Pageable): WorldCupRankingPageResponse {
         val tpl =
             worldCupTemplateRepository.findById(templateId).orElse(null)
                 ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "월드컵 템플릿을 찾을 수 없습니다.")
@@ -115,7 +114,17 @@ class WorldCupStatService(
                 )
             }
 
-        return PageImpl(content, fixedPageable, statPage.totalElements)
+        return WorldCupRankingPageResponse(
+            totalCompletedPlays = totalGames,
+            content = content,
+            totalElements = statPage.totalElements,
+            totalPages = statPage.totalPages,
+            size = statPage.size,
+            number = statPage.number,
+            first = statPage.isFirst,
+            last = statPage.isLast,
+            empty = statPage.isEmpty,
+        )
     }
 
     private fun coerceNonNegative(v: Long): Long = if (v < 0) 0 else v

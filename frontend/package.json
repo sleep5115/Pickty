@@ -15,6 +15,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^5.2.2",
     "@next/third-parties": "^16.2.0",
+    "@radix-ui/react-dialog": "^1.1.15",
     "@tiptap/extension-character-count": "^3.22.2",
     "@tiptap/extension-details": "^3.22.2",
     "@tiptap/extension-image": "^3.22.2",

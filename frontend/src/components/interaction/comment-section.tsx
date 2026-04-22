@@ -41,6 +41,8 @@ type Props = {
   targetId: string | null | undefined;
   currentUserId: number | null;
   className?: string;
+  /** false면 상단「댓글」제목 숨김 — 드로어 등 부모 헤더와 중복 방지 */
+  showHeading?: boolean;
   onCommentPosted?: () => void;
   /** 상세 API 등에서 내려온 첫 댓글 페이지가 있으면 초기 목록 GET 생략 */
   initialCommentPage?: CommentPage | null;
@@ -51,6 +53,7 @@ export function CommentSection({
   targetId,
   currentUserId,
   className = '',
+  showHeading = true,
   onCommentPosted,
   initialCommentPage = null,
 }: Props) {
@@ -261,9 +264,11 @@ export function CommentSection({
 
   return (
     <section className={['rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-zinc-800 dark:bg-zinc-950/50', className].join(' ')}>
-      <h3 className="text-sm font-semibold text-slate-900 dark:text-zinc-100">댓글</h3>
+      {showHeading ? (
+        <h3 className="text-sm font-semibold text-slate-900 dark:text-zinc-100">댓글</h3>
+      ) : null}
 
-      <div className="mt-3 space-y-2">
+      <div className={showHeading ? 'mt-3 space-y-2' : 'space-y-2'}>
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
