@@ -5,7 +5,7 @@
 *.bat text eol=crlf
 *.cmd text eol=crlf
 
-# 바이너리
+# Binary
 *.jar binary
 *.png binary
 *.jpg binary

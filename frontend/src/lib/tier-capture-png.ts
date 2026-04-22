@@ -29,7 +29,7 @@ function prepareTierBoardCloneForImageCapture(clone: HTMLElement): void {
 }
 
 /** 티어 라벨(S/A/B…)과 동일 계열 — `text-2xl font-black` */
-function appendPicktyWatermark(root: HTMLElement): void {
+export function appendPicktyWatermark(root: HTMLElement): void {
   const computed = window.getComputedStyle(root);
   if (computed.position === 'static') {
     root.style.position = 'relative';

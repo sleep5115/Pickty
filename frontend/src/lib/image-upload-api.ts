@@ -31,6 +31,32 @@ function webpUploadName(original: File): string {
   return `${base}.webp`;
 }
 
+const MIME_TO_EXT: Record<string, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+};
+
+/**
+ * `browser-image-compression` 등은 **File** + 유효한 `name` 이 있어야 안정적으로 동작한다.
+ * `Blob` 이거나 이름이 비어 있는 `File`이면 확장자·MIME 에 맞는 파일명을 붙인 `File` 로 감싼다.
+ */
+function coerceToNamedFileForUpload(input: File | Blob, index: number): File {
+  if (input instanceof File) {
+    const n = input.name?.trim();
+    if (n) return input;
+  }
+  const mimeRaw = input.type?.trim();
+  const mime = mimeRaw && mimeRaw.length > 0 ? mimeRaw : 'image/png';
+  const ext = MIME_TO_EXT[mime.toLowerCase()] ?? 'png';
+  return new File([input], `image-${index + 1}.${ext}`, {
+    type: mime,
+    lastModified: Date.now(),
+  });
+}
+
 /**
  * 원본 File → WebP 로 압축. 우선 Web Worker, 실패 시 메인 스레드로 재시도.
  * Next.js 등에서 worker 번들 URL 이 어긋나면 `ProgressEvent` 만 reject 되는 경우가 있어 폴백이 필요함.
@@ -63,21 +89,23 @@ async function compressPicktyImageForUpload(file: File): Promise<File> {
  * - 백엔드 `POST /api/v1/images`는 단일 `files` 파트(파일 1개)도 그대로 처리합니다.
  */
 export async function uploadPicktyImages(
-  files: File[],
+  files: readonly (File | Blob)[],
   accessToken: string | null,
   options?: UploadPicktyImagesOptions,
 ): Promise<string[]> {
   if (files.length === 0) {
     throw new Error('업로드할 파일이 없습니다.');
   }
+  const originals = files.map((f, i) => coerceToNamedFileForUpload(f, i));
+
   const headers: Record<string, string> = {};
   if (accessToken) {
     headers.Authorization = `Bearer ${accessToken}`;
   }
 
   const compressed: File[] = [];
-  for (let i = 0; i < files.length; i++) {
-    const original = files[i]!;
+  for (let i = 0; i < originals.length; i++) {
+    const original = originals[i]!;
     try {
       compressed.push(await compressPicktyImageForUpload(original));
     } catch (err) {
@@ -91,7 +119,7 @@ export async function uploadPicktyImages(
 
   const urls: string[] = [];
   for (let i = 0; i < compressed.length; i++) {
-    const original = files[i]!;
+    const original = originals[i]!;
     const fd = new FormData();
     fd.append('files', compressed[i]!);
     let res: Response;

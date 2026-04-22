@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
+@theme inline {
+  --color-primary: var(--brand-from);
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 html {
@@ -52,4 +56,19 @@ html.dark textarea:-webkit-autofill:focus {
   -webkit-text-fill-color: #f4f4f5;
   -webkit-box-shadow: 0 0 0px 1000px #27272a inset;
   transition: background-color 5000s ease-in-out 0s;
+}
+
+@keyframes worldcup-ranking-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.worldcup-ranking-panel-in {
+  animation: worldcup-ranking-panel-in 0.3s ease-out both;
 }

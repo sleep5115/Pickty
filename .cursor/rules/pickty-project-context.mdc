@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Pickty (픽티) — 프로젝트 컨텍스트
 
-티어표 메이커 & 이상형 월드컵 메이커. 스트리머 모드로 시청자 참여/집계/실시간 진행을 차별점으로 삼는다.
+티어표 메이커 & 이상형 월드컵 메이커. 스트리머 모드로 시청자 참여/집계/실시간 진행 구현 목표
 
 ## 레포 구조 (모노레포)
 
@@ -161,6 +161,26 @@ alwaysApply: true
 - Backend API는 RESTful, 인증은 Spring Security OAuth2
 - Cache/Real-time은 **Valkey** 사용 (Redis SSPL 라이선스 이슈로 대체, 프로토콜 100% 호환)
 - 공통 네이밍: 프론트 파일명 `kebab-case`, 컴포넌트명 `PascalCase`
+
+## 프론트엔드 라우팅 및 URL 명명 규칙
+
+Next.js App Router에서 **사용자에게 노출되는 경로**를 추가·변경할 때 아래를 **엄격히** 따른다. (레거시 북마크용 `next.config.ts` `redirects`는 예외로 둘 수 있으나, **신규 링크·코드 내 문자열**은 항상 신규 규칙만 사용한다.)
+
+1. **구조화**: `/{도메인}/{리소스(복수형)}/{행위 또는 ID}` 패턴을 기본으로 한다.  
+   - 예: 티어 템플릿 새로 만들기 `/tier/templates/new`, 월드컵 템플릿 허브 `/worldcup/templates`, 티어 플레이(특정 템플릿) `/tier/templates/{id}`.
+2. **복수형 사용**: URL 경로에서 리소스 묶음을 나타낼 때는 **복수형**을 쓴다. (`template` → `templates`, `result` → `results` 등.)
+3. **내 정보(소유)**: 로그인 사용자 본인 소유 목록은 `mine`·`{userId}` 대신 **`my`** 를 쓴다.  
+   - 예: 내 템플릿 `/tier/templates/my`, 내 저장 티어표 `/tier/results/my`.
+4. **쿼리 파라미터 지양**: **특정 리소스 ID**는 `?id=` 형태가 아니라 **Path Variable**(`/…/{id}`)로 둔다.  
+   - 다만 **필터·검색·모드** 등(예: `forkTemplateId`, `sourceResultId`, 페이지네이션)은 쿼리 파라미터를 허용한다.
+
+**도메인별 정리 (현행)** — 백엔드 `GET /api/v1/...` 경로와 혼동하지 말 것.
+
+| 영역 | 주요 경로 |
+|------|-----------|
+| 티어 템플릿 | 목록 `/tier/templates`, 새로 만들기 `/tier/templates/new`, 내 템플릿 `/tier/templates/my`, 플레이 `/tier/templates/{templateId}`, 빈 메이커 `/tier` |
+| 티어 결과(피드·저장본) | 피드 `/tier/results`, 상세 `/tier/results/{resultId}`, 내 목록 `/tier/results/my` |
+| 월드컵 템플릿 | 허브 `/worldcup/templates`, 새로 만들기 `/worldcup/templates/new`, 플레이 `/worldcup/templates/{templateId}` · 루트 `/worldcup`은 `/worldcup/templates`로 리다이렉트 |
 
 ## UGC·리소스 수정·삭제 정책 (기본)
 

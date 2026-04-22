@@ -85,7 +85,7 @@ export function TierResultCard({
       ].join(' ')}
     >
       <Link
-        href={`/tier/result/${encodeURIComponent(r.id)}`}
+        href={`/tier/results/${encodeURIComponent(r.id)}`}
         className="group flex min-h-0 flex-1 flex-col transition-colors hover:border-violet-400 dark:hover:border-violet-600"
       >
         <div
@@ -143,7 +143,7 @@ export function TierResultCard({
           />
         )}
         <Link
-          href={`/tier?templateId=${encodeURIComponent(r.templateId)}&sourceResultId=${encodeURIComponent(r.id)}`}
+          href={`/tier/templates/${encodeURIComponent(r.templateId)}?sourceResultId=${encodeURIComponent(r.id)}`}
           className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800"
         >
           <RefreshCw className="h-3.5 w-3.5 shrink-0" aria-hidden />

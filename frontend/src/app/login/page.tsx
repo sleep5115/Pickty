@@ -100,7 +100,7 @@ function LoginPageContent() {
           try {
             const nav = await resolvePostOAuthTierFlow(token, searchParams.get('returnTo'));
             if (nav.kind === 'tier_result') {
-              router.replace(`/tier/result/${nav.resultId}`);
+              router.replace(`/tier/results/${nav.resultId}`);
             } else if (nav.kind === 'signup_profile') {
               router.replace('/signup/profile');
             } else {
@@ -111,7 +111,7 @@ function LoginPageContent() {
             }
           } catch {
             toast.error('로그인 후 이동 처리에 실패했습니다.');
-            router.replace('/templates');
+            router.replace('/tier/templates');
           }
         })();
       } else if (event.data?.type === 'OAUTH_ERROR') {
@@ -157,7 +157,9 @@ function LoginPageContent() {
               Pickty
             </span>
           </Link>
-          <p className="mt-2 text-sm text-slate-500 dark:text-zinc-400">티어표 만들기</p>
+          <p className="mt-2 text-sm text-slate-500 dark:text-zinc-400">
+            티어표 만들기 & 이상형 월드컵
+          </p>
         </div>
 
         <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-8 shadow-xl shadow-black/10 dark:shadow-black/50">

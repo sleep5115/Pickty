@@ -3,7 +3,11 @@
 import { Heart } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { toggleReaction, type ReactionType } from '@/lib/api/interaction-api';
+import {
+  toggleReaction,
+  type InteractionTargetType,
+  type ReactionType,
+} from '@/lib/api/interaction-api';
 import { useReactionsInteractiveSurface } from '@/lib/hooks/use-reactions-interactive-surface';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { getStoredReaction, setStoredReaction } from '@/lib/store/reaction-store';
@@ -11,6 +15,8 @@ import { getStoredReaction, setStoredReaction } from '@/lib/store/reaction-store
 type Props = {
   /** `plain` — 목록 카드(테두리 없음). `boxed`(기본) — 티어 화면 헤더 등 */
   appearance?: 'plain' | 'boxed';
+  /** 기본 티어 템플릿 — 월드컵 목록·플레이는 `WORLDCUP_TEMPLATE` */
+  interactionTargetType?: InteractionTargetType;
   templateId: string;
   initialLikeCount: number;
   /** 로그인 시 API `myReaction` — 비회원이면 무시하고 localStorage 사용 */
@@ -23,6 +29,7 @@ type Props = {
 
 export function TemplateLikeButton({
   appearance = 'boxed',
+  interactionTargetType = 'TIER_TEMPLATE',
   templateId,
   initialLikeCount,
   initialMyReaction = null,
@@ -72,7 +79,7 @@ export function TemplateLikeButton({
       applyCount(nextCount);
       setBusy(true);
       try {
-        const r = await toggleReaction('TIER_TEMPLATE', templateId, 'LIKE');
+        const r = await toggleReaction(interactionTargetType, templateId, 'LIKE');
         const serverLiked = Boolean(r.active && r.reactionType === 'LIKE');
         setLiked(serverLiked);
         const syncedCount = Math.max(
@@ -104,6 +111,7 @@ export function TemplateLikeButton({
     },
     [
       surfaceInteractive,
+      interactionTargetType,
       templateId,
       busy,
       liked,
@@ -132,7 +140,7 @@ export function TemplateLikeButton({
       aria-disabled={locked || busy || !templateId}
       tabIndex={locked ? -1 : 0}
       aria-pressed={liked}
-      title={locked ? '티어 만들기 화면에서만 좋아요할 수 있어요' : undefined}
+      title={locked ? '플레이 화면에서만 좋아요할 수 있어요' : undefined}
       className={[
         'inline-flex items-center gap-1.5 text-xs font-medium tabular-nums transition-colors disabled:cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500/35 focus-visible:ring-offset-1 focus-visible:ring-offset-white dark:focus-visible:ring-offset-zinc-900',
         !isPlain ? 'transition-shadow duration-200' : '',
