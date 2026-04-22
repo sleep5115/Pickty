@@ -19,6 +19,8 @@ export interface WorldCupRankingRowDto {
 }
 
 export interface WorldCupRankingPageDto {
+  /** 집계 API가 내려주는 값. 구버전 백엔드면 0으로 두고 %만 표시 */
+  totalCompletedPlays: number;
   content: WorldCupRankingRowDto[];
   totalElements: number;
   totalPages: number;
@@ -92,7 +94,11 @@ export async function fetchWorldCupRanking(
         .map((row) => (row && typeof row === 'object' ? mapRankingRow(row as Record<string, unknown>) : null))
         .filter((x): x is WorldCupRankingRowDto => x != null)
     : [];
+  const totalCompletedPlays = num(
+    body.totalCompletedPlays ?? body.total_completed_plays,
+  );
   return {
+    totalCompletedPlays: Number.isFinite(totalCompletedPlays) ? totalCompletedPlays : 0,
     content,
     totalElements: Number(body.totalElements ?? body.total_elements) || 0,
     totalPages: Number(body.totalPages ?? body.total_pages) || 0,

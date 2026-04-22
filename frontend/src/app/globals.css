@@ -72,3 +72,35 @@ html.dark textarea:-webkit-autofill:focus {
 .worldcup-ranking-panel-in {
   animation: worldcup-ranking-panel-in 0.3s ease-out both;
 }
+
+@keyframes worldcup-comment-drawer-in-md {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes worldcup-comment-sheet-in-sm {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.worldcup-comment-drawer-panel {
+  animation: worldcup-comment-sheet-in-sm 0.32s ease-out both;
+}
+
+@media (min-width: 768px) {
+  .worldcup-comment-drawer-panel {
+    animation-name: worldcup-comment-drawer-in-md;
+  }
+}

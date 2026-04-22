@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, BarChart3, Loader2, Skull, Swords } from 'lucide-react';
+import { ArrowLeft, BarChart3, Loader2 } from 'lucide-react';
 import { fetchWorldCupTemplate, type WorldCupTemplateDetailDto } from '@/lib/worldcup/worldcup-template-api';
 import { parseWorldCupItemsPayload } from '@/lib/worldcup/worldcup-template-items';
 import {
@@ -10,9 +10,27 @@ import {
   type WorldCupRankingRowDto,
 } from '@/lib/worldcup/worldcup-ranking-api';
 import { WorldCupListRasterThumb } from '@/components/worldcup/worldcup-list-raster-thumb';
+import {
+  WorldCupRankingCommentsDrawer,
+  WorldCupRankingCommentsFab,
+} from '@/components/worldcup/worldcup-ranking-comments-drawer';
 import { WorldCupUrlAccordionMedia } from '@/components/worldcup/worldcup-url-media';
+import { apiFetch } from '@/lib/api-fetch';
+import { useAuthPersistHydrated } from '@/lib/hooks/use-auth-persist-hydrated';
+import { useAuthStore } from '@/lib/store/auth-store';
 
-function MiniBar({ label, value, tone }: { label: string; value: number; tone: 'amber' | 'rose' | 'sky' }) {
+function MiniBar({
+  label,
+  value,
+  tone,
+  fractionCaption,
+}: {
+  label: string;
+  value: number;
+  tone: 'amber' | 'rose' | 'sky';
+  /** 예: `3 / 40` — 분모는 맞대결 참가 수 */
+  fractionCaption: string;
+}) {
   const bar =
     tone === 'amber'
       ? 'bg-amber-500 dark:bg-amber-500/90'
@@ -21,9 +39,14 @@ function MiniBar({ label, value, tone }: { label: string; value: number; tone: '
         : 'bg-sky-500 dark:bg-sky-500/85';
   return (
     <div className="space-y-1">
-      <div className="flex items-center justify-between gap-2 text-[11px] text-zinc-600 dark:text-zinc-500">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 text-[11px] text-zinc-600 dark:text-zinc-500">
         <span>{label}</span>
-        <span className="tabular-nums text-sm font-semibold text-zinc-800 dark:text-zinc-200">{value}%</span>
+        <span className="tabular-nums text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+          {value}%
+          <span className="ml-1.5 text-[11px] font-normal text-zinc-500 dark:text-zinc-500">
+            ({fractionCaption})
+          </span>
+        </span>
       </div>
       <div className="h-4 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
         <div className={`h-full rounded-full transition-[width] ${bar}`} style={{ width: `${value}%` }} />
@@ -32,31 +55,38 @@ function MiniBar({ label, value, tone }: { label: string; value: number; tone: '
   );
 }
 
-function RankingMetricsLegend() {
+function formatStatFraction(numerator: number, denominator: number): string {
+  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator <= 0) {
+    return '—';
+  }
+  return `${numerator} / ${denominator}`;
+}
+
+/** 랭킹 표 — 우승 비율·승률 열용 (테마 `primary` 막대) */
+function TableStatProgressBar({ pct, ariaLabel }: { pct: number; ariaLabel: string }) {
+  const w = Math.min(100, Math.max(0, pct));
   return (
-    <div className="mb-4 grid gap-4 rounded-xl border border-zinc-200 bg-white p-5 text-xs text-zinc-600 shadow-sm dark:border-white/10 dark:bg-zinc-900/40 dark:text-zinc-500 sm:grid-cols-3">
-      <p className="flex gap-2">
-        <Swords className="size-4 shrink-0 text-zinc-400 dark:text-zinc-600" aria-hidden />
-        <span>
-          <strong className="text-zinc-800 dark:text-zinc-400">승률</strong> · 해당 후보가 이긴 횟수 ÷ 실제 맞대결
-          참가 수
-        </span>
-      </p>
-      <p className="flex gap-2">
-        <Skull className="size-4 shrink-0 text-zinc-400 dark:text-zinc-600" aria-hidden />
-        <span>
-          <strong className="text-zinc-800 dark:text-zinc-400">광탈·접전</strong> · 라운드에서 두 후보 모두에게 적용되는
-          액션 비율
-        </span>
-      </p>
-      <p className="flex gap-2">
-        <BarChart3 className="size-4 shrink-0 text-zinc-400 dark:text-zinc-600" aria-hidden />
-        <span>
-          <strong className="text-zinc-800 dark:text-zinc-400">우승 비율</strong> · 최종 우승 횟수 ÷ 완료된 플레이(게임)
-          총 횟수
-        </span>
-      </p>
+    <div
+      className="h-2 w-full max-w-full overflow-hidden rounded-full bg-zinc-200 shadow-inner dark:bg-zinc-800"
+      role="progressbar"
+      aria-valuenow={Math.round(w)}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label={ariaLabel}
+    >
+      <div
+        className="h-full rounded-full bg-primary shadow-[0_0_10px_rgba(124,58,237,0.35)] transition-[width] duration-300 ease-out dark:shadow-[0_0_12px_rgba(167,139,250,0.28)]"
+        style={{ width: `${w}%` }}
+      />
     </div>
+  );
+}
+
+function RankingMetricsHintLine() {
+  return (
+    <p className="mb-4 rounded-lg border border-zinc-200 bg-zinc-50/90 px-4 py-2.5 text-sm leading-relaxed text-zinc-700 dark:border-white/10 dark:bg-zinc-900/50 dark:text-zinc-300">
+      지표 안내: 승률은 1:1 맞대결 승리 비율, 우승 비율은 전체 플레이 중 최종 우승을 차지한 비율입니다.
+    </p>
   );
 }
 
@@ -106,6 +136,11 @@ function syntheticRankingFromItemsPayload(
 }
 
 export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
+  const authHydrated = useAuthPersistHydrated();
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const [meId, setMeId] = useState<number | null>(null);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+
   const [phase, setPhase] = useState<'loading' | 'error' | 'ready'>('loading');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
@@ -113,6 +148,8 @@ export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
   const [itemMeta, setItemMeta] = useState<Map<string, { name: string; imageUrl?: string }>>(new Map());
   /** 서버 `worldcup_item_stats` 에서 온 행이 1건 이상일 때만 true (0이면 합성 행만 표시 중) */
   const [hasServerRanking, setHasServerRanking] = useState(false);
+  /** `championshipRatePct` 분모 — 템플릿 전체 완료 플레이 수 (백엔드 `totalCompletedPlays`) */
+  const [totalCompletedPlays, setTotalCompletedPlays] = useState(0);
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
@@ -135,6 +172,7 @@ export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
     setErrorMessage(null);
     setLoadMoreError(null);
     setExpandedItemId(null);
+    setTotalCompletedPlays(0);
     setLoadingMore(false);
     setHasMore(false);
     hasMoreRef.current = false;
@@ -171,12 +209,14 @@ export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
       setHasServerRanking(serverHasRows);
       if (serverHasRows) {
         setRows(rankData.content);
+        setTotalCompletedPlays(rankData.totalCompletedPlays);
         const more = !rankData.last;
         setHasMore(more);
         hasMoreRef.current = more;
         nextPageRef.current = rankData.number + 1;
       } else {
         setRows(syntheticRankingFromItemsPayload(itemsPayload));
+        setTotalCompletedPlays(0);
         setHasMore(false);
         hasMoreRef.current = false;
         nextPageRef.current = 0;
@@ -203,6 +243,9 @@ export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
       const data = await fetchWorldCupRanking(templateId, pageToLoad, WORLDCUP_RANKING_PAGE_SIZE);
       if (!aliveRef.current) return;
       setRows((prev) => [...prev, ...data.content]);
+      if (data.totalCompletedPlays > 0) {
+        setTotalCompletedPlays(data.totalCompletedPlays);
+      }
       const more = !data.last;
       setHasMore(more);
       hasMoreRef.current = more;
@@ -226,6 +269,30 @@ export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
       aliveRef.current = false;
     };
   }, [loadInitial]);
+
+  useEffect(() => {
+    if (!authHydrated || !accessToken) {
+      queueMicrotask(() => setMeId(null));
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await apiFetch('/api/v1/user/me', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!res.ok || cancelled) return;
+        const u = (await res.json()) as { id?: unknown };
+        const mid = typeof u.id === 'number' ? u.id : Number(u.id);
+        if (Number.isFinite(mid)) setMeId(mid);
+      } catch {
+        if (!cancelled) setMeId(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authHydrated, accessToken]);
 
   useEffect(() => {
     if (phase !== 'ready' || !hasServerRanking || !hasMoreRef.current) return;
@@ -303,7 +370,7 @@ export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
 
         {phase === 'ready' && (
           <>
-            <RankingMetricsLegend />
+            <RankingMetricsHintLine />
 
             {!hasServerRanking && rows.length > 0 ? (
               <div
@@ -372,29 +439,67 @@ export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
                                   없음
                                 </div>
                               )}
-                              <span className="min-w-0 font-medium text-zinc-900 dark:text-white">{name}</span>
-                              <span className="ml-auto shrink-0 text-xs text-zinc-400 dark:text-zinc-500">
+                              <span className="min-w-0 flex-1 font-medium text-zinc-900 dark:text-white">{name}</span>
+                              <span className="shrink-0 text-xs text-zinc-400 dark:text-zinc-500">
                                 {expanded ? '접기' : '펼치기'}
                               </span>
                             </div>
                           </td>
                           <td className="px-5 py-4 align-middle tabular-nums text-zinc-800 dark:text-zinc-200">
-                            <span className="text-base font-semibold">{row.championshipRatePct}%</span>
-                            <span className="mt-1 block text-[11px] font-normal text-zinc-500 dark:text-zinc-500">
-                              우승 / 전체 플레이 수
-                            </span>
+                            <div className="flex flex-col gap-2">
+                              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                <span className="text-base font-semibold">{row.championshipRatePct}%</span>
+                                <span className="text-xs font-medium text-zinc-600 tabular-nums dark:text-zinc-400">
+                                  ({formatStatFraction(row.finalWinCount, totalCompletedPlays)})
+                                </span>
+                              </div>
+                              <TableStatProgressBar
+                                pct={row.championshipRatePct}
+                                ariaLabel={`우승 비율 ${row.championshipRatePct}%`}
+                              />
+                              <span className="text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-500">
+                                우승 {row.finalWinCount}회 ÷ 이 템플릿 완료 플레이{' '}
+                                {totalCompletedPlays > 0 ? `${totalCompletedPlays}회` : '집계 없음'}
+                              </span>
+                            </div>
                           </td>
                           <td className="px-5 py-4 align-middle tabular-nums text-zinc-800 dark:text-zinc-200">
-                            <span className="text-base font-semibold">{row.winRatePct}%</span>
-                            <span className="mt-1 block text-[11px] font-normal text-zinc-500 dark:text-zinc-500">
-                              승 / 대결 수
-                            </span>
+                            <div className="flex flex-col gap-2">
+                              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                <span className="text-base font-semibold">{row.winRatePct}%</span>
+                                <span className="text-xs font-medium text-zinc-600 tabular-nums dark:text-zinc-400">
+                                  ({formatStatFraction(row.winCount, row.matchCount)})
+                                </span>
+                              </div>
+                              <TableStatProgressBar
+                                pct={row.winRatePct}
+                                ariaLabel={`승률 1대1 ${row.winRatePct}%`}
+                              />
+                              <span className="text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-500">
+                                1:1 승리 {row.winCount}회 ÷ 맞대결 슬롯 참가 {row.matchCount}회
+                              </span>
+                            </div>
                           </td>
                           <td className="px-5 py-4 align-top">
                             <div className="flex max-w-md flex-col gap-3.5">
-                              <MiniBar label="스킵률 (리롤당함)" value={row.skipRatePct} tone="amber" />
-                              <MiniBar label="광탈률 (둘 다 탈락)" value={row.dropRatePct} tone="rose" />
-                              <MiniBar label="접전률 (둘 다 올리기)" value={row.nailBiterRatePct} tone="sky" />
+                              <MiniBar
+                                label="스킵률 (리롤당함)"
+                                value={row.skipRatePct}
+                                tone="amber"
+                                fractionCaption={formatStatFraction(row.rerolledCount, row.matchCount)}
+                              />
+                              <MiniBar
+                                label="광탈률 (둘 다 탈락)"
+                                value={row.dropRatePct}
+                                tone="rose"
+                                fractionCaption={formatStatFraction(row.droppedCount, row.matchCount)}
+                              />
+                              <MiniBar
+                                label="접전률 (둘 다 올리기)"
+                                value={row.nailBiterRatePct}
+                                tone="sky"
+                                fractionCaption={formatStatFraction(row.keptBothCount, row.matchCount)}
+                              />
                             </div>
                           </td>
                         </tr>
@@ -457,6 +562,21 @@ export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
           </>
         )}
       </div>
+
+      {phase === 'ready' ? (
+        <>
+          <WorldCupRankingCommentsFab
+            drawerOpen={commentsOpen}
+            onToggleDrawer={() => setCommentsOpen((v) => !v)}
+          />
+          <WorldCupRankingCommentsDrawer
+            templateId={templateId}
+            currentUserId={meId}
+            open={commentsOpen}
+            onOpenChange={setCommentsOpen}
+          />
+        </>
+      ) : null}
     </div>
   );
 }

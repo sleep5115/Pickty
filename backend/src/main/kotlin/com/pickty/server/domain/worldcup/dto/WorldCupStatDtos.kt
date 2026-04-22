@@ -33,3 +33,17 @@ data class WorldCupRankingRowResponse(
     /** 둘 다 올리기 참여 횟수 ÷ 맞대결 참가 수 × 100 */
     val nailBiterRatePct: Int,
 )
+
+/** `GET …/ranking` — Spring `Page` 와 동일 키 + 분수 표기용 전체 완료 플레이 수 */
+data class WorldCupRankingPageResponse(
+    /** 모든 후보 `finalWinCount` 합 = 이 템플릿으로 끝까지 완료된 게임 수 */
+    val totalCompletedPlays: Long,
+    val content: List<WorldCupRankingRowResponse>,
+    val totalElements: Long,
+    val totalPages: Int,
+    val size: Int,
+    val number: Int,
+    val first: Boolean,
+    val last: Boolean,
+    val empty: Boolean,
+)
