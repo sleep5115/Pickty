@@ -142,7 +142,7 @@
 
 - **AI 자동 템플릿 생성(AI 딸깍) 파이프라인 1차 완료**: 
   - **백엔드**: Gemini 2.5 Flash 모델 기반 아이템 리스트 생성(Phase 1) + Google Custom Search API 연동(Phase 2, Bing에서 롤백). Kotlin Coroutines(`async`/`awaitAll`)를 활용해 각 아이템별로 이미지 10개씩 병렬 검색하여 응답. 관리자 전용 엔드포인트 `POST /api/v1/admin/templates/auto-generate` 및 `@PreAuthorize` 보안 적용.
-  - **프론트엔드**: `**/tier/templates/new**` 도화지 상단에 AI 생성 UI 추가. 사용자가 입력한 주제로 아이템을 자동 생성하여 폼(`react-hook-form`)에 즉시 추가하는 기능 연동. 생성 중 로딩 상태(스피너) 및 에러 핸들링 UI 적용.
+  - **프론트엔드**: `**/tier/templates/new**` 도화지 상단에 AI 생성 UI 추가. 사용자가 입력한 주제로 아이템을 자동 생성하여 폼(`react-hook-form`)에 즉시 추가하는 기능 연동. 생성 중 로딩 상태(스피너) 및 에러 핸들링 UI 적용. **(2026-04-22)** 동 UI는 **관리자(`GET /api/v1/user/me` 의 `role === 'ADMIN'`)만** 마운트 — 「진행 메모 (2026-04-22)」·`**TierTemplateNewAiPanel**`.
   - **인프라**: `GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_CX`, `GEMINI_API_KEY` 환경 변수 구성.
 
 ---
@@ -177,6 +177,7 @@
 
 ## 진행 메모 **(2026-04-22)**
 
+- **티어 템플릿 새로 만들기 — AI 딸깍 보류 결정(2026-04-22)**: `**/tier/templates/new**` 의 AI 딸깍 UI는 현재 **관리자 전용 노출/마운트**까지만 반영된 상태이며, 제품 적용은 **보류**. 이유는 티어 메이커 도메인 적용 난이도/복잡도. **우선 이상형 월드컵 마무리 후**, AI 딸깍은 **월드컵 쪽에 먼저 적용**하는 노선으로 확정.
 - **이상형 월드컵 — 플레이·헤더·미디어 1차 마무리**: **`worldcup-play-client.tsx`** — 헤더에 **템플릿 제목**(중앙 정렬)·**`[N강] m / M`** 배지·**게이지 바**(고정 폭·두께·`rounded-full`·`bg-primary`)·**되돌리기**(undo)·**남은 리롤**을 같은 행에 모아 표시. 플레이 루트 **`h-[calc(100dvh-16rem)]`** 등으로 카드 영역 높이 확보. **레이아웃 모드**: **대각**(`split_diagonal`)일 때만 **둘 다 올림 / 둘 다 탈락**을 플레이 영역 **우상단**·**좌우**(행)일 때는 **VS** 블록 **위·아래**로 복귀. **`WorldCupCardMedia`**: **이미지**는 기존 `absolute` + `object-contain`/`cover` 유지·**유튜브**는 바깥 **`flex items-center justify-center bg-black`** + 안쪽 **`aspect-video`** 로 16:9 유지·iframe 크롬 클립 완화. **`WorldCupYouTubePlayer`**: 커스텀 음소거 UI·`-56px` 해킹 제거·네이티브 컨트롤 사용. **리롤 버튼**: **`/worldcup/reroll-button.png`**(public)·리롤 수 **0**일 때 **`disabled` 반투명 미사용**(항상 불투명·클릭만 무응답)·`active:scale` 유지. 운영 **`dev`→`main`** 머지 후 **Vercel·GitHub Actions** 성공 시점에 맞춰 반영 가능 상태로 기록.
 
 ---
@@ -216,7 +217,7 @@
 | **P2 커뮤니티 — 반응·댓글 (1차)** **(2026-03-30)** | ✅(1차) | 다형성 `reactions`·`comments` + `tier_templates`/`tier_results` 역정규화 카운트. API: `POST /api/v1/interaction/reactions/toggle`(회원·비회원 IP 해시), 댓글 CRUD·페이지 `GET`·`DELETE`(비회원 비번). 프론트: `community-api`·`TemplateLikeButton`·`ResultVoteButtons`(낙관적 UI)·`CommentSection` — `**/tier/templates**`·`**/tier**`·`**/tier/templates/{id}`**·`**/tier/results/{id}`** 연동. 마이그레이션 `**docs/migrations/2026-03-31-p2-community-unified.sql**` · **(2026-03-30) 새로고침 후 하이라이트 유지**: 로그인 시 템플릿·`tier_results` 단건/목록 GET 응답 `**myReaction**` + `ReactionRepository` **IN** bulk(`CommunityMyReactionService`) · 비회원은 `**reaction-store**`(`localStorage`) · **선택 상태 색**: 좋아요 **핑크**·추천 **빨강**·비추천 **파랑** · **회원+IP 하이브리드**: `guest_ip_hash`·부분 유니크(`user_id IS NULL`만) — `**docs/migrations/2026-03-30-reactions-member-ip-hash-hybrid.sql**`. · **(2026-03-31) 인기 티어표 Top3**: `GET .../tiers/results/popular` + `**popular-tier-results.tsx**`(`**/tier**`·`**/tier/templates/{id}`** 보드 아래·댓글 위 가로 슬라이더). · **(2026-04-03) 조회수 1차**: Valkey·`view_count`·UI — **표시용**·**당장 랭킹 등 다른 용도 계획 없음**(「2026-04-05」). · **추가 커뮤니티 확장**(집계 티어표 등)은 **「장기 아이디어」**. |
 | Tier — 장기 과제 (일반)                         | ✅(1차) | **이미 함**: 업로드 전 브라우저 압축. **(2026-03-31 1차 완료)**: `GET .../images/file/`** `**Cache-Control: public, max-age=31536000, immutable**` · `**next.config.ts**` `images.minimumCacheTTL` **31536000** · `**docs/DEPLOYMENT-CHECKLIST.md**` 「3.5 Cloudflare R2 및 CDN 캐시」. **(2026-03-30) 운영 검증**: `api.pickty.app` 프록시 경로에 대해 `**curl.exe -sI**` 2연속 → `**cf-cache-status` MISS then HIT**. **추후(선택)**: R2 `PutObject` **Cache-Control** 메타·**파생 해상도**·Cloudflare Images 등(트래픽·비용 보고 후) — 필요 시 「장기 아이디어」절.                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | **P3 커뮤니티 게시판** (TipTap·리치 에디터)           | 🟨(진행중) | 1차 기반(DB·작성/목록/상세 API·프론트 연동) + **게시판 댓글(`community_post`) 연동** 완료(2026-04-07). **잔여**: 게시글 **수정**, **삭제(소프트 삭제)**, 게시글 **추천/비추천**, 작성/상세 UX·권한/예외 처리 등 **디테일 보완**. 에디터 기능 범위는 **이미지 업로드·유튜브 링크·일반 링크** 3축 유지. |
-| **AI 자동 템플릿 생성 (AI 딸깍)**             | 🟨(진행중) | **Phase 1(텍스트) & Phase 2(이미지 검색) 완료(2026-04-09)**. Gemini 1.5 Flash + Google Custom Search API 연동. Kotlin Coroutines 기반 병렬 호출 처리 완료. Phase 3(Vision)는 Stub 처리됨. |
+| **AI 자동 템플릿 생성 (AI 딸깍)**             | 🟨(진행중) | **Phase 1(텍스트) & Phase 2(이미지 검색) 완료(2026-04-09)**. Gemini 1.5 Flash + Google Custom Search API 연동. Kotlin Coroutines 기반 병렬 호출 처리 완료. Phase 3(Vision)는 Stub 처리됨. **(2026-04-22 결정)** 티어 메이커 적용은 **보류**(관리자 전용 UI 마운트까지만 반영), **월드컵 마무리 후 월드컵 도메인 우선 적용**. |
 | **Ideal Type 이상형 월드컵**                      | ✅(1차) | **(2026-04-20~21)** 플레이·결과·통계·랭킹·템플릿 CRUD·허브·GIF/CORS·강수·플레이 진입 등 — 「진행 메모 (2026-04-20·21)」. **(2026-04-22)** 플레이 헤더·게이지·대각/좌우 무승부·탈락 배치·이미지/유튜브 분기·리롤 에셋 버튼·뷰포트 높이 등 **플레이 UX 1차 마무리** — 「진행 메모 (2026-04-22)」. **잔여(백로그)**: 템플릿 **목록 공개 정책의 DB/API 반영**(현재 UI·카피만인 경우 정합)·**AI 딸깍 → 월드컵 에디터** 연동 검토·스트리머·집계 확장은 「장기 아이디어」. |
 
 
@@ -224,7 +225,7 @@
 
 ## 현재 제품 동작 (2026-04-22 기준 · 이전 날짜 메모는 당시 경로 보관)
 
-- **라우팅**: 랜딩 → `**/tier/templates**` → 카드 `**/tier/templates/{id}`** · 새 밀키트 `**/tier/templates/new**` · 템플릿 **제목/설명 수정**은 **모달**(목록·플레이 화면 헤더 케밥) + `**PATCH /api/v1/templates/{id}**` · **파생** `**/tier/templates/new?forkTemplateId=`**(`parentTemplateId` 기록) · **(2026-03-30)** 정적 `**/terms**` · `**/privacy**`(마크다운 렌더), **`SiteFooter`** 약관·방침 링크 **(2026-04-04)** `/login` 카드 중복 문구 제거 · **(2026-04-21)** 월드컵 허브 `**/worldcup/templates**` 등 전역 경로 정리(`pickty-project-context.mdc` 참고).
+- **라우팅**: 랜딩 → `**/tier/templates**` → 카드 `**/tier/templates/{id}`** · 새 밀키트 `**/tier/templates/new**` · 템플릿 **제목/설명 수정**은 **모달**(목록·플레이 화면 헤더 케밥) + `**PATCH /api/v1/templates/{id}**` · **파생** `**/tier/templates/new?forkTemplateId=`**(`parentTemplateId` 기록) · **(2026-04-22)** 새 밀키트 **`/tier/templates/new`** 의 **AI 딸깍**(자동 아이템 생성) UI는 **`role: ADMIN`** 사용자에게만 노출·마운트 · **(2026-03-30)** 정적 `**/terms**` · `**/privacy**`(마크다운 렌더), **`SiteFooter`** 약관·방침 링크 **(2026-04-04)** `/login` 카드 중복 문구 제거 · **(2026-04-21)** 월드컵 허브 `**/worldcup/templates**` 등 전역 경로 정리(`pickty-project-context.mdc` 참고).
 - **이상형 월드컵 (플레이·헤더)** **(2026-04-22)**: 플레이 `**/worldcup/templates/{id}`** — 강수 선택→인게임→결과·통계 제출·랭킹까지 1차 동선 완료. 헤더(제목·라운드·게이지·되돌리기·남은 리롤)·대각/좌우 무승부·탈락 배치·이미지/유튜브 분기·리롤 에셋 등 상세는 「진행 메모 (2026-04-22)」.
 - **업로드·저장**: `**POST /api/v1/images`** → R2 `PutObject` · DB/JSON 메타는 `https://img.pickty.app/{uuid}.ext` 형(설정 `public-url`). 표시는 `**picktyImageDisplaySrc**` / `**GET /api/v1/images/file/{key}**`(CORS `*`) — **(2026-03-31)** 해당 GET 응답 `**Cache-Control: public, max-age=31536000, immutable**` · Next `**next/image**` 원격 최소 캐시 `**minimumCacheTTL: 31536000**` (`next.config.ts`). **(2026-03-30)** Cloudflare Cache Rule 적용 후 동 경로에 `**curl -sI**` 2회 시 `**Server: cloudflare**`, `**cf-cache-status**`: 첫 `**MISS**`·둘째 `**HIT**` (엣지 캐시 동작 확인). 키 샘플은 공개 `**GET /api/v1/templates**` 의 `**thumbnailUrl**` 파일명 부분 사용 가능.
 - **Next 프록시 이미지 (`**/api/pickty-image`**)**: R2 객체 **`?key=`** · 외부 절대 URL **`?url=`** (서버 `fetch`·응답에 CORS `*`) — 월드컵 **Canvas 50:50 합성**·**GIF 첫 프레임 정지(랭킹·허브)** 등 동일 출처 `img` 로드 **(2026-04-21)**. 클라이언트 업로드는 `**uploadPicktyImages**` 가 **`File`**(또는 `Blob` 보정) 기준 **WebP 압축 후** 단일 `files` 파트 POST.
@@ -412,6 +413,7 @@
 
 ### AI 자동 템플릿 생성 파이프라인 (가칭 **AI 딸깍**) — **대기열/비용 방어 전제** *(일정 미정)*
 
+- **현재 제품 우선순위 결정(2026-04-22)**: 티어 메이커(`**/tier/templates/new**`)에 AI 딸깍을 바로 확장하지 않고 **보류**. **이상형 월드컵 마무리 이후 월드컵 도메인에 먼저 적용**한다.
 - **목표 UX**: 사용자가 자연어로 요청(예: "블루아카이브 캐릭터 티어표 만들어줘")하면, **광고 30초 시청 대기열** 이후 AI가 **아이템 20개+이미지**를 자동 세팅해 `**/tier` 도화지에 즉시 배치 가능한 상태로 제공.
 - **추가 생성 UX**: 1차 결과에서 이상한 사진은 사용자 수동 교체를 기본으로 하고, 원하면 광고 1회 추가 시청 후 **기존 목록 제외** 조건으로 20개를 추가 생성(append)하는 흐름을 검토.
 - **백엔드 3단 파이프라인(기획)**:  
