@@ -24,8 +24,8 @@ class WorldCupItemStat(
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "template_id", nullable = false)
     var template: WorldCupTemplate,
-    @Column(name = "item_id", nullable = false, length = 512)
-    var itemId: String,
+    @Column(name = "item_id", nullable = false)
+    var itemId: Long,
 ) : BaseTimeEntity() {
 
     @Id
@@ -49,4 +49,16 @@ class WorldCupItemStat(
 
     @Column(name = "kept_both_count", nullable = false)
     var keptBothCount: Long = 0
+
+    @Column(name = "reached_16_count", nullable = false)
+    var reached16Count: Long = 0
+
+    @Column(name = "reached_8_count", nullable = false)
+    var reached8Count: Long = 0
+
+    @Column(name = "reached_4_count", nullable = false)
+    var reached4Count: Long = 0
+
+    @Column(name = "reached_final_count", nullable = false)
+    var reachedFinalCount: Long = 0
 }

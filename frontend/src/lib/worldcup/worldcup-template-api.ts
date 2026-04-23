@@ -34,7 +34,8 @@ export interface WorldCupTemplateDetailDto {
   title: string;
   version: number;
   description: string | null;
-  items: Record<string, unknown>;
+  /** JSON 배열 또는 레거시 래핑 형태 — `parseWorldCupItemsPayload` 사용 */
+  items: unknown;
   thumbnailUrl: string | null;
   creatorId: number | null;
   layoutMode: string;
@@ -51,7 +52,7 @@ export interface CreateWorldCupTemplatePayload {
   title: string;
   description: string | null;
   layoutMode: 'split_lr' | 'split_diagonal';
-  items: { id: string; name: string; imageUrl?: string | null }[];
+  items: { id: number; name: string; imageUrl?: string | null }[];
   /** 합성·직접 업로드한 목록 썸네일. 생략 시 서버가 첫 미디어 등으로 추론 */
   thumbnailUrl?: string | null;
 }
@@ -78,7 +79,7 @@ export async function createWorldCupTemplate(
       title: body.title,
       description: body.description,
       layoutMode: body.layoutMode,
-      items: { items: body.items },
+      items: body.items,
       thumbnailUrl: body.thumbnailUrl?.trim() ? body.thumbnailUrl.trim() : null,
     }),
   });

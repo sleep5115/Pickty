@@ -25,7 +25,7 @@ import {
   templateItemsDescription,
   templatePayloadToTierItems,
 } from '@/lib/tier-api';
-import { parseSnapshotDataToBoard } from '@/lib/tier-snapshot';
+import { parseSnapshotDataToBoard, snapshotRequiresTemplateCatalog } from '@/lib/tier-snapshot';
 
 function TierPageInner({ routeTemplateId }: { routeTemplateId?: string }) {
   const router = useRouter();
@@ -189,7 +189,16 @@ function TierPageInner({ routeTemplateId }: { routeTemplateId?: string }) {
             setTemplateCreatorId(null);
             return;
           }
-          const board = parseSnapshotDataToBoard(res.snapshotData as Record<string, unknown>);
+          const rawSnap = res.snapshotData as Record<string, unknown>;
+          let remixCatalog = null as ReturnType<typeof templatePayloadToTierItems> | null;
+          if (snapshotRequiresTemplateCatalog(rawSnap)) {
+            const detailForSnap = await getTemplate(
+              res.templateId,
+              useAuthStore.getState().accessToken ?? null,
+            );
+            remixCatalog = templatePayloadToTierItems(detailForSnap.items);
+          }
+          const board = parseSnapshotDataToBoard(rawSnap, remixCatalog);
           if (!board) {
             setTemplateBanner('지원하지 않는 티어표 데이터입니다.');
             setTemplateCreatorId(null);
@@ -209,7 +218,9 @@ function TierPageInner({ routeTemplateId }: { routeTemplateId?: string }) {
               if (cancelled) return;
               useTierStore.getState().setWorkspaceTemplateMeta({
                 title: detail.title,
-                description: templateItemsDescription(detail.items),
+                description:
+                  detail.description?.trim() ||
+                  templateItemsDescription({ items: detail.items as Record<string, unknown> }),
               });
               setTemplateCreatorId(detail.creatorId ?? null);
               setTemplateLikeCount(detail.likeCount ?? 0);
@@ -270,7 +281,9 @@ function TierPageInner({ routeTemplateId }: { routeTemplateId?: string }) {
           templateId: detail.id,
           pool,
           workspaceTemplateTitle: detail.title,
-          workspaceTemplateDescription: templateItemsDescription(detail.items),
+          workspaceTemplateDescription:
+                detail.description?.trim() ||
+                templateItemsDescription({ items: detail.items as Record<string, unknown> }),
           boardConfig: detail.boardConfig ?? null,
         });
         setTemplateCreatorId(detail.creatorId ?? null);

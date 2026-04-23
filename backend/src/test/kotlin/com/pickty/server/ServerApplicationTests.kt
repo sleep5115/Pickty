@@ -61,10 +61,9 @@ class ServerApplicationTests {
 	fun tierTemplateThumbnailUrlRoundTrip() {
 		val entity = TierTemplate(
 			title = "thumb-url-test",
-			itemsPayload = mapOf(
-				"items" to listOf(
-					mapOf("id" to "a", "name" to "A", "imageUrl" to "https://img.pickty.app/item.png"),
-				),
+			description = null,
+			itemsPayload = listOf(
+				mapOf("id" to 1, "name" to "A", "imageUrl" to "https://img.pickty.app/item.png"),
 			),
 		)
 		entity.thumbnailUrl = "https://img.pickty.app/cover.png"

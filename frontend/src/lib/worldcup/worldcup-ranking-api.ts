@@ -4,7 +4,7 @@ export const WORLDCUP_RANKING_PAGE_SIZE = 20;
 
 export interface WorldCupRankingRowDto {
   rank: number;
-  itemId: string;
+  itemId: number;
   matchCount: number;
   winCount: number;
   rerolledCount: number;
@@ -40,14 +40,10 @@ function num(v: unknown): number {
   return 0;
 }
 
-function str(v: unknown): string {
-  return typeof v === 'string' ? v : v != null ? String(v) : '';
-}
-
 function mapRankingRow(row: Record<string, unknown>): WorldCupRankingRowDto | null {
   if (!row || typeof row !== 'object') return null;
-  const itemId = str(row.itemId ?? row.item_id);
-  if (!itemId) return null;
+  const itemId = num(row.itemId ?? row.item_id);
+  if (!Number.isFinite(itemId) || itemId <= 0) return null;
   return {
     rank: num(row.rank),
     itemId,

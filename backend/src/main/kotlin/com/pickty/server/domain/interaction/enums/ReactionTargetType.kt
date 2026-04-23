@@ -6,5 +6,5 @@ enum class ReactionTargetType {
     TIER_RESULT,
     WORLDCUP_TEMPLATE,
     WORLDCUP_RESULT,
-    community_post,
+    COMMUNITY_POST,
 }

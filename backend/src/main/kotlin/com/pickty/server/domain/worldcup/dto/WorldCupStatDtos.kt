@@ -1,13 +1,29 @@
 package com.pickty.server.domain.worldcup.dto
+import jakarta.validation.Valid
+import jakarta.validation.constraints.Max
+import jakarta.validation.constraints.Min
+import jakarta.validation.constraints.NotEmpty
+import jakarta.validation.constraints.NotNull
 
+/** 한 판 종료 후 통계만 전송 — 플레이 원시 이력 없음 */
 data class WorldCupResultSubmitRequest(
-    val winnerItemId: String,
-    val itemStats: Map<String, WorldCupItemStatPayload>,
+    @field:NotNull
+    val winnerItemId: Long,
+    @field:NotEmpty @field:Valid
+    val rows: List<WorldCupStatSubmitRow>,
 )
 
-data class WorldCupItemStatPayload(
-    val matchCount: Long = 0,
+data class WorldCupStatSubmitRow(
+    @field:NotNull @field:Min(1)
+    val itemId: Long,
+    /**
+     * 해당 플레이에서 참가자가 도달한 라운드 규모(`roundDisplayPlayerCount` 최댓값).
+     * 예: 16·8·4·2 — 이 값으로 reached_* 카운터를 한 번씩 가산한다.
+     */
+    @field:NotNull @field:Min(1) @field:Max(4096)
+    val peakBracketSize: Int,
     val winCount: Long = 0,
+    val matchCount: Long = 0,
     val rerolledCount: Long = 0,
     val droppedCount: Long = 0,
     val keptBothCount: Long = 0,
@@ -15,7 +31,8 @@ data class WorldCupItemStatPayload(
 
 data class WorldCupRankingRowResponse(
     val rank: Int,
-    val itemId: String,
+    /** 템플릿 로컬 아이템 정수 id */
+    val itemId: Long,
     val matchCount: Long,
     val winCount: Long,
     val rerolledCount: Long,

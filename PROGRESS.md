@@ -183,6 +183,15 @@
 
 ---
 
+## 진행 메모 **(2026-04-23)**
+
+- **V2 초기 스키마 방어 보강 (`backend/src/main/resources/db/migration/V1__init_schema_v2.sql`)**: **`reactions`** — 회원 `(target_type, target_id, user_id)` 부분 유니크(`WHERE user_id IS NOT NULL`), 비회원 `(target_type, target_id, guest_ip_hash)` 부분 유니크(`WHERE user_id IS NULL AND guest_ip_hash IS NOT NULL`) · API 연타·레이스 시 앱 로직만으로 막기 어려운 **중복 반응 행**을 DB에서 차단. **`comments.author_ip_prefix`** · **`community_posts.guest_ip_prefix`** — **`varchar(45)`**(IPv6 문자열·zone id 여유). **`tier_results`** — **`CREATE INDEX ix_tier_results_user ON tier_results (user_id)`** (`GET .../tiers/results/mine` 등 **내 티어표** 조회 대비).
+- **엔티티 정합**: `**Comment.kt**` · `**CommunityPost.kt**` `@Column(length = 45)` · `**TierResult.kt**` `@Table` 에 `ix_tier_results_template`·`ix_tier_results_user` 선언 · `**Reaction.kt**` KDoc을 위 부분 유니크 인덱스 정의와 동기화.
+- **티어 템플릿별 아이템 누적 통계 테이블**: 기획상 **추가하지 않음**(YAGNI). 커뮤니티 평균 티어 등은 UX·티어 행 라벨 불일치로 **표현이 애매**하고, 필요 시 나중에 **`tier_results.snapshot_data` 배치 백필**로 보완 가능. 현재는 **스냅샷 저장 구조 유지**.
+- **신규 DB 반영**: 이 init 스크립트는 **신규 환경 전용**(Flyway 빈 DB). 기존 운영 DB에 컬럼·인덱스만 필요하면 **별도 증분 마이그레이션**으로 동일 DDL을 적용해야 함.
+
+---
+
 ## 인프라 방향 · 스냅샷
 
 

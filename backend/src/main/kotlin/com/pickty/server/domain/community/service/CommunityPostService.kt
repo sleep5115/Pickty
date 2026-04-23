@@ -35,7 +35,7 @@ class CommunityPostService(
     private val commentService: CommentService,
 ) {
     companion object {
-        private const val community_post_COMMENTS_PAGE_SIZE = 30
+        private const val COMMUNITY_POST_COMMENTS_PAGE_SIZE = 30
     }
     @Transactional
     fun create(
@@ -113,9 +113,9 @@ class CommunityPostService(
         val postId = any.id!!
         val commentPage =
             commentService.listCommentsPage(
-                ReactionTargetType.community_post,
+                ReactionTargetType.COMMUNITY_POST,
                 postId,
-                PageRequest.of(0, community_post_COMMENTS_PAGE_SIZE),
+                PageRequest.of(0, COMMUNITY_POST_COMMENTS_PAGE_SIZE),
             )
         return BoardPostDetailResponse(
             id = postId,

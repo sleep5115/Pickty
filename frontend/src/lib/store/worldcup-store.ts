@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 
-/** 티어 도메인 `TierItem`과 호환 가능한 최소 필드 */
+/** 티어 도메인 `TierItem`과 호환 가능한 최소 필드 — id 는 템플릿 로컬 정수 */
 export interface WorldCupItem {
-  id: string;
+  id: number;
   name: string;
   imageUrl?: string;
 }
@@ -10,43 +10,43 @@ export interface WorldCupItem {
 /** 플레이 영역 레이아웃 — 백엔드 `layout_mode` 와 동일 개념 */
 export type WorldCupLayoutMode = 'split_diagonal' | 'split_lr';
 
-/** 사용자 선택 경로 한 건 — 결과 저장·PNG 대진표 문구용 */
+/** 사용자 선택 경로 한 건 — 결과 PNG·로컬용(서버 미전송) */
 export type WorldCupMatchHistoryEntry =
   | {
       kind: 'selectWinner';
-      leftId: string;
-      rightId: string;
+      leftId: number;
+      rightId: number;
       leftName: string;
       rightName: string;
-      winnerId: string;
+      winnerId: number;
       winnerName: string;
       winnerSide: 0 | 1;
     }
   | {
       kind: 'dropBoth';
-      leftId: string;
-      rightId: string;
+      leftId: number;
+      rightId: number;
       leftName: string;
       rightName: string;
     }
   | {
       kind: 'keepBoth';
-      leftId: string;
-      rightId: string;
+      leftId: number;
+      rightId: number;
       leftName: string;
       rightName: string;
     }
   | {
       kind: 'reroll';
       side: 0 | 1;
-      removedId: string;
+      removedId: number;
       removedName: string;
-      newItemId: string;
+      newItemId: number;
       newName: string;
     }
   | {
       kind: 'walkover';
-      championItemId: string;
+      championItemId: number;
       championName: string;
     };
 
@@ -56,7 +56,7 @@ function cloneMatchHistory(h: WorldCupMatchHistory): WorldCupMatchHistory {
   return h.map((e) => ({ ...e }));
 }
 
-/** 한 아이템별 월드컵 한 판(run) 통계 — 백엔드 페이로드용 */
+/** 한 아이템별 월드컵 한 판(run) 통계 — 서버 페이로드 계산용 */
 export interface WorldCupItemStatRow {
   matchCount: number;
   winCount: number;
@@ -67,7 +67,7 @@ export interface WorldCupItemStatRow {
 
 export type WorldCupItemStatsMap = Record<string, WorldCupItemStatRow>;
 
-/** 브라우저 탭 유지 동안 누적 — 아이템별 최종 우승 횟수 (우승 비율 분자) */
+/** 브라우저 탭 유지 동안 누적 — 아이템별 최종 우승 횟수 */
 export type WorldCupChampionshipWinsMap = Record<string, number>;
 
 export function emptyItemStatRow(): WorldCupItemStatRow {
@@ -80,15 +80,20 @@ export function emptyItemStatRow(): WorldCupItemStatRow {
   };
 }
 
+function itemKey(id: number): string {
+  return String(id);
+}
+
 function mergeItemStats(
   stats: WorldCupItemStatsMap,
-  itemId: string,
+  itemId: number,
   add: Partial<WorldCupItemStatRow>,
 ): WorldCupItemStatsMap {
-  const prev = stats[itemId] ?? emptyItemStatRow();
+  const k = itemKey(itemId);
+  const prev = stats[k] ?? emptyItemStatRow();
   return {
     ...stats,
-    [itemId]: {
+    [k]: {
       matchCount: prev.matchCount + (add.matchCount ?? 0),
       winCount: prev.winCount + (add.winCount ?? 0),
       rerolledCount: prev.rerolledCount + (add.rerolledCount ?? 0),
@@ -100,8 +105,7 @@ function mergeItemStats(
 
 /**
  * 현재 판의 `matchHistory`만으로 `itemStats` 누적치를 재계산한다.
- * - `POST /api/v1/worldcup/results` 제출 시 **이 값을 쓰면** 스토어 `itemStats`와 어긋나도 이력 정본으로 서버와 맞출 수 있다.
- * - `walkover` 는 1:1 대결이 아니므로 여기서는 반영하지 않는다.
+ * `walkover` 는 1:1 대결이 아니므로 여기서는 반영하지 않는다.
  */
 export function aggregateItemStatsFromMatchHistory(history: WorldCupMatchHistory): WorldCupItemStatsMap {
   let stats: WorldCupItemStatsMap = {};
@@ -127,11 +131,19 @@ function cloneChampionshipWins(m: WorldCupChampionshipWinsMap): WorldCupChampion
   return { ...m };
 }
 
-function bumpChampionWin(m: WorldCupChampionshipWinsMap, championId: string): WorldCupChampionshipWinsMap {
+function bumpChampionWin(m: WorldCupChampionshipWinsMap, championId: number): WorldCupChampionshipWinsMap {
+  const k = itemKey(championId);
   return {
     ...m,
-    [championId]: (m[championId] ?? 0) + 1,
+    [k]: (m[k] ?? 0) + 1,
   };
+}
+
+function bumpPeakRecord(peak: Record<string, number>, id: number, roundDisplay: number): Record<string, number> {
+  const k = itemKey(id);
+  const next = { ...peak };
+  next[k] = Math.max(next[k] ?? 0, roundDisplay);
+  return next;
 }
 
 /** matchCount·winCount — 1:1 대결에서 승자 선택 */
@@ -160,7 +172,7 @@ function applyKeepBoth(stats: WorldCupItemStatsMap, left: WorldCupItem, right: W
   return next;
 }
 
-function applyReroll(stats: WorldCupItemStatsMap, replacedItemId: string): WorldCupItemStatsMap {
+function applyReroll(stats: WorldCupItemStatsMap, replacedItemId: number): WorldCupItemStatsMap {
   return mergeItemStats(stats, replacedItemId, { rerolledCount: 1 });
 }
 
@@ -189,6 +201,8 @@ export interface WorldCupPlaySnapshot {
   reservePoolCount: number;
   layoutMode: WorldCupLayoutMode;
   itemStats: WorldCupItemStatsMap;
+  /** 해당 판에서 아이템이 도달한 라운드 규모(`roundDisplayPlayerCount`) 최댓값 */
+  itemPeakRound: Record<string, number>;
   /** 같은 페이지에서 여러 판 플레이 시 누적 우승 횟수 */
   championshipWinsByItemId: WorldCupChampionshipWinsMap;
   /** 이 화면에서 완료한 월드컵 판(게임) 수 */
@@ -235,6 +249,7 @@ function cloneSnapshot(s: WorldCupPlayState): WorldCupPlaySnapshot {
     reservePoolCount: s.reservePoolCount,
     layoutMode: s.layoutMode,
     itemStats: cloneItemStats(s.itemStats),
+    itemPeakRound: { ...s.itemPeakRound },
     championshipWinsByItemId: cloneChampionshipWins(s.championshipWinsByItemId),
     completedWorldCupRuns: s.completedWorldCupRuns,
     matchHistory: cloneMatchHistory(s.matchHistory),
@@ -255,6 +270,7 @@ function applySnapshot(snap: WorldCupPlaySnapshot): Omit<WorldCupPlayState, 'his
     reservePoolCount: snap.reservePoolCount,
     layoutMode: snap.layoutMode,
     itemStats: cloneItemStats(snap.itemStats),
+    itemPeakRound: { ...snap.itemPeakRound },
     championshipWinsByItemId: cloneChampionshipWins(snap.championshipWinsByItemId),
     completedWorldCupRuns: snap.completedWorldCupRuns,
     matchHistory: cloneMatchHistory(snap.matchHistory),
@@ -320,6 +336,7 @@ function emptyPlayFields(): Omit<WorldCupPlayState, 'history'> {
     reservePoolCount: 0,
     layoutMode: 'split_lr',
     itemStats: {},
+    itemPeakRound: {},
     championshipWinsByItemId: {},
     completedWorldCupRuns: 0,
     matchHistory: [],
@@ -344,6 +361,14 @@ function transitionToNextRound(
 ) {
   const shuffled = shuffleArray(incomingPool);
   const displayCount = shuffled.length;
+
+  set((state) => {
+    let peak = { ...state.itemPeakRound };
+    for (const it of shuffled) {
+      peak = bumpPeakRecord(peak, it.id, displayCount);
+    }
+    return { itemPeakRound: peak };
+  });
 
   if (shuffled.length === 0) {
     set({
@@ -412,6 +437,46 @@ function afterMatchConsumed(
   });
 }
 
+/** 서버 `POST .../results` 용 압축 페이로드 — 원시 대진 이력 없음 */
+export function buildWorldCupStatSubmitPayload(state: WorldCupPlayState): {
+  winnerItemId: number;
+  rows: Array<{
+    itemId: number;
+    peakBracketSize: number;
+    winCount: number;
+    matchCount: number;
+    rerolledCount: number;
+    droppedCount: number;
+    keptBothCount: number;
+  }>;
+} {
+  const winnerId = state.champion?.id;
+  if (winnerId == null) throw new Error('champion missing');
+
+  const keys = new Set<string>();
+  for (const k of Object.keys(state.itemStats)) keys.add(k);
+  for (const k of Object.keys(state.itemPeakRound)) keys.add(k);
+
+  const rows = [...keys]
+    .map((k) => {
+      const itemId = Number(k);
+      const stat = state.itemStats[k] ?? emptyItemStatRow();
+      const peak = state.itemPeakRound[k] ?? 0;
+      return {
+        itemId,
+        peakBracketSize: Math.max(peak, 1),
+        winCount: stat.winCount,
+        matchCount: stat.matchCount,
+        rerolledCount: stat.rerolledCount,
+        droppedCount: stat.droppedCount,
+        keptBothCount: stat.keptBothCount,
+      };
+    })
+    .filter((r) => Number.isFinite(r.itemId) && r.itemId > 0);
+
+  return { winnerItemId: winnerId, rows };
+}
+
 export const useWorldCupStore = create<WorldCupPlayState & WorldCupPlayActions>((set, get) => ({
   ...initialState(),
 
@@ -463,6 +528,7 @@ export const useWorldCupStore = create<WorldCupPlayState & WorldCupPlayActions>(
         layoutMode: playLayout,
         history: [],
         itemStats: {},
+        itemPeakRound: bumpPeakRecord({}, only.id, Math.max(cap, 1)),
         championshipWinsByItemId: bumpChampionWin(state.championshipWinsByItemId, only.id),
         completedWorldCupRuns: state.completedWorldCupRuns + 1,
         matchHistory: [
@@ -490,6 +556,7 @@ export const useWorldCupStore = create<WorldCupPlayState & WorldCupPlayActions>(
       layoutMode: playLayout,
       history: [],
       itemStats: {},
+      itemPeakRound: head.reduce((peak, it) => bumpPeakRecord(peak, it.id, displayCount), {}),
       championshipWinsByItemId: get().championshipWinsByItemId,
       matchHistory: [],
     });
@@ -505,6 +572,7 @@ export const useWorldCupStore = create<WorldCupPlayState & WorldCupPlayActions>(
         isPlaying: true,
         roundPlayingInitialLength: 0,
         roundDisplayPlayerCount: 0,
+        itemPeakRound: bumpPeakRecord({}, c.id, Math.max(cap, 1)),
         championshipWinsByItemId: bumpChampionWin(state.championshipWinsByItemId, c.id),
         completedWorldCupRuns: state.completedWorldCupRuns + 1,
         matchHistory: [
@@ -518,7 +586,6 @@ export const useWorldCupStore = create<WorldCupPlayState & WorldCupPlayActions>(
     }
   },
 
-  /** 교체된 쪽 후보: `rerolledCount+1` (리롤당함). 새로 들어온 풀 아이템은 여기서 카운트하지 않는다. */
   rerollItem: (index) => {
     const { reservePool, currentRoundBracket } = get();
     if (reservePool.length === 0 || currentRoundBracket.length < 2) return;
@@ -529,11 +596,13 @@ export const useWorldCupStore = create<WorldCupPlayState & WorldCupPlayActions>(
     const fromPool = reservePool[0]!;
     const next = [...currentRoundBracket];
     next[index] = fromPool;
+    const R = get().roundDisplayPlayerCount;
     set((state) => ({
       currentRoundBracket: next,
       reservePool: reservePool.slice(1),
       reservePoolCount: reservePool.length - 1,
       itemStats: applyReroll(state.itemStats, replaced.id),
+      itemPeakRound: bumpPeakRecord(state.itemPeakRound, replaced.id, R),
       matchHistory: [
         ...state.matchHistory,
         {
@@ -548,10 +617,6 @@ export const useWorldCupStore = create<WorldCupPlayState & WorldCupPlayActions>(
     }));
   },
 
-  /**
-   * 좌(0)·우(1) 중 승자 선택.
-   * 통계: 양쪽 `matchCount+1`, 승자만 `winCount+1`.
-   */
   selectWinner: (index) => {
     if (index !== 0 && index !== 1) return;
     const { currentRoundBracket, nextRoundBracket } = get();
@@ -562,8 +627,10 @@ export const useWorldCupStore = create<WorldCupPlayState & WorldCupPlayActions>(
     const rest = currentRoundBracket.slice(2);
     const winner = index === 0 ? left : right;
     const updatedNext = [...nextRoundBracket, winner];
+    const R = get().roundDisplayPlayerCount;
     set((state) => ({
       itemStats: applySelectWinner(state.itemStats, left, right, index),
+      itemPeakRound: bumpPeakRecord(bumpPeakRecord(state.itemPeakRound, left.id, R), right.id, R),
       matchHistory: [
         ...state.matchHistory,
         {
@@ -581,7 +648,6 @@ export const useWorldCupStore = create<WorldCupPlayState & WorldCupPlayActions>(
     afterMatchConsumed(set, get, rest, updatedNext);
   },
 
-  /** 광탈: 양쪽 `matchCount+1`, `droppedCount+1`. */
   dropBoth: () => {
     const { currentRoundBracket, nextRoundBracket } = get();
     if (currentRoundBracket.length < 2 || get().tournamentComplete) return;
@@ -590,8 +656,10 @@ export const useWorldCupStore = create<WorldCupPlayState & WorldCupPlayActions>(
     const right = currentRoundBracket[1]!;
     const rest = currentRoundBracket.slice(2);
     const updatedNext = [...nextRoundBracket];
+    const R = get().roundDisplayPlayerCount;
     set((state) => ({
       itemStats: applyDropBoth(state.itemStats, left, right),
+      itemPeakRound: bumpPeakRecord(bumpPeakRecord(state.itemPeakRound, left.id, R), right.id, R),
       matchHistory: [
         ...state.matchHistory,
         {
@@ -606,7 +674,6 @@ export const useWorldCupStore = create<WorldCupPlayState & WorldCupPlayActions>(
     afterMatchConsumed(set, get, rest, updatedNext);
   },
 
-  /** 둘 다 올리기: 양쪽 `matchCount+1`, `keptBothCount+1`. */
   keepBoth: () => {
     const { currentRoundBracket, nextRoundBracket } = get();
     if (currentRoundBracket.length < 2 || get().tournamentComplete) return;
@@ -615,8 +682,10 @@ export const useWorldCupStore = create<WorldCupPlayState & WorldCupPlayActions>(
     const right = currentRoundBracket[1]!;
     const rest = currentRoundBracket.slice(2);
     const updatedNext = [...nextRoundBracket, left, right];
+    const R = get().roundDisplayPlayerCount;
     set((state) => ({
       itemStats: applyKeepBoth(state.itemStats, left, right),
+      itemPeakRound: bumpPeakRecord(bumpPeakRecord(state.itemPeakRound, left.id, R), right.id, R),
       matchHistory: [
         ...state.matchHistory,
         {

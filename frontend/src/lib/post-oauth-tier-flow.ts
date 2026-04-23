@@ -45,13 +45,23 @@ export async function runPersistedTierAutoSave(accessToken: string): Promise<Tie
   const thumbDataUrl =
     typeof window !== 'undefined' ? sessionStorage.getItem(TIER_AUTOSAVE_THUMB_SESSION_KEY) : null;
 
+  let snapshotItemIdRemap: Map<string, number> | undefined;
   try {
     if (!tid) {
       const items = collectDistinctItems(tiers, pool);
       if (items.length === 0) {
         return { ok: false, reason: 'error', message: '저장할 티어 항목이 없습니다.' };
       }
-      const created = await createTemplate({ title: listTitle, items: { items } }, accessToken);
+      const rows = items.map((it, i) => ({
+        id: i + 1,
+        name: it.name,
+        imageUrl: it.imageUrl?.trim() ? it.imageUrl.trim() : null,
+      }));
+      snapshotItemIdRemap = new Map(items.map((it, i) => [it.id, i + 1]));
+      const created = await createTemplate(
+        { title: listTitle, description: null, items: rows },
+        accessToken,
+      );
       tid = created.id;
       useTierStore.getState().setTemplateId(tid);
     }
@@ -69,7 +79,7 @@ export async function runPersistedTierAutoSave(accessToken: string): Promise<Tie
       }
     }
 
-    const snapshot = buildTierSnapshot(tiers, pool, state.workspaceBoardSurface);
+    const snapshot = buildTierSnapshot(tiers, pool, state.workspaceBoardSurface, snapshotItemIdRemap);
     const result = await createTierResult(
       {
         templateId: tid,

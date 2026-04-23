@@ -95,13 +95,13 @@ interface Props {
   onBackToResult: () => void;
 }
 
-function buildItemMeta(
-  itemsPayload: Record<string, unknown>,
-): Map<string, { name: string; imageUrl?: string }> {
-  const list = parseWorldCupItemsPayload(itemsPayload);
+function buildItemMeta(itemsPayload: unknown): Map<string, { name: string; imageUrl?: string }> {
+  const list = parseWorldCupItemsPayload(
+    itemsPayload as Record<string, unknown> | unknown[] | null | undefined,
+  );
   const m = new Map<string, { name: string; imageUrl?: string }>();
   for (const it of list) {
-    m.set(it.id, { name: it.name, imageUrl: it.imageUrl });
+    m.set(String(it.id), { name: it.name, imageUrl: it.imageUrl });
   }
   return m;
 }
@@ -114,10 +114,10 @@ function isAbortLike(e: unknown): boolean {
   );
 }
 
-function syntheticRankingFromItemsPayload(
-  itemsPayload: Record<string, unknown>,
-): WorldCupRankingRowDto[] {
-  const list = parseWorldCupItemsPayload(itemsPayload);
+function syntheticRankingFromItemsPayload(itemsPayload: unknown): WorldCupRankingRowDto[] {
+  const list = parseWorldCupItemsPayload(
+    itemsPayload as Record<string, unknown> | unknown[] | null | undefined,
+  );
   return list.map((it, idx) => ({
     rank: idx + 1,
     itemId: it.id,
@@ -150,7 +150,7 @@ export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
   const [hasServerRanking, setHasServerRanking] = useState(false);
   /** `championshipRatePct` 분모 — 템플릿 전체 완료 플레이 수 (백엔드 `totalCompletedPlays`) */
   const [totalCompletedPlays, setTotalCompletedPlays] = useState(0);
-  const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
+  const [expandedItemId, setExpandedItemId] = useState<number | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
 
@@ -401,8 +401,8 @@ export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
                     </tr>
                   ) : (
                     rows.flatMap((row) => {
-                      const meta = itemMeta.get(row.itemId);
-                      const name = meta?.name ?? row.itemId;
+                      const meta = itemMeta.get(String(row.itemId));
+                      const name = meta?.name ?? String(row.itemId);
                       const imageUrl = meta?.imageUrl?.trim() ?? '';
                       const expanded = expandedItemId === row.itemId;
 

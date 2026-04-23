@@ -9,12 +9,6 @@ import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Size
 import java.util.UUID
 
-data class WorldCupTemplateItemsPayload(
-    @field:NotEmpty(message = "아이템을 1개 이상 추가해 주세요.")
-    @field:Valid
-    val items: List<TemplateItemPayload>,
-)
-
 data class CreateWorldCupTemplateRequest(
     @field:NotBlank(message = "템플릿 제목을 입력해 주세요.")
     @field:Size(max = 100, message = "제목은 100자 이하로 입력해 주세요.")
@@ -28,7 +22,9 @@ data class CreateWorldCupTemplateRequest(
     @field:NotBlank(message = "레이아웃 모드를 선택해 주세요.")
     @field:Size(max = 32)
     val layoutMode: String,
-    @field:NotNull @field:Valid val items: WorldCupTemplateItemsPayload,
+    @field:NotEmpty(message = "아이템을 1개 이상 추가해 주세요.")
+    @field:Valid
+    val items: List<TemplateItemPayload>,
 )
 
 data class UpdateWorldCupTemplateMetaRequest(
@@ -74,13 +70,13 @@ data class WorldCupTemplateSummaryResponse(
     val myReaction: ReactionType? = null,
 )
 
-/** 상세 — 아이템 JSONB 전체 */
+/** 상세 — 아이템 JSON 배열 전체 */
 data class WorldCupTemplateDetailResponse(
     val id: UUID,
     val title: String,
     val version: Int,
     val description: String?,
-    val items: Map<String, Any?>,
+    val items: List<Map<String, Any?>>,
     val thumbnailUrl: String?,
     val creatorId: Long?,
     val layoutMode: String,

@@ -25,7 +25,6 @@ import { PICKTY_IMAGE_UPLOAD_HINT } from '@/lib/pickty-upload-hint';
 import { useAuthStore } from '@/lib/store/auth-store';
 
 const itemSchema = z.object({
-  id: z.string().min(1),
   name: z.string().min(1, '이름을 입력해 주세요.').max(100),
   imageUrl: z.string().max(2048).optional().or(z.literal('')),
   /** UI 전용 — 직접 업로드 시 URL 입력 숨김 */
@@ -43,10 +42,6 @@ type FormValues = z.infer<typeof formSchema>;
 
 function newItemRow(): FormValues['items'][number] {
   return {
-    id:
-      typeof crypto !== 'undefined'
-        ? crypto.randomUUID()
-        : `wc-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     name: '',
     imageUrl: '',
     mediaEntryKind: 'url',
@@ -140,7 +135,6 @@ function ItemThumbnailUploadCell({ index }: { index: number }) {
 
   return (
     <div className="flex flex-col items-center gap-1">
-      <input type="hidden" {...register(`items.${index}.id`)} />
       <input type="hidden" {...register(`items.${index}.mediaEntryKind`)} />
       <input
         ref={fileRef}
@@ -242,7 +236,7 @@ export default function WorldCupTemplateNewPage() {
       title: '',
       description: '',
       layoutMode: 'split_diagonal',
-      items: [newItemRow()],
+      items: [newItemRow(), newItemRow()],
     },
   });
 
@@ -282,8 +276,8 @@ export default function WorldCupTemplateNewPage() {
           description: data.description?.trim() ? data.description.trim() : null,
           layoutMode: data.layoutMode,
           thumbnailUrl,
-          items: data.items.map((it) => ({
-            id: it.id,
+          items: data.items.map((it, idx) => ({
+            id: idx + 1,
             name: it.name.trim(),
             imageUrl: it.imageUrl?.trim() ? it.imageUrl.trim() : null,
           })),
@@ -316,10 +310,6 @@ export default function WorldCupTemplateNewPage() {
     );
     for (const { trimmed, name } of enriched) {
       append({
-        id:
-          typeof crypto !== 'undefined'
-            ? crypto.randomUUID()
-            : `wc-${Date.now()}-${Math.random().toString(36).slice(2)}`,
         name,
         imageUrl: trimmed,
         mediaEntryKind: 'url',
@@ -344,10 +334,6 @@ export default function WorldCupTemplateNewPage() {
           const url = urls[i];
           if (!url) continue;
           append({
-            id:
-              typeof crypto !== 'undefined'
-                ? crypto.randomUUID()
-                : `wc-${Date.now()}-${Math.random().toString(36).slice(2)}`,
             name: stripUploadedImageBaseName(f.name),
             imageUrl: url,
             mediaEntryKind: 'upload',
