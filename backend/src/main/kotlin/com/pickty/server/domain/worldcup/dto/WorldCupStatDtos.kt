@@ -39,6 +39,11 @@ data class WorldCupRankingRowResponse(
     val droppedCount: Long,
     val keptBothCount: Long,
     val finalWinCount: Long,
+    /** 플레이당 1회씩 — 해당 라운드 규모 이상 도달한 횟수(동일 플레이에서 중복 없음) */
+    val reached16Count: Long,
+    val reached8Count: Long,
+    val reached4Count: Long,
+    val reachedFinalCount: Long,
     /** 승리 횟수 ÷ 맞대결 참가 수 × 100 (반올림) */
     val winRatePct: Int,
     /** 해당 아이템 최종 우승 횟수 ÷ 같은 템플릿 완료 플레이(게임) 총 횟수 × 100 */
@@ -47,7 +52,7 @@ data class WorldCupRankingRowResponse(
     val skipRatePct: Int,
     /** 둘 다 탈락 참여 횟수 ÷ 맞대결 참가 수 × 100 */
     val dropRatePct: Int,
-    /** 둘 다 올리기 참여 횟수 ÷ 맞대결 참가 수 × 100 */
+    /** 둘 다 올림 참여 횟수 ÷ 맞대결 참가 수 × 100 */
     val nailBiterRatePct: Int,
 )
 
