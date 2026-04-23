@@ -137,7 +137,7 @@ class ReactionService(
 
             ReactionTargetType.WORLDCUP_TEMPLATE,
             ReactionTargetType.WORLDCUP_RESULT,
-            ReactionTargetType.community_post,
+            ReactionTargetType.COMMUNITY_POST,
             ->
                 throw ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, "아직 이 대상에는 반응을 지원하지 않습니다.")
         }

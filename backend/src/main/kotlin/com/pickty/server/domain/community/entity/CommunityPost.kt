@@ -61,7 +61,7 @@ class CommunityPost(
     var guestIpHash: String? = guestIpHash
         protected set
 
-    @Column(name = "guest_ip_prefix", length = 16)
+    @Column(name = "guest_ip_prefix", length = 45)
     var guestIpPrefix: String? = guestIpPrefix
         protected set
 

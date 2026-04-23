@@ -29,7 +29,10 @@ export interface TemplateDetailResponse {
   title: string;
   version: number;
   parentTemplateId: string | null;
-  items: Record<string, unknown>;
+  /** 템플릿 메타 설명(DB 컬럼). */
+  description?: string | null;
+  /** JSON 배열 `[{ id, name, imageUrl?, focusRect? }, ...]` */
+  items: unknown;
   /** 단일 썸네일 URL */
   thumbnailUrl?: string | null;
   /** 파싱 성공 시만 존재 — 없거나 검증 실패 시 undefined */
@@ -63,21 +66,42 @@ export interface TemplateSummaryResponse {
   myReaction?: ReactionType | null;
 }
 
-/** 템플릿 items JSONB의 `description` 문자열 (없으면 null) */
-export function templateItemsDescription(items: Record<string, unknown>): string | null {
-  const d = items.description;
-  return typeof d === 'string' && d.trim() ? d.trim() : null;
+/** 템플릿 설명 — API `description` 우선, 레거시 items 객체 내부 description 폴백 */
+export function templateItemsDescription(payload: Record<string, unknown>): string | null {
+  const top = payload.description;
+  if (typeof top === 'string' && top.trim()) return top.trim();
+  const itemsObj = payload.items;
+  if (itemsObj && typeof itemsObj === 'object' && !Array.isArray(itemsObj)) {
+    const d = (itemsObj as Record<string, unknown>).description;
+    if (typeof d === 'string' && d.trim()) return d.trim();
+  }
+  return null;
 }
 
-/** 템플릿 JSONB에서 티어 풀 아이템만 추출 (description 등 메타는 무시) */
-export function templatePayloadToTierItems(payload: Record<string, unknown>): TierItem[] {
-  const raw = payload.items;
+/** 템플릿 items JSON 배열에서 티어 풀 아이템만 추출 — `items` 키·최상단 배열·전체 detail 모두 허용 */
+export function templatePayloadToTierItems(payload: unknown): TierItem[] {
+  if (payload == null) return [];
+  let raw: unknown = payload;
+  if (!Array.isArray(raw) && typeof raw === 'object') {
+    const p = raw as Record<string, unknown>;
+    raw = p.items ?? p;
+  }
+  if (!Array.isArray(raw) && raw && typeof raw === 'object') {
+    const nested = (raw as Record<string, unknown>).items;
+    if (Array.isArray(nested)) raw = nested;
+  }
   if (!Array.isArray(raw)) return [];
   const out: TierItem[] = [];
   for (const row of raw) {
     if (!row || typeof row !== 'object') continue;
     const o = row as Record<string, unknown>;
-    const id = typeof o.id === 'string' ? o.id : String(o.id ?? '');
+    const idRaw = o.id;
+    const id =
+      typeof idRaw === 'number' && Number.isFinite(idRaw)
+        ? String(Math.floor(idRaw))
+        : typeof idRaw === 'string'
+          ? idRaw
+          : String(idRaw ?? '');
     const name = typeof o.name === 'string' ? o.name : String(o.name ?? '');
     const rawUrl =
       typeof o.imageUrl === 'string' && o.imageUrl.length > 0 ? o.imageUrl : undefined;
@@ -121,10 +145,8 @@ export type CreateTemplateBoardConfigPayload = {
 
 export type CreateTemplatePayload = {
   title: string;
-  items: {
-    description?: string | null;
-    items: Array<{ id: string; name: string; imageUrl?: string | null }>;
-  };
+  description?: string | null;
+  items: Array<{ id: number; name: string; imageUrl?: string | null }>;
   parentTemplateId?: string | null;
   version?: number;
   /** 단일 썸네일 */
@@ -400,8 +422,10 @@ export async function getTemplate(
     rawBoard != null && typeof rawBoard === 'object'
       ? parseTemplateBoardConfig(rawBoard)
       : null;
+  const desc = row.description;
   return {
     ...base,
+    description: typeof desc === 'string' ? desc : null,
     thumbnailUrl: parseTemplateThumbnailUrl(row),
     boardConfig: boardConfig ?? undefined,
     creatorId: Number.isFinite(creatorIdNum) ? creatorIdNum : null,

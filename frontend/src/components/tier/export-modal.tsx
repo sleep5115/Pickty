@@ -155,9 +155,17 @@ export function ExportModal({ captureRef, onClose }: ExportModalProps) {
     setSaveBusy(true);
     try {
       let tid = templateId;
+      /** 신규 템플릿 저장 시 순번 id(1..n)와 보드 속 TierItem.id가 불일치할 수 있어 스냅샷 id만 remap */
+      let snapshotItemIdRemap: Map<string, number> | undefined;
       if (!tid) {
         const items = collectDistinctItems(tiers, pool);
-        const created = await createTemplate({ title, items: { items } }, accessToken);
+        const rows = items.map((it, i) => ({
+          id: i + 1,
+          name: it.name,
+          imageUrl: it.imageUrl?.trim() ? it.imageUrl.trim() : null,
+        }));
+        snapshotItemIdRemap = new Map(items.map((it, i) => [it.id, i + 1]));
+        const created = await createTemplate({ title, description: null, items: rows }, accessToken);
         tid = created.id;
         setTemplateId(tid);
       }
@@ -171,6 +179,7 @@ export function ExportModal({ captureRef, onClose }: ExportModalProps) {
         tiers,
         pool,
         useTierStore.getState().workspaceBoardSurface,
+        snapshotItemIdRemap,
       );
       const result = await createTierResult(
         {

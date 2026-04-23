@@ -9,8 +9,8 @@ import com.pickty.server.domain.view.service.ViewCountService
 import com.pickty.server.domain.tier.dto.CreateTemplateRequest
 import com.pickty.server.domain.tier.dto.PatchTemplateMetaResponse
 import com.pickty.server.domain.tier.dto.TemplateBoardConfigPayload
-import com.pickty.server.domain.tier.dto.TemplateItemsPayload
 import com.pickty.server.domain.tier.dto.TemplateDetailResponse
+import com.pickty.server.domain.tier.dto.TemplateItemPayload
 import com.pickty.server.domain.tier.dto.TemplateResponse
 import com.pickty.server.domain.tier.dto.TemplateSummaryResponse
 import com.pickty.server.domain.tier.dto.UpdateTemplateMetaRequest
@@ -19,6 +19,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
+import java.util.HashMap
 import java.util.UUID
 
 @Service
@@ -50,9 +51,8 @@ class TierTemplateService(
         val viewDeltas = viewCountService.templatePendingMulti(ids)
         return rows.map { e ->
             val id = e.id ?: throw IllegalStateException("template id missing")
-            val items = e.items
-            val itemCount = countItemsInPayload(items)
-            val description = (items["description"] as? String)?.trim()?.takeIf { it.isNotEmpty() }
+            val itemCount = e.items.size
+            val description = e.description?.trim()?.takeIf { it.isNotEmpty() }
             TemplateSummaryResponse(
                 id = id,
                 title = e.title,
@@ -83,7 +83,8 @@ class TierTemplateService(
             title = e.title,
             version = e.version,
             parentTemplateId = e.parent?.id,
-            items = e.items,
+            description = e.description?.trim()?.takeIf { it.isNotEmpty() },
+            items = e.items.map { HashMap(it) },
             thumbnailUrl = normalizeThumbnailUrl(e.thumbnailUrl),
             boardConfig = cloneBoardConfigForResponse(e.boardConfig),
             creatorId = e.creatorId,
@@ -106,7 +107,8 @@ class TierTemplateService(
 
         val entity = TierTemplate(
             title = request.title.trim(),
-            itemsPayload = templateItemsPayloadToMap(request.items),
+            description = request.description?.trim()?.takeIf { it.isNotEmpty() },
+            itemsPayload = templateItemsPayloadToRows(request.items),
             version = if (parent != null) parent.version + 1 else 1,
             parentTemplate = parent,
             creatorId = creatorId,
@@ -147,7 +149,7 @@ class TierTemplateService(
         entity.applyTemplateMeta(request.title.trim(), desc)
         tierTemplateRepository.flush()
         val tid = entity.id ?: throw IllegalStateException("template id missing")
-        val descriptionOut = (entity.items["description"] as? String)?.trim()?.takeIf { it.isNotEmpty() }
+        val descriptionOut = entity.description?.trim()?.takeIf { it.isNotEmpty() }
         return PatchTemplateMetaResponse(
             id = tid,
             title = entity.title,
@@ -241,24 +243,14 @@ class TierTemplateService(
     private fun cloneBoardConfigForResponse(source: Map<String, Any?>?): Map<String, Any?>? =
         cloneBoardConfigForPersist(source)
 
-    private fun templateItemsPayloadToMap(payload: TemplateItemsPayload): Map<String, Any?> {
-        val rows = payload.items.map { row ->
+    private fun templateItemsPayloadToRows(items: List<TemplateItemPayload>): List<Map<String, Any?>> =
+        items.map { row ->
             buildMap<String, Any?> {
                 put("id", row.id)
                 put("name", row.name)
                 row.imageUrl?.trim()?.takeIf { it.isNotEmpty() }?.let { put("imageUrl", it) }
             }
         }
-        return buildMap {
-            payload.description?.trim()?.takeIf { it.isNotEmpty() }?.let { put("description", it) }
-            put("items", rows)
-        }
-    }
-
-    private fun countItemsInPayload(items: Map<String, Any?>): Int {
-        val raw = items["items"] ?: return 0
-        return if (raw is List<*>) raw.size else 0
-    }
 
     private fun normalizeThumbnailUrl(raw: String?): String? {
         val t = raw?.trim()?.takeIf { it.isNotEmpty() } ?: return null

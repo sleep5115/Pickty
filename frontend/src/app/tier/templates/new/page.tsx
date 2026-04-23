@@ -12,7 +12,12 @@ import { apiFetch } from '@/lib/api-fetch';
 import { uploadPicktyImages } from '@/lib/image-upload-api';
 import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
 import { captureTemplateThumbnail2x2 } from '@/lib/template-thumbnail-composite';
-import { createTemplate, getTemplate, templatePayloadToTierItems } from '@/lib/tier-api';
+import {
+  createTemplate,
+  getTemplate,
+  templateItemsDescription,
+  templatePayloadToTierItems,
+} from '@/lib/tier-api';
 import {
   stripFilenameToDefaultName,
   templateNewFormSchema,
@@ -38,15 +43,13 @@ import { Sparkles } from 'lucide-react';
 
 type FileEntry = { file: File; previewUrl: string };
 
-function newClientId(): string {
-  try {
-    const c = globalThis.crypto;
-    if (c && typeof c.randomUUID === 'function') return c.randomUUID();
-  } catch {
-    /* non-secure context */
-  }
-  return `cid-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
-}
+const newClientId = (() => {
+  let n = 0;
+  return () => {
+    n += 1;
+    return `cid-${n}`;
+  };
+})();
 
 function NewTemplatePageInner() {
   const router = useRouter();
@@ -191,14 +194,15 @@ function NewTemplatePageInner() {
       try {
         const d = await getTemplate(forkTemplateIdTrimmed, accessToken ?? null);
         if (cancelled) return;
-        const pool = templatePayloadToTierItems(d.items);
+        const pool = templatePayloadToTierItems(d);
         if (pool.length === 0) {
           setForkLoadError('템플릿에 아이템이 없습니다.');
           return;
         }
-        const descRaw = d.items.description;
         const description =
-          typeof descRaw === 'string' && descRaw.trim() ? descRaw.trim() : undefined;
+          (typeof d.description === 'string' && d.description.trim() ? d.description.trim() : null) ||
+          templateItemsDescription(d as unknown as Record<string, unknown>) ||
+          '';
         const rows = pool.map((p) => ({
           clientId: newClientId(),
           name: p.name,
@@ -207,7 +211,7 @@ function NewTemplatePageInner() {
         }));
         form.reset({
           title: d.title,
-          description: description ?? '',
+          description,
           items: rows,
           thumbnailClientIds: rows.slice(0, 4).map((r) => r.clientId),
         });
@@ -346,19 +350,11 @@ function NewTemplatePageInner() {
     }
 
     const itemsPayload = values.items.map((row, i) => ({
-      id: row.clientId,
+      id: i + 1,
       name: row.name.trim(),
       imageUrl: imageUrlsOrdered[i]!,
       focusRect: row.focusRect,
     }));
-
-    const itemsEnvelope: {
-      description?: string;
-      items: typeof itemsPayload;
-    } = { items: itemsPayload };
-    if (values.description) {
-      itemsEnvelope.description = values.description;
-    }
 
     const urlByClientId: Record<string, string> = {};
     for (let i = 0; i < values.items.length; i++) {
@@ -409,9 +405,10 @@ function NewTemplatePageInner() {
     try {
       const payload = {
         title: values.title.trim(),
+        description: values.description?.trim() ? values.description.trim() : null,
         parentTemplateId: forkTemplateIdTrimmed || null,
         version: 1,
-        items: itemsEnvelope,
+        items: itemsPayload,
         thumbnailUrl: finalThumbnailUrl ?? null,
         boardConfig: templateBoardConfigToApiPayload(
           buildTemplateBoardConfigFromEditorState(
