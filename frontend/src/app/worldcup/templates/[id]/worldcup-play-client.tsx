@@ -151,7 +151,7 @@ export function WorldCupPlayClient({ templateId, templateTitle }: WorldCupPlayCl
     'overflow-hidden rounded-2xl shadow-2xl shadow-zinc-900/10 ring-1 ring-zinc-200 transition-transform duration-300 hover:scale-[1.02] dark:shadow-black/40 dark:ring-white/10';
 
   const cardShellRow =
-    'relative flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden rounded-2xl shadow-2xl shadow-zinc-900/10 ring-1 ring-zinc-200 transition-transform duration-200 hover:scale-[1.01] dark:shadow-black/40 dark:ring-white/10';
+    'relative flex h-auto min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl shadow-2xl shadow-zinc-900/10 ring-1 ring-zinc-200 transition-transform duration-200 hover:scale-[1.01] dark:shadow-black/40 dark:ring-white/10';
 
   const zA = topCard === 'A' ? 'z-10' : 'z-0';
   const zB = topCard === 'B' ? 'z-10' : 'z-0';
@@ -202,7 +202,7 @@ export function WorldCupPlayClient({ templateId, templateTitle }: WorldCupPlayCl
         {layoutMode === 'split_diagonal' ? (
           <>
             <div
-              className={`absolute left-0 top-0 z-0 flex h-auto w-[60%] max-w-[calc((100dvh-14rem)*16/9)] flex-col ${cardShellDiagonal} ${zA}`}
+              className={`absolute left-0 top-0 z-0 flex h-auto w-[55%] max-w-[calc((100dvh-14rem)*16/9)] flex-col ${cardShellDiagonal} ${zA}`}
               onMouseEnter={() => setTopCard('A')}
             >
               <CandidateCard
@@ -217,7 +217,7 @@ export function WorldCupPlayClient({ templateId, templateTitle }: WorldCupPlayCl
               />
             </div>
             <div
-              className={`absolute bottom-0 right-0 z-0 flex h-auto w-[60%] max-w-[calc((100dvh-14rem)*16/9)] flex-col ${cardShellDiagonal} ${zB}`}
+              className={`absolute bottom-0 right-0 z-0 flex h-auto w-[55%] max-w-[calc((100dvh-14rem)*16/9)] flex-col ${cardShellDiagonal} ${zB}`}
               onMouseEnter={() => setTopCard('B')}
             >
               <CandidateCard
@@ -233,7 +233,7 @@ export function WorldCupPlayClient({ templateId, templateTitle }: WorldCupPlayCl
             </div>
           </>
         ) : (
-          <div className="flex min-h-0 w-full flex-1 flex-row gap-4 px-4 pb-6 pt-6">
+          <div className="flex min-h-0 w-full flex-1 flex-row items-center gap-4 px-4 pb-6 pt-6">
             <CandidateCard
               side="A"
               item={left}
@@ -245,7 +245,7 @@ export function WorldCupPlayClient({ templateId, templateTitle }: WorldCupPlayCl
               mediaFit="contain"
               rootClassName={cardShellRow}
             />
-            <div className="flex w-[min(7.5rem,calc(100vw-2rem))] shrink-0 flex-col items-stretch justify-center gap-3 py-2">
+            <div className="flex w-[min(7.5rem,calc(100vw-2rem))] shrink-0 flex-col items-stretch justify-center gap-3 self-center py-2">
               <button
                 type="button"
                 className={`w-full shrink-0 whitespace-normal text-center ${tieBtnUtility}`}
