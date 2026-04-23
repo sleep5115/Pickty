@@ -11,6 +11,7 @@ import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
+import jakarta.persistence.Index
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import org.hibernate.annotations.ColumnDefault
@@ -24,7 +25,13 @@ import java.util.UUID
  * - snapshotData: `{ "schemaVersion": 1, "tiers": [...], "pool": [...], "workspaceBoardSurface"?: { ... } }`
  */
 @Entity
-@Table(name = "tier_results")
+@Table(
+    name = "tier_results",
+    indexes = [
+        Index(name = "ix_tier_results_template", columnList = "template_id"),
+        Index(name = "ix_tier_results_user", columnList = "user_id"),
+    ],
+)
 class TierResult(
     templateEntity: TierTemplate,
     snapshotPayload: Map<String, Any?>,

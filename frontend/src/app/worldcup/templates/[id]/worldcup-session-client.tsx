@@ -12,7 +12,7 @@ import {
   parseWorldCupLayoutMode,
 } from '@/lib/worldcup/worldcup-template-items';
 import {
-  aggregateItemStatsFromMatchHistory,
+  buildWorldCupStatSubmitPayload,
   useWorldCupStore,
   type WorldCupItem,
   type WorldCupLayoutMode,
@@ -47,6 +47,7 @@ export function WorldCupSessionClient({ templateId }: Props) {
     items: WorldCupItem[];
     layout: WorldCupLayoutMode;
     title: string;
+    likeCount: number;
   } | null>(null);
   const [templateTitle, setTemplateTitle] = useState('');
   const aliveRef = useRef(true);
@@ -71,7 +72,9 @@ export function WorldCupSessionClient({ templateId }: Props) {
 
     const data = (await res.json()) as WorldCupTemplateDetailDto;
     if (!aliveRef.current) return;
-    const items = parseWorldCupItemsPayload(data.items);
+    const items = parseWorldCupItemsPayload(
+      data.items as Record<string, unknown> | unknown[] | null | undefined,
+    );
     if (items.length < 1) {
       setLoadError('플레이할 아이템이 없습니다.');
       setPhase('error');
@@ -80,7 +83,11 @@ export function WorldCupSessionClient({ templateId }: Props) {
 
     const layout = parseWorldCupLayoutMode(data.layoutMode);
     const title = typeof data.title === 'string' && data.title.trim() ? data.title.trim() : '이상형 월드컵';
-    sessionRef.current = { items, layout, title };
+    const likeCount =
+      typeof data.likeCount === 'number' && Number.isFinite(data.likeCount)
+        ? Math.max(0, Math.floor(data.likeCount))
+        : Math.max(0, Math.floor(Number(data.likeCount)) || 0);
+    sessionRef.current = { items, layout, title, likeCount };
     setTemplateTitle(title);
     reset();
     if (!aliveRef.current) return;
@@ -104,15 +111,11 @@ export function WorldCupSessionClient({ templateId }: Props) {
     if (resultsSubmittedRef.current) return;
     resultsSubmittedRef.current = true;
     const state = useWorldCupStore.getState();
-    const winnerItemId = state.champion?.id ?? champion.id;
-    const itemStats = aggregateItemStatsFromMatchHistory(state.matchHistory);
-    // eslint-disable-next-line no-console -- 개발 중 제출 페이로드 확인용(임시)
-    console.log('Submitting Worldcup Results:', { winnerItemId, itemStats });
+    const payload = buildWorldCupStatSubmitPayload(state);
     void submitWorldCupPlayResult({
       templateId,
-      winnerItemId,
-      matchHistory: state.matchHistory,
-      itemStats,
+      winnerItemId: payload.winnerItemId,
+      rows: payload.rows,
     }).then((res) => {
       if (!res.ok) resultsSubmittedRef.current = false;
     });
@@ -181,6 +184,8 @@ export function WorldCupSessionClient({ templateId }: Props) {
     return (
       <WorldCupResultClient
         templateId={templateId}
+        templateTitle={templateTitle || sessionRef.current?.title || '이상형 월드컵'}
+        initialTemplateLikeCount={sessionRef.current?.likeCount ?? 0}
         champion={champion}
         onRestart={handleRestart}
         onShowRanking={() => setShowRanking(true)}

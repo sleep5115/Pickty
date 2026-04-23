@@ -13,11 +13,16 @@ import { ViewCountInline } from '@/components/interaction/view-count-inline';
 import { TierResultDeleteConfirmDialog } from '@/components/tier/tier-result-delete-confirm-dialog';
 import { TierResultImagePreviewModal } from '@/components/tier/tier-result-image-preview-modal';
 import type { ReactionType } from '@/lib/api/interaction-api';
-import { getTierResult, type TierResultStatus } from '@/lib/tier-api';
+import {
+  getTemplate,
+  getTierResult,
+  templatePayloadToTierItems,
+  type TierResultStatus,
+} from '@/lib/tier-api';
 import { apiFetch } from '@/lib/api-fetch';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { captureTierElementToPng, formatImageCaptureError } from '@/lib/tier-capture-png';
-import { parseSnapshotDataToBoard } from '@/lib/tier-snapshot';
+import { parseSnapshotDataToBoard, snapshotRequiresTemplateCatalog } from '@/lib/tier-snapshot';
 import type { TemplateBoardSurface } from '@/lib/template-board-config';
 import type { Tier, TierItem } from '@/lib/store/tier-store';
 
@@ -60,7 +65,13 @@ export function TierResultClientPage() {
     const countView = resultDetailCountedIdRef.current !== id;
     if (countView) resultDetailCountedIdRef.current = id;
     const res = await getTierResult(id, accessToken ?? null, { countView });
-    const snap = parseSnapshotDataToBoard(res.snapshotData as Record<string, unknown>);
+    const rawSnap = res.snapshotData as Record<string, unknown>;
+    let templateItems = null as ReturnType<typeof templatePayloadToTierItems> | null;
+    if (snapshotRequiresTemplateCatalog(rawSnap)) {
+      const detail = await getTemplate(res.templateId, accessToken ?? null, { countView: false });
+      templateItems = templatePayloadToTierItems(detail.items);
+    }
+    const snap = parseSnapshotDataToBoard(rawSnap, templateItems);
     if (!snap) {
       setError('지원하지 않는 스냅샷 형식입니다.');
       throw new Error('unsupported snapshot');

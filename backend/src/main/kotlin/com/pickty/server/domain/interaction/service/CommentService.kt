@@ -190,7 +190,7 @@ class CommentService(
         when (targetType) {
             ReactionTargetType.TIER_TEMPLATE,
             ReactionTargetType.TIER_RESULT,
-            ReactionTargetType.community_post,
+            ReactionTargetType.COMMUNITY_POST,
             ReactionTargetType.WORLDCUP_TEMPLATE,
             -> Unit
 
@@ -217,7 +217,7 @@ class CommentService(
                 }
             }
 
-            ReactionTargetType.community_post -> {
+            ReactionTargetType.COMMUNITY_POST -> {
                 communityPostRepository.findByIdAndStatus(targetId, CommunityPostStatus.ACTIVE)
                     ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "게시글을 찾을 수 없습니다.")
             }
@@ -241,7 +241,7 @@ class CommentService(
             when (targetType) {
                 ReactionTargetType.TIER_TEMPLATE -> tierTemplateRepository.incrementCommentCount(targetId)
                 ReactionTargetType.TIER_RESULT -> tierResultRepository.incrementCommentCount(targetId)
-                ReactionTargetType.community_post -> communityPostRepository.incrementCommentCount(targetId)
+                ReactionTargetType.COMMUNITY_POST -> communityPostRepository.incrementCommentCount(targetId)
                 ReactionTargetType.WORLDCUP_TEMPLATE -> worldCupTemplateRepository.incrementCommentCount(targetId)
                 else -> 0
             }
@@ -255,7 +255,7 @@ class CommentService(
             when (targetType) {
                 ReactionTargetType.TIER_TEMPLATE -> tierTemplateRepository.decrementCommentCount(targetId)
                 ReactionTargetType.TIER_RESULT -> tierResultRepository.decrementCommentCount(targetId)
-                ReactionTargetType.community_post -> communityPostRepository.decrementCommentCount(targetId)
+                ReactionTargetType.COMMUNITY_POST -> communityPostRepository.decrementCommentCount(targetId)
                 ReactionTargetType.WORLDCUP_TEMPLATE -> worldCupTemplateRepository.decrementCommentCount(targetId)
                 else -> 0
             }

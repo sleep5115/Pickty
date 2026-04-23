@@ -1,20 +1,24 @@
 import { apiFetch } from '@/lib/api-fetch';
-import type { WorldCupItemStatsMap, WorldCupMatchHistory } from '@/lib/store/worldcup-store';
 
 export async function submitWorldCupPlayResult(input: {
   templateId: string;
-  winnerItemId: string;
-  matchHistory: WorldCupMatchHistory;
-  itemStats: WorldCupItemStatsMap;
+  winnerItemId: number;
+  rows: Array<{
+    itemId: number;
+    peakBracketSize: number;
+    winCount: number;
+    matchCount: number;
+    rerolledCount: number;
+    droppedCount: number;
+    keptBothCount: number;
+  }>;
 }) {
-  return apiFetch('/api/v1/worldcup/results', {
+  return apiFetch(`/api/v1/worldcup/templates/${encodeURIComponent(input.templateId)}/results`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      templateId: input.templateId,
       winnerItemId: input.winnerItemId,
-      matchHistory: input.matchHistory,
-      itemStats: input.itemStats,
+      rows: input.rows,
     }),
   });
 }

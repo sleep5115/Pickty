@@ -16,6 +16,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
+import java.util.HashMap
 import java.util.UUID
 
 @Service
@@ -40,7 +41,7 @@ class WorldCupTemplateService(
                 thumbnailUrl = normalizeThumbnailUrl(e.thumbnailUrl),
                 creatorId = e.creatorId,
                 layoutMode = e.layoutMode,
-                itemCount = countItemsInPayload(e.items),
+                itemCount = e.items.size,
                 likeCount = e.likeCount,
                 commentCount = e.commentCount,
                 viewCount = e.viewCount,
@@ -65,7 +66,7 @@ class WorldCupTemplateService(
         val layout = normalizeLayoutMode(request.layoutMode)
             ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "layoutMode 는 split_lr 또는 split_diagonal 이어야 합니다.")
 
-        val itemsPayload = templateItemsPayloadToMap(request.items.items)
+        val itemsPayload = templateItemsPayloadToRows(request.items)
 
         val entity =
             WorldCupTemplate(
@@ -76,7 +77,7 @@ class WorldCupTemplateService(
             )
         entity.layoutMode = layout
         entity.thumbnailUrl =
-            normalizeThumbnailUrl(request.thumbnailUrl) ?: inferThumbnail(request.items.items)
+            normalizeThumbnailUrl(request.thumbnailUrl) ?: inferThumbnail(request.items)
 
         val saved = worldCupTemplateRepository.save(entity)
         worldCupTemplateRepository.flush()
@@ -156,29 +157,20 @@ class WorldCupTemplateService(
         }
     }
 
-    private fun templateItemsPayloadToMap(items: List<TemplateItemPayload>): Map<String, Any?> =
-        mapOf(
-            "items" to
-                items.map { item ->
-                    mapOf(
-                        "id" to item.id.trim(),
-                        "name" to item.name.trim(),
-                        "imageUrl" to item.imageUrl?.trim()?.takeIf { it.isNotEmpty() },
-                    )
-                },
-        )
+    private fun templateItemsPayloadToRows(items: List<TemplateItemPayload>): List<Map<String, Any?>> =
+        items.map { item ->
+            buildMap<String, Any?> {
+                put("id", item.id)
+                put("name", item.name.trim())
+                item.imageUrl?.trim()?.takeIf { it.isNotEmpty() }?.let { put("imageUrl", it) }
+            }
+        }
 
     private fun inferThumbnail(items: List<TemplateItemPayload>): String? =
         items.firstNotNullOfOrNull { it.imageUrl?.trim()?.takeIf { u -> u.isNotEmpty() } }
 
-    /** 목록·저장 후 응답과 동일 규칙으로 썸네일 URL 정규화 */
     private fun normalizeThumbnailUrl(raw: String?): String? =
         raw?.trim()?.takeIf { it.isNotEmpty() }
-
-    private fun countItemsInPayload(items: Map<String, Any?>): Int {
-        val raw = items["items"] ?: return 0
-        return if (raw is List<*>) raw.size else 0
-    }
 
     private fun WorldCupTemplate.toDetail(): WorldCupTemplateDetailResponse {
         val tid = id ?: throw IllegalStateException("worldcup template id missing")
@@ -187,7 +179,7 @@ class WorldCupTemplateService(
             title = title,
             version = version,
             description = description?.trim()?.takeIf { it.isNotEmpty() },
-            items = items,
+            items = items.map { HashMap(it) },
             thumbnailUrl = normalizeThumbnailUrl(thumbnailUrl),
             creatorId = creatorId,
             layoutMode = layoutMode,

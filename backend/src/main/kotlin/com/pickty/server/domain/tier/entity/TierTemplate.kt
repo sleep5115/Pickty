@@ -19,14 +19,15 @@ import org.hibernate.type.SqlTypes
 import java.util.UUID
 
 /**
- * 티어표 템플릿 — 아이템 정의(JSONB) + Fork 계보(parent).
+ * 티어표 템플릿 — 아이템 정의(JSON 배열) + Fork 계보(parent).
  * 목록·OG용 썸네일은 **단일 URL**(프론트에서 2×2 합성 PNG 또는 커스텀 1장 업로드).
  */
 @Entity
 @Table(name = "tier_templates")
 class TierTemplate(
     title: String,
-    itemsPayload: Map<String, Any?>,
+    description: String? = null,
+    itemsPayload: List<Map<String, Any?>>,
     version: Int = 1,
     parentTemplate: TierTemplate? = null,
     creatorId: Long? = null,
@@ -42,9 +43,13 @@ class TierTemplate(
     var title: String = title
         protected set
 
+    @Column(columnDefinition = "text")
+    var description: String? = description
+        protected set
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb", nullable = false)
-    var items: Map<String, Any?> = itemsPayload
+    var items: List<Map<String, Any?>> = itemsPayload
         protected set
 
     /** 템플릿 도화지(JSON). null 이면 클라이언트 기본(S~E·테마 배경). */
@@ -86,21 +91,14 @@ class TierTemplate(
     @ColumnDefault("0")
     var viewCount: Long = 0
 
-    fun updateItems(newItems: Map<String, Any?>) {
+    fun updateItems(newItems: List<Map<String, Any?>>) {
         this.items = newItems
     }
 
-    /** 제목 + JSONB `description` 키만 갱신(아이템 배열 불변) */
+    /** 제목·설명만 갱신(아이템 JSON 배열 불변) */
     fun applyTemplateMeta(newTitle: String, newDescription: String?) {
         title = newTitle
-        val m = items.toMutableMap()
-        val d = newDescription?.trim()?.takeIf { it.isNotEmpty() }
-        if (d == null) {
-            m.remove("description")
-        } else {
-            m["description"] = d
-        }
-        items = m
+        description = newDescription?.trim()?.takeIf { it.isNotEmpty() }
         version = version + 1
     }
 

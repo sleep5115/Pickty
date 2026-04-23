@@ -13,7 +13,7 @@ function entryLabel(e: WorldCupMatchHistoryEntry): string {
     case 'dropBoth':
       return `${e.leftName} vs ${e.rightName} → 둘 다 탈락`;
     case 'keepBoth':
-      return `${e.leftName} vs ${e.rightName} → 둘 다 올리기`;
+      return `${e.leftName} vs ${e.rightName} → 둘 다 올림`;
     case 'reroll':
       return `${e.side === 0 ? '좌' : '우'} 교체: ${e.removedName} → ${e.newName}`;
     case 'walkover':

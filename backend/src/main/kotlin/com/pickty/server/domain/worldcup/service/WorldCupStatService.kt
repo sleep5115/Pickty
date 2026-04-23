@@ -1,13 +1,12 @@
 package com.pickty.server.domain.worldcup.service
 
 import com.pickty.server.domain.tier.enums.TemplateStatus
-import com.pickty.server.domain.worldcup.dto.WorldCupItemStatPayload
+import com.pickty.server.domain.worldcup.dto.WorldCupRankingPageResponse
 import com.pickty.server.domain.worldcup.dto.WorldCupRankingRowResponse
 import com.pickty.server.domain.worldcup.dto.WorldCupResultSubmitRequest
+import com.pickty.server.domain.worldcup.dto.WorldCupStatSubmitRow
 import com.pickty.server.domain.worldcup.repository.WorldCupItemStatRepository
 import com.pickty.server.domain.worldcup.repository.WorldCupTemplateRepository
-import org.springframework.data.domain.Page
-import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
 import org.springframework.http.HttpStatus
@@ -25,8 +24,7 @@ class WorldCupStatService(
 
     @Transactional
     fun submitPlayResult(templateId: UUID, body: WorldCupResultSubmitRequest) {
-        val winnerItemId = body.winnerItemId.trim()
-        if (winnerItemId.isEmpty()) {
+        if (body.winnerItemId <= 0L) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "winnerItemId 가 필요합니다.")
         }
 
@@ -37,47 +35,66 @@ class WorldCupStatService(
             throw ResponseStatusException(HttpStatus.GONE, "삭제되었거나 비공개인 템플릿입니다.")
         }
 
-        for ((rawItemId, payload) in body.itemStats) {
-            val itemId = rawItemId.trim()
-            if (itemId.isEmpty()) continue
-            applyDelta(templateId, itemId, payload)
+        for (row in body.rows) {
+            applyStatRow(templateId, row)
         }
 
         val rows =
             worldCupItemStatRepository.upsertIncrement(
                 templateId,
-                winnerItemId,
+                body.winnerItemId,
                 dMatch = 0,
                 dWin = 0,
                 dReroll = 0,
                 dDrop = 0,
                 dKeep = 0,
                 dFinal = 1,
+                dR16 = 0,
+                dR8 = 0,
+                dR4 = 0,
+                dRf = 0,
             )
         if (rows <= 0) {
             throw ResponseStatusException(HttpStatus.CONFLICT, "통계 반영에 실패했습니다.")
         }
     }
 
-    private fun applyDelta(templateId: UUID, itemId: String, p: WorldCupItemStatPayload) {
-        val rows =
+    private fun applyStatRow(templateId: UUID, row: WorldCupStatSubmitRow) {
+        val itemId = row.itemId
+        if (itemId <= 0L) return
+        val rd = reachedDeltas(row.peakBracketSize)
+        val r =
             worldCupItemStatRepository.upsertIncrement(
                 templateId,
                 itemId,
-                dMatch = coerceNonNegative(p.matchCount),
-                dWin = coerceNonNegative(p.winCount),
-                dReroll = coerceNonNegative(p.rerolledCount),
-                dDrop = coerceNonNegative(p.droppedCount),
-                dKeep = coerceNonNegative(p.keptBothCount),
+                dMatch = coerceNonNegative(row.matchCount),
+                dWin = coerceNonNegative(row.winCount),
+                dReroll = coerceNonNegative(row.rerolledCount),
+                dDrop = coerceNonNegative(row.droppedCount),
+                dKeep = coerceNonNegative(row.keptBothCount),
                 dFinal = 0,
+                dR16 = rd[0],
+                dR8 = rd[1],
+                dR4 = rd[2],
+                dRf = rd[3],
             )
-        if (rows <= 0) {
+        if (r <= 0) {
             throw ResponseStatusException(HttpStatus.CONFLICT, "통계 반영에 실패했습니다.")
         }
     }
 
+    private fun reachedDeltas(peakBracketSize: Int): LongArray {
+        val p = peakBracketSize.coerceAtLeast(0)
+        return longArrayOf(
+            if (p >= 16) 1L else 0L,
+            if (p >= 8) 1L else 0L,
+            if (p >= 4) 1L else 0L,
+            if (p >= 2) 1L else 0L,
+        )
+    }
+
     @Transactional(readOnly = true)
-    fun ranking(templateId: UUID, pageable: Pageable): Page<WorldCupRankingRowResponse> {
+    fun ranking(templateId: UUID, pageable: Pageable): WorldCupRankingPageResponse {
         val tpl =
             worldCupTemplateRepository.findById(templateId).orElse(null)
                 ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "월드컵 템플릿을 찾을 수 없습니다.")
@@ -107,6 +124,10 @@ class WorldCupStatService(
                     droppedCount = row.droppedCount,
                     keptBothCount = row.keptBothCount,
                     finalWinCount = row.finalWinCount,
+                    reached16Count = row.reached16Count,
+                    reached8Count = row.reached8Count,
+                    reached4Count = row.reached4Count,
+                    reachedFinalCount = row.reachedFinalCount,
                     winRatePct = pct(row.winCount, mc),
                     championshipRatePct = pct(row.finalWinCount, totalGames),
                     skipRatePct = pct(row.rerolledCount, mc),
@@ -115,7 +136,17 @@ class WorldCupStatService(
                 )
             }
 
-        return PageImpl(content, fixedPageable, statPage.totalElements)
+        return WorldCupRankingPageResponse(
+            totalCompletedPlays = totalGames,
+            content = content,
+            totalElements = statPage.totalElements,
+            totalPages = statPage.totalPages,
+            size = statPage.size,
+            number = statPage.number,
+            first = statPage.isFirst,
+            last = statPage.isLast,
+            empty = statPage.isEmpty,
+        )
     }
 
     private fun coerceNonNegative(v: Long): Long = if (v < 0) 0 else v

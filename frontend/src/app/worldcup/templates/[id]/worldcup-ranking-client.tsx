@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, BarChart3, Loader2, Skull, Swords } from 'lucide-react';
+import { ArrowLeft, BarChart3, Loader2 } from 'lucide-react';
 import { fetchWorldCupTemplate, type WorldCupTemplateDetailDto } from '@/lib/worldcup/worldcup-template-api';
 import { parseWorldCupItemsPayload } from '@/lib/worldcup/worldcup-template-items';
 import {
@@ -10,53 +10,91 @@ import {
   type WorldCupRankingRowDto,
 } from '@/lib/worldcup/worldcup-ranking-api';
 import { WorldCupListRasterThumb } from '@/components/worldcup/worldcup-list-raster-thumb';
+import {
+  WorldCupRankingCommentsDrawer,
+  WorldCupRankingCommentsFab,
+} from '@/components/worldcup/worldcup-ranking-comments-drawer';
 import { WorldCupUrlAccordionMedia } from '@/components/worldcup/worldcup-url-media';
+import { apiFetch } from '@/lib/api-fetch';
+import { useAuthPersistHydrated } from '@/lib/hooks/use-auth-persist-hydrated';
+import { useAuthStore } from '@/lib/store/auth-store';
 
-function MiniBar({ label, value, tone }: { label: string; value: number; tone: 'amber' | 'rose' | 'sky' }) {
+type RankingDenseMetricTone = 'primary' | 'sky' | 'amber' | 'rose';
+
+function RankingDenseMetricBar({
+  label,
+  valuePct,
+  fractionCaption,
+  tone,
+  ariaLabel,
+}: {
+  label: string;
+  valuePct: number;
+  /** 예: `3 / 40` */
+  fractionCaption: string;
+  tone: RankingDenseMetricTone;
+  ariaLabel: string;
+}) {
+  const w = Math.min(100, Math.max(0, valuePct));
   const bar =
-    tone === 'amber'
-      ? 'bg-amber-500 dark:bg-amber-500/90'
-      : tone === 'rose'
-        ? 'bg-rose-500 dark:bg-rose-500/85'
-        : 'bg-sky-500 dark:bg-sky-500/85';
+    tone === 'primary'
+      ? 'bg-primary shadow-[0_0_8px_rgba(124,58,237,0.22)] dark:shadow-[0_0_10px_rgba(167,139,250,0.18)]'
+      : tone === 'amber'
+        ? 'bg-amber-500 dark:bg-amber-500/90'
+        : tone === 'rose'
+          ? 'bg-rose-500 dark:bg-rose-500/85'
+          : 'bg-sky-500 dark:bg-sky-500/85';
   return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between gap-2 text-[11px] text-zinc-600 dark:text-zinc-500">
-        <span>{label}</span>
-        <span className="tabular-nums text-sm font-semibold text-zinc-800 dark:text-zinc-200">{value}%</span>
+    <div className="mx-auto flex w-full max-w-[12rem] flex-col gap-0.5">
+      <div className="flex min-w-0 flex-nowrap items-start justify-between gap-2 text-xs text-zinc-600 dark:text-zinc-500">
+        <span className="min-w-0 flex-1 truncate text-left font-medium leading-snug" title={label}>
+          {label}
+        </span>
+        <span className="shrink-0 text-right tabular-nums text-sm font-semibold leading-snug text-zinc-800 dark:text-zinc-200">
+          {w}%
+          <span className="ml-1.5 text-[11px] font-normal tabular-nums text-zinc-500 dark:text-zinc-500">
+            ({fractionCaption})
+          </span>
+        </span>
       </div>
-      <div className="h-4 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
-        <div className={`h-full rounded-full transition-[width] ${bar}`} style={{ width: `${value}%` }} />
+      <div
+        className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800"
+        role="progressbar"
+        aria-valuenow={Math.round(w)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={ariaLabel}
+      >
+        <div className={`h-full rounded-full transition-[width] duration-300 ease-out ${bar}`} style={{ width: `${w}%` }} />
       </div>
     </div>
   );
 }
 
-function RankingMetricsLegend() {
+function formatStatFraction(numerator: number, denominator: number): string {
+  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator <= 0) {
+    return '—';
+  }
+  return `${numerator} / ${denominator}`;
+}
+
+/** 백엔드 `pct` 와 동일: 반올림 0–100% */
+function statPctRounded(numerator: number, denominator: number): number {
+  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator <= 0) {
+    return 0;
+  }
+  return Math.min(100, Math.max(0, Math.round((numerator / denominator) * 100)));
+}
+
+/** 랭킹 표 행 — 지표 3줄·썸네일 열이 동일 최소 높이를 갖도록 맞춤 */
+const RANKING_ROW_CELL_MIN_H = 'min-h-[6.25rem]';
+
+function RankingMetricsHintLine() {
   return (
-    <div className="mb-4 grid gap-4 rounded-xl border border-zinc-200 bg-white p-5 text-xs text-zinc-600 shadow-sm dark:border-white/10 dark:bg-zinc-900/40 dark:text-zinc-500 sm:grid-cols-3">
-      <p className="flex gap-2">
-        <Swords className="size-4 shrink-0 text-zinc-400 dark:text-zinc-600" aria-hidden />
-        <span>
-          <strong className="text-zinc-800 dark:text-zinc-400">승률</strong> · 해당 후보가 이긴 횟수 ÷ 실제 맞대결
-          참가 수
-        </span>
-      </p>
-      <p className="flex gap-2">
-        <Skull className="size-4 shrink-0 text-zinc-400 dark:text-zinc-600" aria-hidden />
-        <span>
-          <strong className="text-zinc-800 dark:text-zinc-400">광탈·접전</strong> · 라운드에서 두 후보 모두에게 적용되는
-          액션 비율
-        </span>
-      </p>
-      <p className="flex gap-2">
-        <BarChart3 className="size-4 shrink-0 text-zinc-400 dark:text-zinc-600" aria-hidden />
-        <span>
-          <strong className="text-zinc-800 dark:text-zinc-400">우승 비율</strong> · 최종 우승 횟수 ÷ 완료된 플레이(게임)
-          총 횟수
-        </span>
-      </p>
-    </div>
+    <p className="mb-4 rounded-lg border border-zinc-200 bg-zinc-50/90 px-4 py-2.5 text-sm leading-relaxed text-zinc-700 dark:border-white/10 dark:bg-zinc-900/50 dark:text-zinc-300">
+      지표 안내: 종합 승률은 우승·결승 진출·1:1 맞대결 승률을, 단계별 진출률은 4·8·16강 이상 도달 비율을 각각 이 템플릿의 완료 플레이 수(또는 맞대결 참가 수) 대비로 보여 줍니다. 우측
+      Pickty 지표는 맞대결 슬롯에서의 스킵·광탈·접전 비율입니다.
+    </p>
   );
 }
 
@@ -65,13 +103,13 @@ interface Props {
   onBackToResult: () => void;
 }
 
-function buildItemMeta(
-  itemsPayload: Record<string, unknown>,
-): Map<string, { name: string; imageUrl?: string }> {
-  const list = parseWorldCupItemsPayload(itemsPayload);
+function buildItemMeta(itemsPayload: unknown): Map<string, { name: string; imageUrl?: string }> {
+  const list = parseWorldCupItemsPayload(
+    itemsPayload as Record<string, unknown> | unknown[] | null | undefined,
+  );
   const m = new Map<string, { name: string; imageUrl?: string }>();
   for (const it of list) {
-    m.set(it.id, { name: it.name, imageUrl: it.imageUrl });
+    m.set(String(it.id), { name: it.name, imageUrl: it.imageUrl });
   }
   return m;
 }
@@ -84,10 +122,10 @@ function isAbortLike(e: unknown): boolean {
   );
 }
 
-function syntheticRankingFromItemsPayload(
-  itemsPayload: Record<string, unknown>,
-): WorldCupRankingRowDto[] {
-  const list = parseWorldCupItemsPayload(itemsPayload);
+function syntheticRankingFromItemsPayload(itemsPayload: unknown): WorldCupRankingRowDto[] {
+  const list = parseWorldCupItemsPayload(
+    itemsPayload as Record<string, unknown> | unknown[] | null | undefined,
+  );
   return list.map((it, idx) => ({
     rank: idx + 1,
     itemId: it.id,
@@ -97,6 +135,10 @@ function syntheticRankingFromItemsPayload(
     droppedCount: 0,
     keptBothCount: 0,
     finalWinCount: 0,
+    reached16Count: 0,
+    reached8Count: 0,
+    reached4Count: 0,
+    reachedFinalCount: 0,
     winRatePct: 0,
     championshipRatePct: 0,
     skipRatePct: 0,
@@ -106,6 +148,11 @@ function syntheticRankingFromItemsPayload(
 }
 
 export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
+  const authHydrated = useAuthPersistHydrated();
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const [meId, setMeId] = useState<number | null>(null);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+
   const [phase, setPhase] = useState<'loading' | 'error' | 'ready'>('loading');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
@@ -113,7 +160,9 @@ export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
   const [itemMeta, setItemMeta] = useState<Map<string, { name: string; imageUrl?: string }>>(new Map());
   /** 서버 `worldcup_item_stats` 에서 온 행이 1건 이상일 때만 true (0이면 합성 행만 표시 중) */
   const [hasServerRanking, setHasServerRanking] = useState(false);
-  const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
+  /** `championshipRatePct` 분모 — 템플릿 전체 완료 플레이 수 (백엔드 `totalCompletedPlays`) */
+  const [totalCompletedPlays, setTotalCompletedPlays] = useState(0);
+  const [expandedItemId, setExpandedItemId] = useState<number | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
 
@@ -135,6 +184,7 @@ export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
     setErrorMessage(null);
     setLoadMoreError(null);
     setExpandedItemId(null);
+    setTotalCompletedPlays(0);
     setLoadingMore(false);
     setHasMore(false);
     hasMoreRef.current = false;
@@ -171,12 +221,14 @@ export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
       setHasServerRanking(serverHasRows);
       if (serverHasRows) {
         setRows(rankData.content);
+        setTotalCompletedPlays(rankData.totalCompletedPlays);
         const more = !rankData.last;
         setHasMore(more);
         hasMoreRef.current = more;
         nextPageRef.current = rankData.number + 1;
       } else {
         setRows(syntheticRankingFromItemsPayload(itemsPayload));
+        setTotalCompletedPlays(0);
         setHasMore(false);
         hasMoreRef.current = false;
         nextPageRef.current = 0;
@@ -203,6 +255,9 @@ export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
       const data = await fetchWorldCupRanking(templateId, pageToLoad, WORLDCUP_RANKING_PAGE_SIZE);
       if (!aliveRef.current) return;
       setRows((prev) => [...prev, ...data.content]);
+      if (data.totalCompletedPlays > 0) {
+        setTotalCompletedPlays(data.totalCompletedPlays);
+      }
       const more = !data.last;
       setHasMore(more);
       hasMoreRef.current = more;
@@ -226,6 +281,30 @@ export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
       aliveRef.current = false;
     };
   }, [loadInitial]);
+
+  useEffect(() => {
+    if (!authHydrated || !accessToken) {
+      queueMicrotask(() => setMeId(null));
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await apiFetch('/api/v1/user/me', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!res.ok || cancelled) return;
+        const u = (await res.json()) as { id?: unknown };
+        const mid = typeof u.id === 'number' ? u.id : Number(u.id);
+        if (Number.isFinite(mid)) setMeId(mid);
+      } catch {
+        if (!cancelled) setMeId(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authHydrated, accessToken]);
 
   useEffect(() => {
     if (phase !== 'ready' || !hasServerRanking || !hasMoreRef.current) return;
@@ -253,17 +332,17 @@ export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
       className="flex min-h-0 flex-1 flex-col bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100"
       data-template-id={templateId}
     >
-      <div className="border-b border-zinc-200 bg-zinc-50/95 px-4 py-4 dark:border-white/10 dark:bg-zinc-900/80 sm:px-6 md:px-8">
-        <div className="mx-auto flex max-w-[1200px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="border-b border-zinc-200 bg-zinc-50/95 py-4 dark:border-white/10 dark:bg-zinc-900/80">
+        <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-3 px-4 sm:px-6 md:px-8 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-700 ring-1 ring-sky-300/70 dark:bg-sky-500/20 dark:text-sky-200 dark:ring-sky-400/30">
               <BarChart3 className="size-5" aria-hidden />
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1 sm:min-w-[12rem]">
               <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-500">
                 이상형 월드컵
               </p>
-              <h1 className="truncate text-lg font-semibold text-zinc-900 dark:text-white">통계 랭킹</h1>
+              <h1 className="text-lg font-semibold text-zinc-900 dark:text-white">통계 랭킹</h1>
             </div>
           </div>
           <button
@@ -279,7 +358,7 @@ export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
 
       <div
         ref={scrollRootRef}
-        className="mx-auto w-full max-w-[1200px] flex-1 overflow-auto px-4 py-6 sm:px-6"
+        className="mx-auto w-full max-w-[1600px] flex-1 overflow-auto px-4 py-6 sm:px-6 md:px-8 md:py-8"
       >
         {phase === 'loading' && (
           <div className="flex flex-col items-center justify-center gap-3 py-24 text-zinc-500 dark:text-zinc-400">
@@ -303,7 +382,7 @@ export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
 
         {phase === 'ready' && (
           <>
-            <RankingMetricsLegend />
+            <RankingMetricsHintLine />
 
             {!hasServerRanking && rows.length > 0 ? (
               <div
@@ -316,26 +395,34 @@ export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
             ) : null}
 
             <div className="overflow-x-auto rounded-2xl border border-zinc-200 bg-zinc-50/80 shadow-inner ring-1 ring-zinc-200/80 dark:border-white/10 dark:bg-zinc-900/35 dark:ring-white/5">
-              <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+              <table className="w-full min-w-[920px] table-fixed border-collapse text-left text-sm">
+                <colgroup>
+                  <col className="w-10" />
+                  <col className="w-[33%]" />
+                  <col className="w-[21%]" />
+                  <col className="w-[20%]" />
+                  <col className="w-[20%]" />
+                </colgroup>
                 <thead>
                   <tr className="border-b border-zinc-200 bg-zinc-100/95 text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:border-white/10 dark:bg-zinc-900/80 dark:text-zinc-500">
-                    <th className="px-5 py-4">순위 · 후보</th>
-                    <th className="px-5 py-4">우승 비율</th>
-                    <th className="px-5 py-4">승률 (1:1)</th>
-                    <th className="min-w-[260px] px-5 py-4">Pickty 지표</th>
+                    <th className="px-1 py-4 text-center">순위</th>
+                    <th className="px-3 py-4 pr-2 text-center">후보</th>
+                    <th className="min-w-[184px] px-2 py-4 text-center">종합 승률</th>
+                    <th className="min-w-[184px] px-2 py-4 text-center">단계별 진출률</th>
+                    <th className="min-w-[184px] px-2 py-4 text-center">Pickty 지표</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-5 py-12 text-center text-zinc-500 dark:text-zinc-500">
+                      <td colSpan={5} className="px-5 py-12 text-center text-zinc-500 dark:text-zinc-500">
                         템플릿에 후보가 없거나, 집계할 데이터가 없습니다.
                       </td>
                     </tr>
                   ) : (
                     rows.flatMap((row) => {
-                      const meta = itemMeta.get(row.itemId);
-                      const name = meta?.name ?? row.itemId;
+                      const meta = itemMeta.get(String(row.itemId));
+                      const name = meta?.name ?? String(row.itemId);
                       const imageUrl = meta?.imageUrl?.trim() ?? '';
                       const expanded = expandedItemId === row.itemId;
 
@@ -356,45 +443,118 @@ export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
                           }}
                           className="border-b border-zinc-200 odd:bg-white/80 hover:bg-zinc-100/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-violet-500 dark:border-white/5 dark:odd:bg-black/15 dark:hover:bg-white/[0.03] cursor-pointer"
                         >
-                          <td className="px-5 py-4 align-middle">
-                            <div className="flex items-center gap-3">
-                              <span className="w-7 shrink-0 text-center font-mono text-xs text-zinc-500 tabular-nums dark:text-zinc-500">
+                          <td className="h-px px-1 py-4 align-middle">
+                            <div
+                              className={`flex h-full min-h-0 items-center justify-center ${RANKING_ROW_CELL_MIN_H}`}
+                            >
+                              <span className="text-center font-mono text-xs text-zinc-500 tabular-nums dark:text-zinc-500">
                                 {row.rank}
-                              </span>
-                              {imageUrl ? (
-                                <WorldCupListRasterThumb
-                                  rawUrl={imageUrl}
-                                  alt=""
-                                  className="size-14 shrink-0 rounded-md bg-zinc-200 object-cover ring-1 ring-zinc-300 dark:bg-zinc-800 dark:ring-white/10"
-                                />
-                              ) : (
-                                <div className="flex size-14 shrink-0 items-center justify-center rounded-md bg-zinc-200 text-[10px] text-zinc-500 ring-1 ring-zinc-300 dark:bg-zinc-800 dark:ring-white/10">
-                                  없음
-                                </div>
-                              )}
-                              <span className="min-w-0 font-medium text-zinc-900 dark:text-white">{name}</span>
-                              <span className="ml-auto shrink-0 text-xs text-zinc-400 dark:text-zinc-500">
-                                {expanded ? '접기' : '펼치기'}
                               </span>
                             </div>
                           </td>
-                          <td className="px-5 py-4 align-middle tabular-nums text-zinc-800 dark:text-zinc-200">
-                            <span className="text-base font-semibold">{row.championshipRatePct}%</span>
-                            <span className="mt-1 block text-[11px] font-normal text-zinc-500 dark:text-zinc-500">
-                              우승 / 전체 플레이 수
-                            </span>
+                          <td className="h-px px-3 py-4 pr-2 align-middle">
+                            {/*
+                              `h-px` 셀: 형제 열(지표)이 행 높이를 정하면 이 셀도 같은 높이로 늘어나고,
+                              썸네일·이름을 한 줄에서 수직 가운데 맞춤.
+                            */}
+                            <div className={`flex h-full min-h-0 items-center gap-2.5 ${RANKING_ROW_CELL_MIN_H}`}>
+                              <div className="flex h-[min(6.5rem,28vw)] w-[min(6.5rem,28vw)] shrink-0 items-center justify-center">
+                                {imageUrl ? (
+                                  <WorldCupListRasterThumb
+                                    rawUrl={imageUrl}
+                                    alt=""
+                                    className="size-full rounded-md bg-zinc-200 object-cover ring-1 ring-zinc-300 aspect-square dark:bg-zinc-800 dark:ring-white/10"
+                                  />
+                                ) : (
+                                  <div className="flex size-full items-center justify-center rounded-md bg-zinc-200 text-[10px] text-zinc-500 ring-1 ring-zinc-300 dark:bg-zinc-800 dark:ring-white/10">
+                                    없음
+                                  </div>
+                                )}
+                              </div>
+                              <span className="min-w-0 flex-1 break-words text-sm font-medium leading-snug text-zinc-900 line-clamp-3 dark:text-white">
+                                {name}
+                              </span>
+                            </div>
                           </td>
-                          <td className="px-5 py-4 align-middle tabular-nums text-zinc-800 dark:text-zinc-200">
-                            <span className="text-base font-semibold">{row.winRatePct}%</span>
-                            <span className="mt-1 block text-[11px] font-normal text-zinc-500 dark:text-zinc-500">
-                              승 / 대결 수
-                            </span>
+                          <td className="h-px px-2 py-4 text-center align-top tabular-nums text-zinc-800 dark:text-zinc-200">
+                            <div
+                              className={`flex h-full min-h-0 w-full min-w-0 flex-col items-center gap-1.5 ${RANKING_ROW_CELL_MIN_H}`}
+                            >
+                              <RankingDenseMetricBar
+                                label="우승 비율"
+                                valuePct={row.championshipRatePct}
+                                fractionCaption={formatStatFraction(row.finalWinCount, totalCompletedPlays)}
+                                tone="primary"
+                                ariaLabel={`우승 비율 ${row.championshipRatePct}%`}
+                              />
+                              <RankingDenseMetricBar
+                                label="결승 진출"
+                                valuePct={statPctRounded(row.reachedFinalCount, totalCompletedPlays)}
+                                fractionCaption={formatStatFraction(row.reachedFinalCount, totalCompletedPlays)}
+                                tone="primary"
+                                ariaLabel={`결승 진출 ${statPctRounded(row.reachedFinalCount, totalCompletedPlays)}%`}
+                              />
+                              <RankingDenseMetricBar
+                                label="1:1 승률"
+                                valuePct={row.winRatePct}
+                                fractionCaption={formatStatFraction(row.winCount, row.matchCount)}
+                                tone="primary"
+                                ariaLabel={`1대1 승률 ${row.winRatePct}%`}
+                              />
+                            </div>
                           </td>
-                          <td className="px-5 py-4 align-top">
-                            <div className="flex max-w-md flex-col gap-3.5">
-                              <MiniBar label="스킵률 (리롤당함)" value={row.skipRatePct} tone="amber" />
-                              <MiniBar label="광탈률 (둘 다 탈락)" value={row.dropRatePct} tone="rose" />
-                              <MiniBar label="접전률 (둘 다 올리기)" value={row.nailBiterRatePct} tone="sky" />
+                          <td className="h-px px-2 py-4 text-center align-top tabular-nums text-zinc-800 dark:text-zinc-200">
+                            <div
+                              className={`flex h-full min-h-0 w-full min-w-0 flex-col items-center gap-1.5 ${RANKING_ROW_CELL_MIN_H}`}
+                            >
+                              <RankingDenseMetricBar
+                                label="4강 진출"
+                                valuePct={statPctRounded(row.reached4Count, totalCompletedPlays)}
+                                fractionCaption={formatStatFraction(row.reached4Count, totalCompletedPlays)}
+                                tone="sky"
+                                ariaLabel={`4강 진출 ${statPctRounded(row.reached4Count, totalCompletedPlays)}%`}
+                              />
+                              <RankingDenseMetricBar
+                                label="8강 진출"
+                                valuePct={statPctRounded(row.reached8Count, totalCompletedPlays)}
+                                fractionCaption={formatStatFraction(row.reached8Count, totalCompletedPlays)}
+                                tone="sky"
+                                ariaLabel={`8강 진출 ${statPctRounded(row.reached8Count, totalCompletedPlays)}%`}
+                              />
+                              <RankingDenseMetricBar
+                                label="16강 진출"
+                                valuePct={statPctRounded(row.reached16Count, totalCompletedPlays)}
+                                fractionCaption={formatStatFraction(row.reached16Count, totalCompletedPlays)}
+                                tone="sky"
+                                ariaLabel={`16강 진출 ${statPctRounded(row.reached16Count, totalCompletedPlays)}%`}
+                              />
+                            </div>
+                          </td>
+                          <td className="h-px px-2 py-4 text-center align-top">
+                            <div
+                              className={`flex h-full min-h-0 w-full min-w-0 flex-col items-center gap-1.5 ${RANKING_ROW_CELL_MIN_H}`}
+                            >
+                              <RankingDenseMetricBar
+                                label="스킵률 (리롤)"
+                                valuePct={row.skipRatePct}
+                                fractionCaption={formatStatFraction(row.rerolledCount, row.matchCount)}
+                                tone="amber"
+                                ariaLabel={`스킵률 ${row.skipRatePct}%`}
+                              />
+                              <RankingDenseMetricBar
+                                label="광탈률 (둘 다 탈락)"
+                                valuePct={row.dropRatePct}
+                                fractionCaption={formatStatFraction(row.droppedCount, row.matchCount)}
+                                tone="rose"
+                                ariaLabel={`광탈률 ${row.dropRatePct}%`}
+                              />
+                              <RankingDenseMetricBar
+                                label="접전률 (둘 다 올림)"
+                                valuePct={row.nailBiterRatePct}
+                                fractionCaption={formatStatFraction(row.keptBothCount, row.matchCount)}
+                                tone="sky"
+                                ariaLabel={`접전률 ${row.nailBiterRatePct}%`}
+                              />
                             </div>
                           </td>
                         </tr>
@@ -409,7 +569,7 @@ export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
                           key={`${row.itemId}-detail`}
                           className="border-b border-zinc-200 odd:bg-white/80 dark:border-white/5 dark:odd:bg-black/15"
                         >
-                          <td colSpan={4} className="p-0">
+                          <td colSpan={5} className="p-0">
                             <div className="overflow-hidden border-t border-zinc-200 bg-zinc-50/95 dark:border-white/10 dark:bg-zinc-900/60">
                               <div className="worldcup-ranking-panel-in px-4 py-5 sm:px-6">
                                 {imageUrl ? (
@@ -457,6 +617,21 @@ export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
           </>
         )}
       </div>
+
+      {phase === 'ready' ? (
+        <>
+          <WorldCupRankingCommentsFab
+            drawerOpen={commentsOpen}
+            onToggleDrawer={() => setCommentsOpen((v) => !v)}
+          />
+          <WorldCupRankingCommentsDrawer
+            templateId={templateId}
+            currentUserId={meId}
+            open={commentsOpen}
+            onOpenChange={setCommentsOpen}
+          />
+        </>
+      ) : null}
     </div>
   );
 }

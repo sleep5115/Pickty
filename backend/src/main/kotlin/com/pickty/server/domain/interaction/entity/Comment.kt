@@ -79,7 +79,7 @@ class Comment(
     var authorName: String? = authorName
         protected set
 
-    @Column(name = "author_ip_prefix", length = 16)
+    @Column(name = "author_ip_prefix", length = 45)
     var authorIpPrefix: String? = authorIpPrefix
         protected set
 

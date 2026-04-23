@@ -4,13 +4,18 @@ export const WORLDCUP_RANKING_PAGE_SIZE = 20;
 
 export interface WorldCupRankingRowDto {
   rank: number;
-  itemId: string;
+  itemId: number;
   matchCount: number;
   winCount: number;
   rerolledCount: number;
   droppedCount: number;
   keptBothCount: number;
   finalWinCount: number;
+  /** 16·8·4·결승 브라켓 규모 이상 도달 횟수(완료 플레이당 최대 1회) */
+  reached16Count: number;
+  reached8Count: number;
+  reached4Count: number;
+  reachedFinalCount: number;
   winRatePct: number;
   championshipRatePct: number;
   skipRatePct: number;
@@ -19,6 +24,8 @@ export interface WorldCupRankingRowDto {
 }
 
 export interface WorldCupRankingPageDto {
+  /** 집계 API가 내려주는 값. 구버전 백엔드면 0으로 두고 %만 표시 */
+  totalCompletedPlays: number;
   content: WorldCupRankingRowDto[];
   totalElements: number;
   totalPages: number;
@@ -38,14 +45,10 @@ function num(v: unknown): number {
   return 0;
 }
 
-function str(v: unknown): string {
-  return typeof v === 'string' ? v : v != null ? String(v) : '';
-}
-
 function mapRankingRow(row: Record<string, unknown>): WorldCupRankingRowDto | null {
   if (!row || typeof row !== 'object') return null;
-  const itemId = str(row.itemId ?? row.item_id);
-  if (!itemId) return null;
+  const itemId = num(row.itemId ?? row.item_id);
+  if (!Number.isFinite(itemId) || itemId <= 0) return null;
   return {
     rank: num(row.rank),
     itemId,
@@ -55,6 +58,10 @@ function mapRankingRow(row: Record<string, unknown>): WorldCupRankingRowDto | nu
     droppedCount: num(row.droppedCount ?? row.dropped_count),
     keptBothCount: num(row.keptBothCount ?? row.kept_both_count),
     finalWinCount: num(row.finalWinCount ?? row.final_win_count),
+    reached16Count: num(row.reached16Count ?? row.reached_16_count),
+    reached8Count: num(row.reached8Count ?? row.reached_8_count),
+    reached4Count: num(row.reached4Count ?? row.reached_4_count),
+    reachedFinalCount: num(row.reachedFinalCount ?? row.reached_final_count),
     winRatePct: num(row.winRatePct ?? row.win_rate_pct),
     championshipRatePct: num(row.championshipRatePct ?? row.championship_rate_pct),
     skipRatePct: num(row.skipRatePct ?? row.skip_rate_pct),
@@ -92,7 +99,11 @@ export async function fetchWorldCupRanking(
         .map((row) => (row && typeof row === 'object' ? mapRankingRow(row as Record<string, unknown>) : null))
         .filter((x): x is WorldCupRankingRowDto => x != null)
     : [];
+  const totalCompletedPlays = num(
+    body.totalCompletedPlays ?? body.total_completed_plays,
+  );
   return {
+    totalCompletedPlays: Number.isFinite(totalCompletedPlays) ? totalCompletedPlays : 0,
     content,
     totalElements: Number(body.totalElements ?? body.total_elements) || 0,
     totalPages: Number(body.totalPages ?? body.total_pages) || 0,

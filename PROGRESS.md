@@ -142,7 +142,7 @@
 
 - **AI 자동 템플릿 생성(AI 딸깍) 파이프라인 1차 완료**: 
   - **백엔드**: Gemini 2.5 Flash 모델 기반 아이템 리스트 생성(Phase 1) + Google Custom Search API 연동(Phase 2, Bing에서 롤백). Kotlin Coroutines(`async`/`awaitAll`)를 활용해 각 아이템별로 이미지 10개씩 병렬 검색하여 응답. 관리자 전용 엔드포인트 `POST /api/v1/admin/templates/auto-generate` 및 `@PreAuthorize` 보안 적용.
-  - **프론트엔드**: `**/tier/templates/new**` 도화지 상단에 AI 생성 UI 추가. 사용자가 입력한 주제로 아이템을 자동 생성하여 폼(`react-hook-form`)에 즉시 추가하는 기능 연동. 생성 중 로딩 상태(스피너) 및 에러 핸들링 UI 적용.
+  - **프론트엔드**: `**/tier/templates/new**` 도화지 상단에 AI 생성 UI 추가. 사용자가 입력한 주제로 아이템을 자동 생성하여 폼(`react-hook-form`)에 즉시 추가하는 기능 연동. 생성 중 로딩 상태(스피너) 및 에러 핸들링 UI 적용. **(2026-04-22)** 동 UI는 **관리자(`GET /api/v1/user/me` 의 `role === 'ADMIN'`)만** 마운트 — 「진행 메모 (2026-04-22)」·`**TierTemplateNewAiPanel**`.
   - **인프라**: `GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_CX`, `GEMINI_API_KEY` 환경 변수 구성.
 
 ---
@@ -171,7 +171,24 @@
 - **에이전트 규칙**: `**.cursor/rules/pickty-project-context.mdc`** 에 **「프론트엔드 라우팅 및 URL 명명 규칙」** 섹션 추가(구조화·복수형·`my`·리소스 ID는 path·필터만 query).
 - **이상형 월드컵 — Canvas·움짤(GIF)·외부 이미지(Imgur 등)**: Next **`GET /api/pickty-image`** — 기존 R2 **`?key=`** 외 **`?url=`** 로 원격 이미지를 **서버에서 fetch**·`arrayBuffer()`·원본 `Content-Type` 응답 + **`mergeCors`**(OPTIONS·오류 응답 포함). 호스트·사설망 등 **SSRF 완화**·본문 상한. **Canvas 전용** `**picktyImageCanvasFetchSrc**` + `**worldcup-raster-static**`(`freezeRasterImageUrlToJpegDataUrl`)·`**worldcup-thumbnail-composite**`(`createWorldCupCompositeThumbnail`) — 절대 **`http(s)`** URL은 동일 출처 **`/api/pickty-image?url=`** 로만 `img.src` ( **`crossOrigin='anonymous'`** 유지). **통계 랭킹** 리스트 썸네일·**템플릿 허브** 카드는 GIF를 **JPEG 1프레임 정지**로 표시(허브에서 **카드당 템플릿 상세 GET + 합성** 경로는 제거). **`/worldcup/templates/new`** 저장 시 합성 `Blob` → **`new File([…], 'worldcup-thumbnail.png', { type: 'image/png' })`** → **`uploadPicktyImages`**; `**frontend/src/lib/image-upload-api.ts**` 에서 **`Blob`** / 이름 없는 **`File`** 을 압축 전 **`coerceToNamedFileForUpload`** 로 보정. **검증**: 썸네일 **정지 움짤 2장** 시나리오 성공.
 - **이상형 월드컵 — 통계 랭킹 페이징·무한 스크롤 (2026-04-21 추가)**: 백엔드 `**GET .../worldcup/templates/{id}/ranking**` — 쿼리 **`page`·`size`(기본 20)`** · 응답 **Spring `Page<>`**(content·last·totalElements 등) · `**WorldCupItemStatRepository**` 네이티브 **`Pageable`**(정렬: 기존과 동일 — `final_win_count` 내림 → 승률% `ROUND` 정수 내림 → `item_id` 오름) · 템플릿 전체 완료 판 수는 **`sumFinalWinCount`** 로 집계해 우승 비율 분모 유지. 프론트 `**/worldcup/templates/{id}/ranking**` 및 세션 내 랭킹 `**worldcup-ranking-client.tsx**` — **지표 설명 블록을 테이블 위**로 이동 · `**worldcup-ranking-api.ts**`·`**fetchWorldCupTemplate**` 에 **`AbortSignal`**/`**RequestInit`** 전달 가능(초기 로드 **Strict Mode 이중 요청** 시 이전 `fetch` 취소 + **`initialLoadSeqRef`** 로 stale finally 방지) · 무한 스크롤은 티어 피드와 같이 **`IntersectionObserver`** 를 쓰되, **`layout.tsx`** 가 안내하는 **문서(페이지) 전체 스크롤**과 맞추기 위해 **`root: null`(뷰포트)** 로 관찰(내부 `overflow-auto`만 루트로 두면 스크롤해도 교차가 안 바뀌던 이슈 수정). 통계 0건일 때만 템플릿 후보 **합성 행 전체** 표시(페이징 없음) 기존 동작 유지.
-- **이상형 월드컵 — 플레이 진입·강수·진행 UI (2026-04-21, 퇴근 전 기록)**: **`/worldcup/templates/new`** 후보 **최소 20개** 검증(zod). 로드 직후 대진 시작하지 않고 **강수 선택** — N강=N명 출전, `totalItems` 이하 **2의 제곱이면서 16 이상**(16·32·64…)만 버튼(`**worldcup-bracket-sizes.ts**` · `**WorldCupBracketSelect**`). `**worldcup-session-client**` 에서 `initialize` 전 `isPlaying` 분기 · 결과 **다시 하기** 시 `leaveToBracketSelection`. 스토어 `initialize`: 전체 셔플 후 앞 N명만 대진·나머지 `reservePool`(리롤); **라운드 전환 시** 다음 라운드 풀 **재셔플**. 인게임 상단 **`{제목} | {라운드} | m/M`** + **`bg-primary`** 프로그레스 바(`**globals.css**` `@theme inline` — `--color-primary`). 강수 선택 카피: 총 n명 대기·리롤 안내 문구. **미해결(집에서 이어서)**: 플레이 화면 **세로 레이아웃** — 진행 헤더 도입 후 대진 영역이 뷰포트를 채우지 않고 **위로 쪼그라들고 하단이 비어 보이는** 현상. `**worldcup-play-client.tsx**` 에 `min-h-[calc(100dvh-5rem)]`·세션 래퍼 `flex-1` 등 반영했으나 **당일 환경에서는 해결 확정 안 됨** — `SiteMain`/`main` flex 높이 체인·푸터·대각 `absolute` 기준 박스 등 **추가 점검 예정**.
+- **이상형 월드컵 — 플레이 진입·강수·진행 UI (2026-04-21, 퇴근 전 기록)**: **`/worldcup/templates/new`** 후보 **최소 20개** 검증(zod). 로드 직후 대진 시작하지 않고 **강수 선택** — N강=N명 출전, `totalItems` 이하 **2의 제곱이면서 16 이상**(16·32·64…)만 버튼(`**worldcup-bracket-sizes.ts**` · `**WorldCupBracketSelect**`). `**worldcup-session-client**` 에서 `initialize` 전 `isPlaying` 분기 · 결과 **다시 하기** 시 `leaveToBracketSelection`. 스토어 `initialize`: 전체 셔플 후 앞 N명만 대진·나머지 `reservePool`(리롤); **라운드 전환 시** 다음 라운드 풀 **재셔플**. 인게임 상단 **`{제목} | {라운드} | m/M`** + **`bg-primary`** 프로그레스 바(`**globals.css**` `@theme inline` — `--color-primary`). 강수 선택 카피: 총 n명 대기·리롤 안내 문구. 당일 적어 둔 **플레이 영역 세로 높이 이슈**는 **(2026-04-22)** `worldcup-play-client`·`SiteMain` 등에서 **`calc(100dvh-…)`·flex 체인** 및 헤더/플레이 블록 재구성으로 **1차 해소** — 「진행 메모 (2026-04-22)」.
+
+---
+
+## 진행 메모 **(2026-04-22)**
+
+- **티어 템플릿 새로 만들기 — AI 딸깍 보류 결정(2026-04-22)**: `**/tier/templates/new**` 의 AI 딸깍 UI는 현재 **관리자 전용 노출/마운트**까지만 반영된 상태이며, 제품 적용은 **보류**. 이유는 티어 메이커 도메인 적용 난이도/복잡도. **우선 이상형 월드컵 마무리 후**, AI 딸깍은 **월드컵 쪽에 먼저 적용**하는 노선으로 확정.
+- **이상형 월드컵 — 플레이·헤더·미디어 1차 마무리**: **`worldcup-play-client.tsx`** — 헤더에 **템플릿 제목**(중앙 정렬)·**`[N강] m / M`** 배지·**게이지 바**(고정 폭·두께·`rounded-full`·`bg-primary`)·**되돌리기**(undo)·**남은 리롤**을 같은 행에 모아 표시. 플레이 루트 **`h-[calc(100dvh-16rem)]`** 등으로 카드 영역 높이 확보. **레이아웃 모드**: **대각**(`split_diagonal`)일 때만 **둘 다 올림 / 둘 다 탈락**을 플레이 영역 **우상단**·**좌우**(행)일 때는 **VS** 블록 **위·아래**로 복귀. **`WorldCupCardMedia`**: **이미지**는 기존 `absolute` + `object-contain`/`cover` 유지·**유튜브**는 바깥 **`flex items-center justify-center bg-black`** + 안쪽 **`aspect-video`** 로 16:9 유지·iframe 크롬 클립 완화. **`WorldCupYouTubePlayer`**: 커스텀 음소거 UI·`-56px` 해킹 제거·네이티브 컨트롤 사용. **리롤 버튼**: **`/worldcup/reroll-button.png`**(public)·리롤 수 **0**일 때 **`disabled` 반투명 미사용**(항상 불투명·클릭만 무응답)·`active:scale` 유지. 운영 **`dev`→`main`** 머지 후 **Vercel·GitHub Actions** 성공 시점에 맞춰 반영 가능 상태로 기록.
+- **이상형 월드컵 — 결과·통계 랭킹 UX·댓글(2026-04-22 후속)**: **결과** `**worldcup-result-client.tsx`** / `**worldcup-session-client.tsx`** — 우측 패널 **템플릿 제목** + 티어 플레이와 동일 **`TemplateLikeButton` boxed**(`likeCount` 세션에 보관). **랭킹** `**worldcup-ranking-client.tsx**` — 상단 **한 줄 지표 안내** · 표 **승률(1:1)·우승 비율**에 **% + 분수 + `bg-primary` 프로그레스 바**(맞대결·완료 플레이 분모 문구) · 백엔드 **`WorldCupRankingPageResponse`**·**`totalCompletedPlays`**(`WorldCupStatDtos`·`WorldCupStatService`·`WorldCupStatController`) · 프론트 `**worldcup-ranking-api.ts**`. **랭킹 댓글**: **`@radix-ui/react-dialog`** 패키지 추가 · **`WorldCupRankingCommentsDrawer`** / **`WorldCupRankingCommentsFab`** — 1차 **모달+오버레이** 후 **`modal={false}`** 논모달로 전환(**`Dialog.Overlay` 제거**·**body 스크롤 잠금·포커스 트랩 해제**·**`onInteractOutside` `preventDefault`**로 랭킹 행 **펼치기 등 동시 클릭**) · 드로어 내부 **`overflow-y-auto`** 로 댓글만 독립 스크롤 · **`CommentSection`** `**showHeading?: boolean**` · `**globals.css**` `.worldcup-comment-drawer-panel` 입장 애니메이션 · FAB **`z-[115]`**·**댓글 보기/닫기** 토글.
+
+---
+
+## 진행 메모 **(2026-04-23)**
+
+- **V2 초기 스키마 방어 보강 (`backend/src/main/resources/db/migration/V1__init_schema_v2.sql`)**: **`reactions`** — 회원 `(target_type, target_id, user_id)` 부분 유니크(`WHERE user_id IS NOT NULL`), 비회원 `(target_type, target_id, guest_ip_hash)` 부분 유니크(`WHERE user_id IS NULL AND guest_ip_hash IS NOT NULL`) · API 연타·레이스 시 앱 로직만으로 막기 어려운 **중복 반응 행**을 DB에서 차단. **`comments.author_ip_prefix`** · **`community_posts.guest_ip_prefix`** — **`varchar(45)`**(IPv6 문자열·zone id 여유). **`tier_results`** — **`CREATE INDEX ix_tier_results_user ON tier_results (user_id)`** (`GET .../tiers/results/mine` 등 **내 티어표** 조회 대비).
+- **엔티티 정합**: `**Comment.kt**` · `**CommunityPost.kt**` `@Column(length = 45)` · `**TierResult.kt**` `@Table` 에 `ix_tier_results_template`·`ix_tier_results_user` 선언 · `**Reaction.kt**` KDoc을 위 부분 유니크 인덱스 정의와 동기화.
+- **티어 템플릿별 아이템 누적 통계 테이블**: 기획상 **추가하지 않음**(YAGNI). 커뮤니티 평균 티어 등은 UX·티어 행 라벨 불일치로 **표현이 애매**하고, 필요 시 나중에 **`tier_results.snapshot_data` 배치 백필**로 보완 가능. 현재는 **스냅샷 저장 구조 유지**.
+- **신규 DB 반영**: 이 init 스크립트는 **신규 환경 전용**(Flyway 빈 DB). 기존 운영 DB에 컬럼·인덱스만 필요하면 **별도 증분 마이그레이션**으로 동일 DDL을 적용해야 함.
 
 ---
 
@@ -210,15 +227,16 @@
 | **P2 커뮤니티 — 반응·댓글 (1차)** **(2026-03-30)** | ✅(1차) | 다형성 `reactions`·`comments` + `tier_templates`/`tier_results` 역정규화 카운트. API: `POST /api/v1/interaction/reactions/toggle`(회원·비회원 IP 해시), 댓글 CRUD·페이지 `GET`·`DELETE`(비회원 비번). 프론트: `community-api`·`TemplateLikeButton`·`ResultVoteButtons`(낙관적 UI)·`CommentSection` — `**/tier/templates**`·`**/tier**`·`**/tier/templates/{id}`**·`**/tier/results/{id}`** 연동. 마이그레이션 `**docs/migrations/2026-03-31-p2-community-unified.sql**` · **(2026-03-30) 새로고침 후 하이라이트 유지**: 로그인 시 템플릿·`tier_results` 단건/목록 GET 응답 `**myReaction**` + `ReactionRepository` **IN** bulk(`CommunityMyReactionService`) · 비회원은 `**reaction-store**`(`localStorage`) · **선택 상태 색**: 좋아요 **핑크**·추천 **빨강**·비추천 **파랑** · **회원+IP 하이브리드**: `guest_ip_hash`·부분 유니크(`user_id IS NULL`만) — `**docs/migrations/2026-03-30-reactions-member-ip-hash-hybrid.sql**`. · **(2026-03-31) 인기 티어표 Top3**: `GET .../tiers/results/popular` + `**popular-tier-results.tsx**`(`**/tier**`·`**/tier/templates/{id}`** 보드 아래·댓글 위 가로 슬라이더). · **(2026-04-03) 조회수 1차**: Valkey·`view_count`·UI — **표시용**·**당장 랭킹 등 다른 용도 계획 없음**(「2026-04-05」). · **추가 커뮤니티 확장**(집계 티어표 등)은 **「장기 아이디어」**. |
 | Tier — 장기 과제 (일반)                         | ✅(1차) | **이미 함**: 업로드 전 브라우저 압축. **(2026-03-31 1차 완료)**: `GET .../images/file/`** `**Cache-Control: public, max-age=31536000, immutable**` · `**next.config.ts**` `images.minimumCacheTTL` **31536000** · `**docs/DEPLOYMENT-CHECKLIST.md**` 「3.5 Cloudflare R2 및 CDN 캐시」. **(2026-03-30) 운영 검증**: `api.pickty.app` 프록시 경로에 대해 `**curl.exe -sI**` 2연속 → `**cf-cache-status` MISS then HIT**. **추후(선택)**: R2 `PutObject` **Cache-Control** 메타·**파생 해상도**·Cloudflare Images 등(트래픽·비용 보고 후) — 필요 시 「장기 아이디어」절.                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | **P3 커뮤니티 게시판** (TipTap·리치 에디터)           | 🟨(진행중) | 1차 기반(DB·작성/목록/상세 API·프론트 연동) + **게시판 댓글(`community_post`) 연동** 완료(2026-04-07). **잔여**: 게시글 **수정**, **삭제(소프트 삭제)**, 게시글 **추천/비추천**, 작성/상세 UX·권한/예외 처리 등 **디테일 보완**. 에디터 기능 범위는 **이미지 업로드·유튜브 링크·일반 링크** 3축 유지. |
-| **AI 자동 템플릿 생성 (AI 딸깍)**             | 🟨(진행중) | **Phase 1(텍스트) & Phase 2(이미지 검색) 완료(2026-04-09)**. Gemini 1.5 Flash + Google Custom Search API 연동. Kotlin Coroutines 기반 병렬 호출 처리 완료. Phase 3(Vision)는 Stub 처리됨. |
-| **Ideal Type 이상형 월드컵**                      | 🟨(진행중) | **(2026-04-20)** 플레이·결과 제출·통계·랭킹·템플릿 **CRUD**·허브·에디터(일괄 추가·테이블)까지 1차 연동. **(2026-04-21)** 프론트 경로 — 허브 `**/worldcup/templates**`, 새로 만들기 `**/worldcup/templates/new**`, 플레이 `**/worldcup/templates/{id}`**. **(2026-04-21)** 외부·GIF **Canvas CORS** — **`/api/pickty-image`** `key`·`url` 프록시·랭킹/허브 **GIF 정지(첫 프레임 JPEG)**·저장 시 **50:50 합성 PNG → `File` 업로드** 경로 정리(현장 **정지 움짤 2장** 검증). **(2026-04-21)** 통계 랭킹 **`GET .../ranking?page&size`** · UI 무한 스크롤·문서 스크롤 대응(`IntersectionObserver` 뷰포트 루트) — 「진행 메모 (2026-04-21)」. **(2026-04-21)** 플레이 UX 고도화 — 후보 **최소 20**·**16강 이상만** 강수 선택·셔플·진행 헤더/프로그레스 바 등(상세는 같은 날 진행 메모). **미해결**: 플레이 화면 **세로 레이아웃**(대진 영역 쪼그라듦) 집에서 재점검. **잔여**: 플레이 **유튜브 iframe** 등 미디어 타입별 렌더, AI 딸깍 월드컵 경로, **목록 공개 정책 DB 반영**(현재 UI는 안내 수준) 등. 스트리머·집계 확장은 「장기 아이디어」.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| **AI 자동 템플릿 생성 (AI 딸깍)**             | 🟨(진행중) | **Phase 1(텍스트) & Phase 2(이미지 검색) 완료(2026-04-09)**. Gemini 1.5 Flash + Google Custom Search API 연동. Kotlin Coroutines 기반 병렬 호출 처리 완료. Phase 3(Vision)는 Stub 처리됨. **(2026-04-22 결정)** 티어 메이커 적용은 **보류**(관리자 전용 UI 마운트까지만 반영), **월드컵 마무리 후 월드컵 도메인 우선 적용**. |
+| **Ideal Type 이상형 월드컵**                      | ✅(1차) | **(2026-04-20~21)** 플레이·결과·통계·랭킹·템플릿 CRUD·허브·GIF/CORS·강수·플레이 진입 등 — 「진행 메모 (2026-04-20·21)」. **(2026-04-22)** 플레이 헤더·게이지·대각/좌우 무승부·탈락 배치·이미지/유튜브 분기·리롤 에셋 버튼·뷰포트 높이 등 **플레이 UX 1차 마무리** — 「진행 메모 (2026-04-22)」. **·(2026-04-22 후속)** 결과 우측 **템플릿 제목 + `TemplateLikeButton`(티어 플레이와 동일 boxed)** · 통계 **랭킹** 상단 **한 줄 지표 안내** · 표 **승률/우승 비율** 열에 **% + 분수 + `bg-primary` 프로그레스 바** · 랭킹 API **`totalCompletedPlays`**(`WorldCupRankingPageResponse` / `WorldCupStatService`) · **`/worldcup/templates/{id}/ranking`** 댓글 **FAB + 논모달 사이드 드로어·바텀 시트**(`@radix-ui/react-dialog`, **`modal={false}`** — 오버레이·body 스크롤 잠금·포커스 트랩 없음, 본문과 동시 스크롤·클릭) · `CommentSection` **`showHeading`** 옵션 · `**worldcup-ranking-comments-drawer.tsx**` · `**globals.css**` `.worldcup-comment-drawer-panel`. **잔여(백로그)**: 템플릿 **목록 공개 정책의 DB/API 반영**(현재 UI·카피만인 경우 정합)·**AI 딸깍 → 월드컵 에디터** 연동 검토·스트리머·집계 확장은 「장기 아이디어」. |
 
 
 ---
 
-## 현재 제품 동작 (2026-04-21 기준 · 이전 날짜 메모는 당시 경로 보관)
+## 현재 제품 동작 (2026-04-22 기준 · 이전 날짜 메모는 당시 경로 보관)
 
-- **라우팅**: 랜딩 → `**/tier/templates**` → 카드 `**/tier/templates/{id}`** · 새 밀키트 `**/tier/templates/new**` · 템플릿 **제목/설명 수정**은 **모달**(목록·플레이 화면 헤더 케밥) + `**PATCH /api/v1/templates/{id}**` · **파생** `**/tier/templates/new?forkTemplateId=`**(`parentTemplateId` 기록) · **(2026-03-30)** 정적 `**/terms**` · `**/privacy**`(마크다운 렌더), **`SiteFooter`** 약관·방침 링크 **(2026-04-04)** `/login` 카드 중복 문구 제거 · **(2026-04-21)** 월드컵 허브 `**/worldcup/templates**` 등 전역 경로 정리(`pickty-project-context.mdc` 참고).
+- **라우팅**: 랜딩 → `**/tier/templates**` → 카드 `**/tier/templates/{id}`** · 새 밀키트 `**/tier/templates/new**` · 템플릿 **제목/설명 수정**은 **모달**(목록·플레이 화면 헤더 케밥) + `**PATCH /api/v1/templates/{id}**` · **파생** `**/tier/templates/new?forkTemplateId=`**(`parentTemplateId` 기록) · **(2026-04-22)** 새 밀키트 **`/tier/templates/new`** 의 **AI 딸깍**(자동 아이템 생성) UI는 **`role: ADMIN`** 사용자에게만 노출·마운트 · **(2026-03-30)** 정적 `**/terms**` · `**/privacy**`(마크다운 렌더), **`SiteFooter`** 약관·방침 링크 **(2026-04-04)** `/login` 카드 중복 문구 제거 · **(2026-04-21)** 월드컵 허브 `**/worldcup/templates**` 등 전역 경로 정리(`pickty-project-context.mdc` 참고).
+- **이상형 월드컵 (플레이·헤더)** **(2026-04-22)**: 플레이 `**/worldcup/templates/{id}`** — 강수 선택→인게임→결과·통계 제출·랭킹까지 1차 동선 완료. 헤더(제목·라운드·게이지·되돌리기·남은 리롤)·대각/좌우 무승부·탈락 배치·이미지/유튜브 분기·리롤 에셋 등 상세는 「진행 메모 (2026-04-22)」. **통계 랭킹** `**/worldcup/templates/{id}/ranking`** — 후속으로 **지표·분수·막대·`totalCompletedPlays`**·**FAB+논모달 댓글 드로어** 반영(동 절·표 비고).
 - **업로드·저장**: `**POST /api/v1/images`** → R2 `PutObject` · DB/JSON 메타는 `https://img.pickty.app/{uuid}.ext` 형(설정 `public-url`). 표시는 `**picktyImageDisplaySrc**` / `**GET /api/v1/images/file/{key}**`(CORS `*`) — **(2026-03-31)** 해당 GET 응답 `**Cache-Control: public, max-age=31536000, immutable**` · Next `**next/image**` 원격 최소 캐시 `**minimumCacheTTL: 31536000**` (`next.config.ts`). **(2026-03-30)** Cloudflare Cache Rule 적용 후 동 경로에 `**curl -sI**` 2회 시 `**Server: cloudflare**`, `**cf-cache-status**`: 첫 `**MISS**`·둘째 `**HIT**` (엣지 캐시 동작 확인). 키 샘플은 공개 `**GET /api/v1/templates**` 의 `**thumbnailUrl**` 파일명 부분 사용 가능.
 - **Next 프록시 이미지 (`**/api/pickty-image`**)**: R2 객체 **`?key=`** · 외부 절대 URL **`?url=`** (서버 `fetch`·응답에 CORS `*`) — 월드컵 **Canvas 50:50 합성**·**GIF 첫 프레임 정지(랭킹·허브)** 등 동일 출처 `img` 로드 **(2026-04-21)**. 클라이언트 업로드는 `**uploadPicktyImages**` 가 **`File`**(또는 `Blob` 보정) 기준 **WebP 압축 후** 단일 `files` 파트 POST.
 - **템플릿 썸네일**: DB `**tier_templates.thumbnail_url`** 단일. 2×2 `**template-thumbnail-composite.ts**`(Canvas). 마이그레이션: `docs/migrations/2026-03-25-p1-tier-template-user.sql`.
@@ -316,7 +334,7 @@
 ## 기획 요약 (MVP ~ 확장)
 
 - **Auth (확정)**: **소셜 전용** — 자체 이메일 가입/로그인 없음. 보관본 MVP 표의 이메일 문구는 기획 정리 시 삭제·수정 대상.
-- **로드맵 (2026-04 조정)**: P0·P1·P2 1차 **완료**. **당면**: **P3 커뮤니티 게시판** — **다음**: **이상형 월드컵**(게시판 마무리 후). **스트리머·집계 티어표·멘션·알림** 등은 유저·수요 전 **공수 대비 효용 낮음**으로 **「장기 아이디어」**에 둠(보관본 기획·아키텍처는 참고용).
+- **로드맵 (2026-04 조정)**: P0·P1·P2 1차 **완료**. **당면**: **P3 커뮤니티 게시판**. **이상형 월드컵**은 **1차 구현 완료 (2026-04-22)** 로 표에서 ✅ 처리 — 백로그·스트리머 등은 **「장기 아이디어」**. **스트리머·집계 티어표·멘션·알림** 등은 유저·수요 전 **공수 대비 효용 낮음**으로 **「장기 아이디어」**에 둠(보관본 기획·아키텍처는 참고용).
 - **카테고리(분류) — YAGNI (아키텍처 확정, 2026-03-30)**  
   - **결정**: 현재 DB에 `category_id` 등 **분류 전용 컬럼을 미리 두지 않음**.  
   - **사유**: 초기 유저 데이터로 **어떤 주제의 티어표가 많이 올라오는지** 관찰한 뒤, **1-depth 카테고리**가 맞을지 **해시태그(Tag) 다대다**가 맞을지 **추후 결정**. 필요 시점의 **데이터 마이그레이션은 충분히 수행 가능**하다는 전제.
@@ -332,7 +350,7 @@
 
 ### Phase 1 — 뼈대
 
-- 소셜 OAuth · GNB · `/templates`·`/tier` · 월드컵 UI 비노출
+- 소셜 OAuth · GNB · `/templates`·`/tier` · 월드컵 UI 비노출 *(Phase 1 당시; **2026-04-22** 기준 월드컵은 GNB·`/worldcup/templates` 등 **1차 공개** — 「진행 메모 (2026-04-22)」·표)*
 - 로그아웃 — Refresh 무효화·블랙리스트(2026-03-26)
 
 ### Phase 2 — 기획
@@ -343,13 +361,13 @@
 ### 커뮤니티 확장 (P2 로드맵) — **1차 구현 기준 요약** (확정·이력)
 
 - **이미 있음 (1차)**: 좋아요·추천/비추천·댓글(익명·비번)·조회수 표시·인기 Top3 슬라이더 등 — 위 표·날짜 메모 참고.
-- **당장 로드맵에 두지 않음**: 집계 티어표·댓글 멘션 UI·글로벌 알림·스트리머 — 상세 **「장기 아이디어」** 절. **월드컵**은 **(2026-04-20)** 1차 구현 **진행중**(표·「다음 작업」).
+- **당장 로드맵에 두지 않음**: 집계 티어표·댓글 멘션 UI·글로벌 알림·스트리머 — 상세 **「장기 아이디어」** 절. **월드컵**은 **(2026-04-22)** **1차 완료**(표·「다음 작업」) — 공개 정책·AI 연동 등은 백로그.
 
 ### Phase 3 — 구현
 
 - 티어 템플릿·이미지·`tiers/results`·프론트(R2) — **진행됨**
 - **P3 게시판** — **당면**(잔여: 수정·삭제·추천 등 — 표 참고)
-- **이상형 월드컵** — **1차 진행중 (2026-04-20)** — 잔여·세부는 표·「다음 작업」·「진행 메모 (2026-04-20)」
+- **이상형 월드컵** — **1차 완료 (2026-04-22)** — 세부·백로그는 표·「다음 작업」·「진행 메모 (2026-04-22)」
 
 ### Phase 4 — Auth · 운영
 
@@ -379,19 +397,35 @@
 **그다음 (제품 — 2026-04 우선순위)**  
 4. ~~**P2 커뮤니티 1차**~~ → **완료** — 반응·댓글·인기 Top3·조회수 등(본문 「진행 메모」). 추가 확장(집계 티어표·멘션 등)은 **「장기 아이디어」**.  
 5. **P3 커뮤니티 게시판** — **진행중** — 1차(게시글 DB·작성/목록/상세 연동) 완료. 다음은 **수정**, **삭제(soft delete)**, **추천/비추천**, 작성/상세 **디테일 보완(UX·권한·예외 처리)**.  
-6. **Ideal Type 이상형 월드컵** — **1차 구현 진행중 (2026-04-20)** — 템플릿 CRUD·플레이·통계·허브·에디터. **(2026-04-21)** 프론트 경로 `**/worldcup/templates**`·`**/worldcup/templates/new**`·`**/worldcup/templates/{id}`** · **완료(2026-04-21)**: 외부/움짤 **Canvas CORS**(`**/api/pickty-image**` `key`·`url`)·랭킹·허브 **GIF 정지**·새 템플릿 **50:50 합성 썸네일 `File` 업로드**(정지 움짤 2장 검증)·통계 랭킹 **서버 페이징·무한 스크롤**(API `page`/`size`·UI 뷰포트 IO·Strict 초기 중복 완화). **(2026-04-21)** 플레이 진입(강수 선택·최소 20·16강 이상만·셔플·진행 바) 반영 — **남음**: 플레이 화면 **세로 레이아웃**(대진 영역 높이) 미해결, 유튜브 등 미디어 플레이 UI, 공개 여부 API, AI 연동 검토.  
+6. ~~**Ideal Type 이상형 월드컵**~~ → **1차 완료 (2026-04-22)** — 템플릿 CRUD·플레이·통계·랭킹·허브·에디터·Canvas/GIF/CORS·강수·플레이 진입(`**/worldcup/templates**`·`**/new**`·`**/{id}`**)·플레이 헤더·게이지·대각/좌우 버튼·이미지/유튜브 분기·리롤 에셋 등 — 「진행 메모 (2026-04-20·21·22)」. **(2026-04-22 후속)** 결과 **제목·좋아요(boxed)** · 랭킹 **통계 UI·`totalCompletedPlays`** · 랭킹 **논모달 댓글 FAB+드로어** — 「진행 메모 (2026-04-22)」막줄·「예정 작업 — 월드컵」반영 현황. **백로그**: 템플릿 **공개 정책 DB/API**, **AI 딸깍 → 월드컵** 연동·스트리머 등은 「장기 아이디어」·표 비고.  
 7. **배포·운영** 지속 점검(`DEPLOYMENT-CHECKLIST`) · **Phase 5 Ops**(헬스 알림·Docker 재시작 정책 등 — MVP 이후 병행 가능).
 
 **스트리머·집계 티어표·멘션·알림·R2 파생 이미지 등** — 전부 **「장기 아이디어」** (유저·수요 없이 공수만 드는 항목).
 
 ---
 
+## 예정 작업 — 월드컵 결과·랭킹·템플릿 **(착수 예정 · 메모)**
+
+*(아래는 **이상형 월드컵** 결과/랭킹·허브 보강용으로 사용자가 적어 둔 목록 — `PROGRESS.md` 정본 「다음 작업」과 짝으로 유지.)*
+
+**반영 현황 (2026-04-22 후속)**: **① 결과창 제목**(우측 패널 버튼 위 + 좋아요)·**④ 퍼센트 정합·분모·막대** · **⑤ 프로그레스 바** · **⑥ 댓글**(랭킹은 **동일 `WORLDCUP_TEMPLATE`/`templateId`**, **FAB + 논모달 드로어**로 본문 스크롤과 분리)까지 **프론트·랭킹 API 일부 구현됨** — 상세는 위 「진행 메모 (2026-04-22)」마지막 항목. **②** 조회수·좋아요 **허브/목록 확대**, **③** 대진표 이미지 등은 **별도 백로그**로 남김(결과 화면 **대진표 PNG** 등은 기존에도 일부 존재).
+
+1. **결과 화면·랭킹 화면에 템플릿 타이틀** — 어떤 템플릿 기준인지 **제목**을 결과창·랭킹창 상단(또는 헤더)에 명시.
+2. **월드컵 템플릿 조회수·좋아요** — 티어 템플릿과 같이 **조회수(`view_count` 등)·좋아요(반응)** 노출·집계 경로 설계·구현.
+3. **결과 화면 — 대진표 이미지 다운로드** — 현재 미구현 → 브라우저/Canvas 등으로 **대진표(브라켓) 이미지 저장** 플로우 구현.
+4. **랭킹 통계 퍼센트 표기 정합** — 통계 **XX%** 가 **두 번 등장·리롤** 등과 맞물려 **한 번 리롤당 50%**처럼 보이는 등 해석 혼동 가능 → **몇 분의 몇**(분자/분모 정의) 병기 또는 표기 규칙 확정.
+5. **우승 비율·전적 UI** — 랭킹(및 필요 시 결과)에서 **우승 비율·전적**을 **프로그레스 바** 등으로 시각화.
+6. **결과창 ↔ 랭킹창 댓글 일관성** — 두 화면에 **동일한 댓글 스레드**가 보여야 하나, 랭킹은 **무한 스크롤·페이징**이라 댓글 영역과의 정책이 충돌할 수 있음 → **기획 수정**(동일 `targetType`/`targetId`·탭 분리·댓글만 고정 영역 등) 후 구현.
+
+---
+
 ## 장기 아이디어·보류 **(수요·트래픽 전 — 공수 대비 효용 낮음)**
 
-**P3 게시판**과 **그다음 이상형 월드컵**은 「다음 작업」·표 순서로 진행. **그 외**(집계·스트리머·멘션·알림·템플릿 유니버스 등)만 이 절에 두고 **당장 착수하지 않음**.
+**P3 게시판**이 당면(「다음 작업」). **이상형 월드컵** 1차는 **완료(2026-04-22)** — 백로그(공개 정책·AI 연동 등)는 표·「장기 아이디어」. **그 외**(집계·스트리머·멘션·알림·템플릿 유니버스 등)만 이 절에 두고 **당장 착수하지 않음**.
 
 ### AI 자동 템플릿 생성 파이프라인 (가칭 **AI 딸깍**) — **대기열/비용 방어 전제** *(일정 미정)*
 
+- **현재 제품 우선순위 결정(2026-04-22)**: 티어 메이커(`**/tier/templates/new**`)에 AI 딸깍을 바로 확장하지 않고 **보류**. **이상형 월드컵 마무리 이후 월드컵 도메인에 먼저 적용**한다.
 - **목표 UX**: 사용자가 자연어로 요청(예: "블루아카이브 캐릭터 티어표 만들어줘")하면, **광고 30초 시청 대기열** 이후 AI가 **아이템 20개+이미지**를 자동 세팅해 `**/tier` 도화지에 즉시 배치 가능한 상태로 제공.
 - **추가 생성 UX**: 1차 결과에서 이상한 사진은 사용자 수동 교체를 기본으로 하고, 원하면 광고 1회 추가 시청 후 **기존 목록 제외** 조건으로 20개를 추가 생성(append)하는 흐름을 검토.
 - **백엔드 3단 파이프라인(기획)**:  

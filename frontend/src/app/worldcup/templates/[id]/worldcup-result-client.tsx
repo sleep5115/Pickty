@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Crown, Download, RefreshCw, Share2, Trophy } from 'lucide-react';
 import { toast } from 'sonner';
 import { CommentSection } from '@/components/interaction/comment-section';
+import { TemplateLikeButton } from '@/components/interaction/template-like-button';
 import { apiFetch } from '@/lib/api-fetch';
 import { useAuthPersistHydrated } from '@/lib/hooks/use-auth-persist-hydrated';
 import { useAuthStore } from '@/lib/store/auth-store';
@@ -23,6 +24,8 @@ const btnSecondary =
 
 interface Props {
   templateId: string;
+  templateTitle: string;
+  initialTemplateLikeCount: number;
   champion: WorldCupItem;
   onRestart: () => void;
   onShowRanking: () => void;
@@ -30,6 +33,8 @@ interface Props {
 
 export function WorldCupResultClient({
   templateId,
+  templateTitle,
+  initialTemplateLikeCount,
   champion,
   onRestart,
   onShowRanking,
@@ -122,19 +127,33 @@ export function WorldCupResultClient({
         </section>
 
         <aside className="flex w-full flex-col gap-6 lg:w-[40%]">
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-            <button type="button" className={btnPrimary} onClick={onRestart}>
-              <RefreshCw className="size-4 shrink-0 opacity-90" aria-hidden />
-              다시 시작
-            </button>
-            <button type="button" className={btnSecondary} onClick={onShowRanking}>
-              <Trophy className="size-4 shrink-0 opacity-90" aria-hidden />
-              랭킹 보기
-            </button>
-            <button type="button" className={btnPrimary} onClick={copyShareLink}>
-              <Share2 className="size-4 shrink-0 opacity-90" aria-hidden />
-              공유하기
-            </button>
+          <div className="flex flex-col gap-3">
+            <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+              <h2 className="min-w-0 flex-1 truncate text-lg font-semibold leading-snug text-zinc-900 dark:text-white">
+                {templateTitle}
+              </h2>
+              <div className="flex shrink-0 items-center">
+                <TemplateLikeButton
+                  interactionTargetType="WORLDCUP_TEMPLATE"
+                  templateId={templateId}
+                  initialLikeCount={initialTemplateLikeCount}
+                />
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+              <button type="button" className={btnPrimary} onClick={onRestart}>
+                <RefreshCw className="size-4 shrink-0 opacity-90" aria-hidden />
+                다시 시작
+              </button>
+              <button type="button" className={btnSecondary} onClick={onShowRanking}>
+                <Trophy className="size-4 shrink-0 opacity-90" aria-hidden />
+                랭킹 보기
+              </button>
+              <button type="button" className={btnPrimary} onClick={copyShareLink}>
+                <Share2 className="size-4 shrink-0 opacity-90" aria-hidden />
+                공유하기
+              </button>
+            </div>
           </div>
 
           <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-zinc-200 bg-white p-4 shadow-inner dark:border-white/10 dark:bg-zinc-900/40">

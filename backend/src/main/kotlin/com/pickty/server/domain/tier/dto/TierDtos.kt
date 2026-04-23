@@ -3,17 +3,20 @@ package com.pickty.server.domain.tier.dto
 import com.pickty.server.domain.interaction.enums.ReactionType
 import com.pickty.server.domain.tier.enums.ResultStatus
 import jakarta.validation.Valid
+import jakarta.validation.constraints.Max
+import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotEmpty
 import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Size
 import java.util.UUID
 
-/** 템플릿 JSONB(items) — 프론트 Zod와 동일한 길이 제한 */
+/** 템플릿 items JSON 배열 요소 — id 는 템플릿 로컬 정수(1,2,3…) */
 data class TemplateItemPayload(
-    @field:NotBlank(message = "아이템 id는 필수입니다.")
-    @field:Size(max = 100, message = "아이템 id는 100자 이하로 입력해 주세요.")
-    val id: String,
+    @field:NotNull(message = "아이템 id는 필수입니다.")
+    @field:Min(value = 1, message = "아이템 id는 1 이상이어야 합니다.")
+    @field:Max(value = 65536, message = "아이템 id가 너무 큽니다.")
+    val id: Int,
     @field:NotBlank(message = "아이템 이름을 입력해 주세요.")
     @field:Size(max = 100, message = "이름은 100자 이하로 입력해 주세요.")
     val name: String,
@@ -21,19 +24,15 @@ data class TemplateItemPayload(
     val imageUrl: String? = null,
 )
 
-data class TemplateItemsPayload(
+data class CreateTemplateRequest(
+    @field:NotBlank(message = "템플릿 제목을 입력해 주세요.")
+    @field:Size(max = 100, message = "제목은 100자 이하로 입력해 주세요.")
+    val title: String,
     @field:Size(max = 10000, message = "설명은 10000자 이하로 입력해 주세요.")
     val description: String? = null,
     @field:NotEmpty(message = "아이템을 1개 이상 추가해 주세요.")
     @field:Valid
     val items: List<TemplateItemPayload>,
-)
-
-data class CreateTemplateRequest(
-    @field:NotBlank(message = "템플릿 제목을 입력해 주세요.")
-    @field:Size(max = 100, message = "제목은 100자 이하로 입력해 주세요.")
-    val title: String,
-    @field:NotNull @field:Valid val items: TemplateItemsPayload,
     val parentTemplateId: UUID? = null,
     @field:Size(max = 2048, message = "썸네일 URL은 2048자 이하로 입력해 주세요.")
     val thumbnailUrl: String? = null,
@@ -50,13 +49,14 @@ data class TemplateResponse(
     val thumbnailUrl: String?,
 )
 
-/** 템플릿 JSONB(items) 전체 + 메타 — 티어 메이커 진입 시 풀 복원용 */
+/** 템플릿 items JSON 배열 + 메타 — 티어 메이커 진입 시 풀 복원용 */
 data class TemplateDetailResponse(
     val id: UUID,
     val title: String,
     val version: Int,
     val parentTemplateId: UUID?,
-    val items: Map<String, Any?>,
+    val description: String?,
+    val items: List<Map<String, Any?>>,
     val thumbnailUrl: String?,
     /** 도화지(JSON). 구 템플릿·미설정 시 null */
     val boardConfig: Map<String, Any?>?,

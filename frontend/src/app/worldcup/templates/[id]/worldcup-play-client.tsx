@@ -5,7 +5,7 @@
  * `worldcupSelectableBracketSizes` + 스토어 `initialize`(셔플 후 N명 slice, 나머지 reserve)와 맞춘다.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Undo2, Zap } from 'lucide-react';
 import {
   useWorldCupStore,
@@ -21,7 +21,7 @@ import {
 import { formatWorldCupRoundLabel } from '@/lib/worldcup/worldcup-bracket-sizes';
 
 const pillCounter =
-  'rounded-full border border-zinc-300 bg-white/90 px-4 py-2 text-sm font-medium text-zinc-900 shadow-lg backdrop-blur-sm tabular-nums dark:border-white/15 dark:bg-black/55 dark:text-white';
+  'rounded-full border border-zinc-300 bg-white/90 px-3 py-1.5 text-xs font-medium text-zinc-900 shadow-lg backdrop-blur-sm tabular-nums dark:border-white/15 dark:bg-black/55 dark:text-white sm:text-sm';
 
 /** 플레이 영역 우상단 — 둘 다 올림 / 둘 다 탈락 */
 const tieBtnUtility =
@@ -68,14 +68,14 @@ function WorldCupPlayProgressHeader({ templateTitle }: WorldCupPlayProgressHeade
   const pct = Math.min(100, Math.max(0, (currentMatch / totalMatches) * 100));
 
   return (
-    <header className="shrink-0 border-b border-zinc-200 bg-gradient-to-b from-white to-zinc-50/80 px-4 py-4 dark:border-white/10 dark:from-zinc-950 dark:to-zinc-950">
-      <div className="mx-auto max-w-7xl space-y-4">
-        <h1 className="px-2 text-center text-2xl font-extrabold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-3xl">
+    <header className="shrink-0 border-b border-zinc-200 bg-gradient-to-b from-white to-zinc-50/80 dark:border-white/10 dark:from-zinc-950 dark:to-zinc-950">
+      <div className="mx-auto max-w-7xl space-y-0 px-2 sm:px-3">
+        <h1 className="mb-0 px-1 text-center text-xl font-extrabold leading-snug tracking-tight text-zinc-900 dark:text-white sm:text-2xl">
           {templateTitle}
         </h1>
 
-        <div className="flex justify-center px-2">
-          <div className="flex w-full max-w-4xl flex-wrap items-center justify-center gap-x-5 gap-y-3 sm:gap-x-7">
+        <div className="flex justify-center">
+          <div className="flex w-full max-w-4xl flex-wrap items-center justify-center gap-x-3 gap-y-2 sm:gap-x-5 sm:gap-y-2">
             <button
               type="button"
               className={undoBtn}
@@ -87,11 +87,11 @@ function WorldCupPlayProgressHeader({ templateTitle }: WorldCupPlayProgressHeade
               <span className="hidden sm:inline">되돌리기</span>
             </button>
 
-            <p className="flex flex-wrap items-baseline justify-center gap-2 text-lg font-bold text-zinc-800 dark:text-zinc-100">
-              <span className="inline-flex items-center rounded-lg bg-primary/12 px-2.5 py-1 text-base font-extrabold text-primary ring-1 ring-primary/25 dark:bg-primary/20 dark:ring-primary/35">
+            <p className="flex flex-wrap items-baseline justify-center gap-1.5 text-base font-bold text-zinc-800 dark:text-zinc-100 sm:gap-2 sm:text-lg">
+              <span className="inline-flex items-center rounded-md bg-primary/12 px-2 py-0.5 text-sm font-extrabold text-primary ring-1 ring-primary/25 dark:bg-primary/20 dark:ring-primary/35 sm:px-2.5 sm:text-base">
                 [{roundLabel}]
               </span>
-              <span className="tabular-nums text-xl font-extrabold tracking-tight text-zinc-900 dark:text-white">
+              <span className="tabular-nums text-lg font-extrabold tracking-tight text-zinc-900 dark:text-white sm:text-xl">
                 {currentMatch} / {totalMatches}
               </span>
             </p>
@@ -129,6 +129,14 @@ interface WorldCupPlayClientProps {
 export function WorldCupPlayClient({ templateId, templateTitle }: WorldCupPlayClientProps) {
   const [topCard, setTopCard] = useState<'A' | 'B'>('A');
 
+  /** 인게임 동안 `html[data-pickty-worldcup-playing]` → `globals.css`로 전역 푸터 숨김(언마운트 시 복구). */
+  useEffect(() => {
+    document.documentElement.dataset.picktyWorldcupPlaying = '1';
+    return () => {
+      delete document.documentElement.dataset.picktyWorldcupPlaying;
+    };
+  }, []);
+
   const rerollItem = useWorldCupStore((s) => s.rerollItem);
   const selectWinner = useWorldCupStore((s) => s.selectWinner);
   const dropBoth = useWorldCupStore((s) => s.dropBoth);
@@ -143,7 +151,7 @@ export function WorldCupPlayClient({ templateId, templateTitle }: WorldCupPlayCl
     'overflow-hidden rounded-2xl shadow-2xl shadow-zinc-900/10 ring-1 ring-zinc-200 transition-transform duration-300 hover:scale-[1.02] dark:shadow-black/40 dark:ring-white/10';
 
   const cardShellRow =
-    'relative flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden rounded-2xl shadow-2xl shadow-zinc-900/10 ring-1 ring-zinc-200 transition-transform duration-200 hover:scale-[1.01] dark:shadow-black/40 dark:ring-white/10';
+    'relative flex h-auto min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl shadow-2xl shadow-zinc-900/10 ring-1 ring-zinc-200 transition-transform duration-200 hover:scale-[1.01] dark:shadow-black/40 dark:ring-white/10';
 
   const zA = topCard === 'A' ? 'z-10' : 'z-0';
   const zB = topCard === 'B' ? 'z-10' : 'z-0';
@@ -181,7 +189,7 @@ export function WorldCupPlayClient({ templateId, templateTitle }: WorldCupPlayCl
 
   return (
     <div
-      className="flex h-[calc(100dvh-16rem)] w-full flex-1 flex-col bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100"
+      className="flex h-[calc(100dvh-11.5rem)] w-full flex-1 flex-col bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100"
       data-template-id={templateId}
     >
       <WorldCupPlayProgressHeader templateTitle={templateTitle} />
@@ -194,7 +202,7 @@ export function WorldCupPlayClient({ templateId, templateTitle }: WorldCupPlayCl
         {layoutMode === 'split_diagonal' ? (
           <>
             <div
-              className={`absolute left-0 top-0 z-0 h-[75%] w-[60%] ${cardShellDiagonal} ${zA}`}
+              className={`absolute left-0 top-0 z-0 flex h-auto w-[55%] max-w-[calc((100dvh-14rem)*16/9)] flex-col ${cardShellDiagonal} ${zA}`}
               onMouseEnter={() => setTopCard('A')}
             >
               <CandidateCard
@@ -209,7 +217,7 @@ export function WorldCupPlayClient({ templateId, templateTitle }: WorldCupPlayCl
               />
             </div>
             <div
-              className={`absolute bottom-0 right-0 z-0 h-[75%] w-[60%] ${cardShellDiagonal} ${zB}`}
+              className={`absolute bottom-0 right-0 z-0 flex h-auto w-[55%] max-w-[calc((100dvh-14rem)*16/9)] flex-col ${cardShellDiagonal} ${zB}`}
               onMouseEnter={() => setTopCard('B')}
             >
               <CandidateCard
@@ -225,7 +233,7 @@ export function WorldCupPlayClient({ templateId, templateTitle }: WorldCupPlayCl
             </div>
           </>
         ) : (
-          <div className="flex min-h-0 w-full flex-1 flex-row gap-4 px-4 pb-6 pt-6">
+          <div className="flex min-h-0 w-full flex-1 flex-row items-center gap-4 px-4 pb-6 pt-6">
             <CandidateCard
               side="A"
               item={left}
@@ -237,7 +245,7 @@ export function WorldCupPlayClient({ templateId, templateTitle }: WorldCupPlayCl
               mediaFit="contain"
               rootClassName={cardShellRow}
             />
-            <div className="flex w-[min(7.5rem,calc(100vw-2rem))] shrink-0 flex-col items-stretch justify-center gap-3 py-2">
+            <div className="flex w-[min(7.5rem,calc(100vw-2rem))] shrink-0 flex-col items-stretch justify-center gap-3 self-center py-2">
               <button
                 type="button"
                 className={`w-full shrink-0 whitespace-normal text-center ${tieBtnUtility}`}
@@ -317,14 +325,14 @@ function CandidateCard({
   const canReroll = !tournamentComplete && reservePoolCount > 0 && !!item;
   const outer =
     rootClassName ??
-    'relative flex h-full min-h-0 w-full flex-col overflow-hidden';
+    'flex h-full min-h-0 w-full flex-col overflow-hidden';
 
   return (
     <div className={outer}>
-      <div className="relative min-h-0 w-full flex-1 overflow-hidden rounded-t-2xl bg-black">
+      <div className="relative aspect-video w-full shrink-0 overflow-hidden rounded-t-2xl bg-black">
         <WorldCupCardMedia item={item} fit={mediaFit} />
       </div>
-      <div className="mt-auto flex h-16 w-full shrink-0 gap-2 rounded-b-2xl border-t border-zinc-200 bg-zinc-100 p-3 dark:border-white/10 dark:bg-zinc-900">
+      <div className="flex h-16 w-full shrink-0 gap-2 rounded-b-2xl border-t border-zinc-200 bg-zinc-100 p-3 dark:border-white/10 dark:bg-zinc-900">
         <button
           type="button"
           className={rerollAssetBtn}
@@ -388,7 +396,7 @@ function WorldCupCardMedia({
 
   if (kind === 'youtube' && videoId) {
     return (
-      <div className="absolute inset-0 flex items-center justify-center bg-black">
+      <div className="absolute inset-0 h-full w-full bg-black">
         <WorldCupYouTubePlayer videoId={videoId} />
       </div>
     );
@@ -406,15 +414,12 @@ function WorldCupCardMedia({
   );
 }
 
-/**
- * 플레이 카드 내 YouTube: 16:9 고정(aspect-video). 부모 WorldCupCardMedia 가 flex 중앙 정렬 래퍼를 제공한다.
- * iframe 에 h-full 단독 적용으로 비율 파괴·상하 클립되는 것을 피한다.
- */
+/** 부모 미디어 래퍼가 16:9이므로 iframe만 꽉 채운다. */
 function WorldCupYouTubePlayer({ videoId }: { videoId: string }) {
   const src = buildWorldCupYoutubePlayEmbedSrc(videoId);
 
   return (
-    <div className="relative aspect-video w-full max-h-full max-w-full overflow-hidden rounded-lg shadow-lg">
+    <div className="absolute inset-0 h-full w-full overflow-hidden rounded-lg shadow-lg">
       <iframe
         src={src}
         title=""

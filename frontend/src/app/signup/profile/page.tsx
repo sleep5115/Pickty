@@ -340,9 +340,6 @@ export default function OnboardingProfilePage() {
                       </>
                     )}
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-zinc-500 leading-relaxed text-center">
-                    {PICKTY_IMAGE_UPLOAD_HINT}
-                  </p>
                   {avatarFile && (
                     <button
                       type="button"

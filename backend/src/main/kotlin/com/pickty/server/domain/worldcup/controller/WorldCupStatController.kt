@@ -1,9 +1,8 @@
 package com.pickty.server.domain.worldcup.controller
 
-import com.pickty.server.domain.worldcup.dto.WorldCupRankingRowResponse
+import com.pickty.server.domain.worldcup.dto.WorldCupRankingPageResponse
 import com.pickty.server.domain.worldcup.dto.WorldCupResultSubmitRequest
 import com.pickty.server.domain.worldcup.service.WorldCupStatService
-import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.web.PageableDefault
 import org.springframework.http.HttpStatus
@@ -35,6 +34,6 @@ class WorldCupStatController(
     fun ranking(
         @PathVariable templateId: UUID,
         @PageableDefault(size = 20) pageable: Pageable,
-    ): ResponseEntity<Page<WorldCupRankingRowResponse>> =
+    ): ResponseEntity<WorldCupRankingPageResponse> =
         ResponseEntity.ok(worldCupStatService.ranking(templateId, pageable))
 }
