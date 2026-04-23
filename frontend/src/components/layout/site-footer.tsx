@@ -2,7 +2,10 @@ import Link from 'next/link';
 
 export function SiteFooter() {
   return (
-    <footer className="w-full shrink-0 border-t border-slate-200/80 dark:border-zinc-800/80 bg-slate-50/50 dark:bg-zinc-950/50">
+    <footer
+      data-pickty-site-footer
+      className="w-full shrink-0 border-t border-slate-200/80 dark:border-zinc-800/80 bg-slate-50/50 dark:bg-zinc-950/50"
+    >
       <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-center gap-x-3 gap-y-1.5 px-4 py-3.5 text-[11px] text-slate-500 sm:px-6 md:px-8 dark:text-zinc-500">
         <Link
           href="/terms"

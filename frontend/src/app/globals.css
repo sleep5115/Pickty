@@ -104,3 +104,8 @@ html.dark textarea:-webkit-autofill:focus {
     animation-name: worldcup-comment-drawer-in-md;
   }
 }
+
+/* 월드컵 인게임(WorldCupPlayClient 마운트) 동안만 전역 푸터 숨김 — 결과/랭킹/브래킷 선택 화면에서는 미마운트로 자동 복귀 */
+html[data-pickty-worldcup-playing='1'] [data-pickty-site-footer] {
+  display: none !important;
+}
