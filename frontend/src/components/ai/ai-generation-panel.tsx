@@ -160,23 +160,25 @@ export function AiGenerationPanel({
   return (
     <div className="space-y-3 rounded-xl border border-violet-100 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-none">
       <div className="flex flex-col gap-3 [color-scheme:light] dark:[color-scheme:dark]">
-        {isAdmin && adminUsage ? (
-          <p className="text-xs text-zinc-500 dark:text-zinc-500" aria-live="polite">
-            ※ API 일일 사용량 : YouTube {adminUsage.youtube}/100 · Google{adminUsage.googleSearch}/100 매일 오후 4~5시 초기화 (태평양 표준시 자정)
-          </p>
-        ) : null}
-        {isAiGenerating ? (
-          <div className="flex w-full justify-end">
-            <p
-              className="max-w-full text-right text-xs leading-snug text-slate-500 dark:text-zinc-400 sm:max-w-[85%]"
-              aria-live="polite"
-              aria-busy="true"
-            >
-              {loadingProgressText}
-            </p>
+        {((isAdmin && adminUsage) || isAiGenerating) && (
+          <div className="flex items-start gap-3">
+            {isAdmin && adminUsage ? (
+              <p className="min-w-0 flex-1 text-xs text-zinc-500 dark:text-zinc-500" aria-live="polite">
+                ※ API 일일 사용량 : YouTube {adminUsage.youtube}/100 · Google{adminUsage.googleSearch}/100 매일 오후 4~5시 초기화 (태평양 표준시 자정)
+              </p>
+            ) : null}
+            {isAiGenerating ? (
+              <p
+                className="ml-auto min-w-0 max-w-full text-right text-xs leading-snug text-slate-500 break-words dark:text-zinc-400 sm:max-w-[min(42rem,65%)]"
+                aria-live="polite"
+                aria-busy="true"
+              >
+                {loadingProgressText}
+              </p>
+            ) : null}
           </div>
-        ) : null}
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        )}
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-nowrap sm:items-center sm:gap-3">
           <div className="relative min-w-0 w-full flex-1 sm:min-w-[12rem]">
             <input
               type="text"
@@ -222,19 +224,23 @@ export function AiGenerationPanel({
             onClick={() => void handleAiGenerate()}
             disabled={isAiGenerating || !aiPrompt.trim()}
             aria-busy={isAiGenerating}
-            className="inline-flex w-full shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-violet-500 disabled:pointer-events-none disabled:opacity-60 dark:bg-violet-600 dark:hover:bg-violet-500 sm:w-auto"
+            aria-label={isAiGenerating ? 'AI 후보 생성 중' : generateButtonLabel}
+            className="relative inline-flex w-full shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-violet-500 disabled:pointer-events-none disabled:opacity-60 dark:bg-violet-600 dark:hover:bg-violet-500 sm:w-auto"
           >
+            <span
+              className={['inline-flex items-center justify-center gap-2', isAiGenerating ? 'invisible' : ''].join(
+                ' ',
+              )}
+              aria-hidden={isAiGenerating}
+            >
+              <Plus className="h-4 w-4 shrink-0" aria-hidden />
+              {generateButtonLabel}
+            </span>
             {isAiGenerating ? (
-              <>
+              <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
                 <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
-                생성 중
-              </>
-            ) : (
-              <>
-                <Plus className="h-4 w-4 shrink-0" aria-hidden />
-                {generateButtonLabel}
-              </>
-            )}
+              </span>
+            ) : null}
           </button>
         </div>
         <div className="flex flex-wrap items-center gap-2">
