@@ -93,6 +93,7 @@ class SecurityConfig(
                     .requestMatchers(HttpMethod.DELETE, "/api/v1/tiers/results/**").authenticated()
                     // AI 자동 생성
                     .requestMatchers("/api/v1/ai/**").authenticated()
+                    .requestMatchers(HttpMethod.POST, "/api/v1/admin/**").authenticated()
                     .anyRequest().permitAll()
             }
             .oauth2Login { oauth2 ->

@@ -37,7 +37,7 @@ import { TierBoard } from '@/components/tier/tier-board';
 import { TierItemTileImages } from '@/components/tier/tier-item-tile-images';
 import { ImagePreviewModal } from '@/components/tier/image-preview-modal';
 import { TemplateBoardCanvasEditor } from '@/components/template/template-board-canvas-editor';
-import { TierTemplateNewAiPanel } from '@/components/tier/tier-template-new-ai-panel';
+import { AiGenerationPanel } from '@/components/ai/ai-generation-panel';
 
 import { Sparkles } from 'lucide-react';
 
@@ -478,13 +478,6 @@ function NewTemplatePageInner() {
           <p className="mt-2 text-sm text-slate-600 dark:text-zinc-400">
             아이템 {savedInfo.itemCount}개가 들어간 템플릿을 저장했어요. 아래에서 바로 티어표를 만들어 보세요.
           </p>
-          {isAdmin && (
-            <p className="mt-3 text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
-              [관리자] 이미지는 <strong>Cloudflare R2</strong>에 올라가며 메타에는 공개 URL(
-              <code className="text-[0.7rem] bg-white/60 dark:bg-black/30 px-1 rounded">https://img.pickty.app/…</code>
-              )이 기록됩니다. CORS 설정이 맞아야 다른 오리진에서 미리보기·캡처가 됩니다.
-            </p>
-          )}
           <div className="mt-6 flex flex-col sm:flex-row gap-3">
             <button
               type="button"
@@ -558,16 +551,6 @@ function NewTemplatePageInner() {
           className="mb-6 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
         >
           {forkLoadError}
-        </div>
-      )}
-
-      {isAdmin && (
-        <div
-          role="note"
-          className="mb-6 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50/90 dark:bg-zinc-900/60 px-3 py-2 text-xs text-slate-700 dark:text-zinc-300"
-        >
-          [관리자] 저장 시 이미지는 서버를 거쳐 <strong>Cloudflare R2</strong>에 올라갑니다. 미리보기는 브라우저에서만 쓰이며, 공개 URL은{' '}
-          <code className="text-[0.65rem] opacity-90">https://img.pickty.app/…</code> 형식으로 저장됩니다.
         </div>
       )}
 
@@ -732,16 +715,22 @@ function NewTemplatePageInner() {
           </div>
 
           {isAdmin && accessToken ? (
-            <TierTemplateNewAiPanel
+            <AiGenerationPanel
               accessToken={accessToken}
-              excludeItemNames={watchedItems.map((it) => it.name).filter(Boolean)}
+              lockMediaTypeToPhoto
+              inputPlaceholder="주제 입력 (예: 롤 챔피언, 포켓몬 1세대...)"
+              generateButtonLabel="AI로 아이템 생성"
+              hintText="Gemini와 이미지 검색으로 이름·후보 URL을 채웁니다(사진만). 개수는 패널에서 조절할 수 있어요. 행의 [교체]로 후보를 바꿀 수 있습니다."
               onGenerated={(items) => {
                 for (const item of items) {
+                  const cand = item.candidates.filter((c) => c.url?.trim());
                   append({
                     clientId: newClientId(),
                     name: item.name,
                     existingImageUrl: item.imageUrl,
                     focusRect: item.focusRect,
+                    aiCandidates: cand.length > 0 ? cand : undefined,
+                    aiCandidateIndex: cand.length > 0 ? 0 : undefined,
                   });
                 }
               }}
@@ -823,10 +812,14 @@ function NewTemplatePageInner() {
                   typeof existingImg === 'string' && existingImg.trim() ? existingImg.trim() : '';
                 const rawImageUrl = previewLocal ?? existingTrimmed;
                 const rowFocusRect = form.watch(`items.${index}.focusRect`);
+                const aiList = form.watch(`items.${index}.aiCandidates`) as
+                  | { url: string; title?: string }[]
+                  | undefined;
                 const itemAlt =
                   (typeof rowName === 'string' && rowName.trim()) || `아이템 ${index + 1}`;
                 const picked = (form.watch('thumbnailClientIds') ?? []).includes(clientId ?? '');
                 const thumbCount = (form.watch('thumbnailClientIds') ?? []).length;
+                const canAiSwap = (aiList?.filter((c) => c?.url?.trim()).length ?? 0) > 1;
                 return (
                   <li
                     key={field.id}
@@ -888,6 +881,34 @@ function NewTemplatePageInner() {
                           {form.formState.errors.items[index]?.name?.message}
                         </p>
                       )}
+                      {canAiSwap ? (
+                        <button
+                          type="button"
+                          className="text-xs font-semibold text-violet-600 hover:underline dark:text-violet-400"
+                          onClick={() => {
+                            const list = form.getValues(`items.${index}.aiCandidates`) ?? [];
+                            const urls = list.map((c) => c.url).filter(Boolean);
+                            if (urls.length <= 1) return;
+                            const cur = form.getValues(`items.${index}.aiCandidateIndex`) ?? 0;
+                            const next = (cur + 1) % urls.length;
+                            const nextUrl = urls[next] ?? '';
+                            form.setValue(`items.${index}.aiCandidateIndex`, next, { shouldDirty: true });
+                            form.setValue(`items.${index}.existingImageUrl`, nextUrl, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            });
+                            const nextTitle = list[next]?.title?.trim();
+                            if (nextTitle) {
+                              form.setValue(`items.${index}.name`, nextTitle, {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                              });
+                            }
+                          }}
+                        >
+                          교체 (다음 후보)
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         onClick={() => removeRow(index)}

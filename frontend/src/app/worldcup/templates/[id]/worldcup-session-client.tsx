@@ -115,6 +115,7 @@ export function WorldCupSessionClient({ templateId }: Props) {
     void submitWorldCupPlayResult({
       templateId,
       winnerItemId: payload.winnerItemId,
+      startBracket: payload.startBracket,
       rows: payload.rows,
     }).then((res) => {
       if (!res.ok) resultsSubmittedRef.current = false;

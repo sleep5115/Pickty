@@ -27,6 +27,10 @@ class WorldCupStatService(
         if (body.winnerItemId <= 0L) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "winnerItemId 가 필요합니다.")
         }
+        val startBracket = body.startBracket.toInt().coerceIn(2, 4096)
+        if (!isPowerOfTwo(startBracket)) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "startBracket 는 2의 거듭제곱(2,4,8,16,…)이어야 합니다.")
+        }
 
         val tpl =
             worldCupTemplateRepository.findById(templateId).orElse(null)
@@ -36,7 +40,7 @@ class WorldCupStatService(
         }
 
         for (row in body.rows) {
-            applyStatRow(templateId, row)
+            applyStatRow(templateId, row, startBracket)
         }
 
         val rows =
@@ -59,10 +63,10 @@ class WorldCupStatService(
         }
     }
 
-    private fun applyStatRow(templateId: UUID, row: WorldCupStatSubmitRow) {
+    private fun applyStatRow(templateId: UUID, row: WorldCupStatSubmitRow, startBracket: Int) {
         val itemId = row.itemId
         if (itemId <= 0L) return
-        val rd = reachedDeltas(row.peakBracketSize)
+        val rd = reachedDeltas(row.peakBracketSize, startBracket)
         val r =
             worldCupItemStatRepository.upsertIncrement(
                 templateId,
@@ -83,15 +87,26 @@ class WorldCupStatService(
         }
     }
 
-    private fun reachedDeltas(peakBracketSize: Int): LongArray {
-        val p = peakBracketSize.coerceAtLeast(0)
+    /**
+     * `peak` = 끝났을 때의 성과(1=우승,2=결승 패,4/8/16/32/…=해당 N강에서 탈락).
+     * [r16, r8, r4, rf] — N강 **이상**으로 승리해 **진출**한 판에만 1(동일 판 1회).
+     */
+    private fun reachedDeltas(peak: Int, start: Int): LongArray {
+        val s = start.coerceAtLeast(1)
+        val p = peak.coerceAtLeast(0)
+        val m16 = s >= 16 && p in setOf(1, 2, 4, 8, 16)
+        val m8 = s >= 8 && p in setOf(1, 2, 4, 8)
+        val m4 = s >= 4 && p in setOf(1, 2, 4)
+        val m2 = s >= 2 && p in setOf(1, 2)
         return longArrayOf(
-            if (p >= 16) 1L else 0L,
-            if (p >= 8) 1L else 0L,
-            if (p >= 4) 1L else 0L,
-            if (p >= 2) 1L else 0L,
+            if (m16) 1L else 0L,
+            if (m8) 1L else 0L,
+            if (m4) 1L else 0L,
+            if (m2) 1L else 0L,
         )
     }
+
+    private fun isPowerOfTwo(n: Int): Boolean = n > 0 && (n and (n - 1)) == 0
 
     @Transactional(readOnly = true)
     fun ranking(templateId: UUID, pageable: Pageable): WorldCupRankingPageResponse {

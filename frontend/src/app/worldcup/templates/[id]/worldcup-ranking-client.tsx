@@ -92,7 +92,7 @@ const RANKING_ROW_CELL_MIN_H = 'min-h-[6.25rem]';
 function RankingMetricsHintLine() {
   return (
     <p className="mb-4 rounded-lg border border-zinc-200 bg-zinc-50/90 px-4 py-2.5 text-sm leading-relaxed text-zinc-700 dark:border-white/10 dark:bg-zinc-900/50 dark:text-zinc-300">
-      지표 안내: 종합 승률은 우승·결승 진출·1:1 맞대결 승률을, 단계별 진출률은 4·8·16강 이상 도달 비율을 각각 이 템플릿의 완료 플레이 수(또는 맞대결 참가 수) 대비로 보여 줍니다. 우측
+      지표 안내: 종합 승률은 우승·결승 진출·1:1 맞대결 승률을, 단계별 진출률은 해당 N강 이상(승리)으로 진출한 횟수를 이 템플릿의 완료 플레이 수 기준으로 보여 줍니다. 우측
       Pickty 지표는 맞대결 슬롯에서의 스킵·광탈·접전 비율입니다.
     </p>
   );
