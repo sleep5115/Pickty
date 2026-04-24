@@ -101,6 +101,8 @@ function RankingMetricsHintLine() {
 interface Props {
   templateId: string;
   onBackToResult: () => void;
+  /** 결과 화면에서 온 경우 vs `/ranking` 직링크 등 — 뒤로 가기 동작에 맞는 라벨 */
+  backNavLabel: string;
 }
 
 function buildItemMeta(itemsPayload: unknown): Map<string, { name: string; imageUrl?: string }> {
@@ -147,7 +149,7 @@ function syntheticRankingFromItemsPayload(itemsPayload: unknown): WorldCupRankin
   }));
 }
 
-export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
+export function WorldCupRankingClient({ templateId, onBackToResult, backNavLabel }: Props) {
   const authHydrated = useAuthPersistHydrated();
   const accessToken = useAuthStore((s) => s.accessToken);
   const [meId, setMeId] = useState<number | null>(null);
@@ -351,7 +353,7 @@ export function WorldCupRankingClient({ templateId, onBackToResult }: Props) {
             className="inline-flex items-center justify-center gap-2 self-start rounded-lg border border-zinc-300 bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-900 shadow-sm transition hover:bg-zinc-200 dark:border-white/15 dark:bg-zinc-800 dark:text-white dark:hover:bg-zinc-700 sm:self-auto"
           >
             <ArrowLeft className="size-4" aria-hidden />
-            결과로 돌아가기
+            {backNavLabel}
           </button>
         </div>
       </div>

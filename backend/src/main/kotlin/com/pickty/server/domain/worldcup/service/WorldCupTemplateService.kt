@@ -1,6 +1,7 @@
 package com.pickty.server.domain.worldcup.service
 
 import com.pickty.server.domain.interaction.enums.ReactionTargetType
+import com.pickty.server.domain.interaction.enums.ReactionType
 import com.pickty.server.domain.interaction.service.MyReactionService
 import com.pickty.server.domain.tier.dto.TemplateItemPayload
 import com.pickty.server.domain.tier.enums.TemplateStatus
@@ -51,14 +52,16 @@ class WorldCupTemplateService(
     }
 
     @Transactional(readOnly = true)
-    fun getById(id: UUID): WorldCupTemplateDetailResponse {
+    fun getById(id: UUID, viewerUserId: Long?): WorldCupTemplateDetailResponse {
         val e =
             worldCupTemplateRepository.findById(id).orElse(null)
                 ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "worldcup template not found")
         if (e.templateStatus != TemplateStatus.ACTIVE) {
             throw ResponseStatusException(HttpStatus.GONE, "삭제되었거나 비공개인 템플릿입니다.")
         }
-        return e.toDetail()
+        val tid = e.id ?: throw IllegalStateException("worldcup template id missing")
+        val myReaction = myReactionService.single(ReactionTargetType.WORLDCUP_TEMPLATE, tid, viewerUserId)
+        return e.toDetail(myReaction)
     }
 
     @Transactional
@@ -172,7 +175,7 @@ class WorldCupTemplateService(
     private fun normalizeThumbnailUrl(raw: String?): String? =
         raw?.trim()?.takeIf { it.isNotEmpty() }
 
-    private fun WorldCupTemplate.toDetail(): WorldCupTemplateDetailResponse {
+    private fun WorldCupTemplate.toDetail(myReaction: ReactionType? = null): WorldCupTemplateDetailResponse {
         val tid = id ?: throw IllegalStateException("worldcup template id missing")
         return WorldCupTemplateDetailResponse(
             id = tid,
@@ -186,6 +189,7 @@ class WorldCupTemplateService(
             likeCount = likeCount,
             commentCount = commentCount,
             viewCount = viewCount,
+            myReaction = myReaction,
         )
     }
 }

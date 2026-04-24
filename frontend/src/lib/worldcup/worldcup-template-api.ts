@@ -42,10 +42,31 @@ export interface WorldCupTemplateDetailDto {
   likeCount: number;
   commentCount: number;
   viewCount: number;
+  /** 로그인 시 내 반응(월드컵 템플릿은 LIKE만) */
+  myReaction?: ReactionType | null;
 }
 
 export function fetchWorldCupTemplate(templateId: string, init?: RequestInit) {
   return apiFetch(`/api/v1/worldcup/templates/${encodeURIComponent(templateId)}`, init ?? {});
+}
+
+/**
+ * `GET /api/v1/worldcup/templates/{id}` JSON — Jackson·프록시 설정에 따라 `my_reaction` 등으로 올 수 있음.
+ * 티어 `parseMyReaction` 과 동일한 관대한 파싱.
+ */
+export function parseWorldCupTemplateDetailReactionFields(row: Record<string, unknown>): {
+  likeCount: number;
+  myReaction: ReactionType | null;
+} {
+  const likeRaw = row.likeCount ?? row.like_count;
+  const likeCount =
+    typeof likeRaw === 'number' && Number.isFinite(likeRaw)
+      ? Math.max(0, Math.floor(likeRaw))
+      : Math.max(0, Math.floor(Number(likeRaw)) || 0);
+  const mr = row.myReaction ?? row.my_reaction;
+  /** 월드컵 템플릿 좋아요만 사용 */
+  const myReaction: ReactionType | null = mr === 'LIKE' ? 'LIKE' : null;
+  return { likeCount, myReaction };
 }
 
 export interface CreateWorldCupTemplatePayload {

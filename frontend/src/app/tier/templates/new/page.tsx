@@ -95,6 +95,18 @@ function NewTemplatePageInner() {
   }, [register]);
 
   const watchedItems = useWatch({ control: form.control, name: 'items' }) ?? [];
+  const existingAiItemNames = useMemo(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const r of watchedItems) {
+      const n = (r.name ?? '').trim();
+      if (!n) continue;
+      if (seen.has(n)) continue;
+      seen.add(n);
+      out.push(n);
+    }
+    return out.slice(0, 200);
+  }, [watchedItems]);
   const itemIdsKey = watchedItems.map((r) => r.clientId).join('\0');
 
   useEffect(() => {
@@ -717,6 +729,8 @@ function NewTemplatePageInner() {
           {isAdmin && accessToken ? (
             <AiGenerationPanel
               accessToken={accessToken}
+              isAdmin={isAdmin}
+              existingItemNames={existingAiItemNames}
               lockMediaTypeToPhoto
               inputPlaceholder="주제 입력 (예: 롤 챔피언, 포켓몬 1세대...)"
               generateButtonLabel="AI로 아이템 생성"

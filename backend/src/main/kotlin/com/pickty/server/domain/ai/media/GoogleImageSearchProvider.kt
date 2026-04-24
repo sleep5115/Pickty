@@ -2,6 +2,7 @@ package com.pickty.server.domain.ai.media
 
 import com.pickty.server.domain.ai.dto.AiMediaType
 import com.pickty.server.domain.ai.dto.MediaCandidate
+import com.pickty.server.domain.ai.service.AiApiUsageService
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpStatus
@@ -14,6 +15,7 @@ class GoogleImageSearchProvider(
     @Value("\${pickty.ai.google-search.api-key:}") private val googleSearchApiKey: String,
     @Value("\${pickty.ai.google-search.cx:}") private val googleSearchCx: String,
     private val bingImageSearchProvider: BingImageSearchProvider,
+    private val aiApiUsageService: AiApiUsageService,
 ) : MediaSearchService {
 
     private val log = LoggerFactory.getLogger(javaClass)
@@ -60,6 +62,9 @@ class GoogleImageSearchProvider(
             }
             .retrieve()
             .body(Map::class.java)
+
+        /** 2xx·본문까지 받은 경우만 카운트 (429·네트워크 실패 등은 상위 catch에서 미카운트) */
+        aiApiUsageService.recordGoogleCustomSearchCall()
 
         val items = response?.get("items") as? List<*> ?: return emptyList()
         return items.mapNotNull { (it as? Map<*, *>)?.get("link") as? String }

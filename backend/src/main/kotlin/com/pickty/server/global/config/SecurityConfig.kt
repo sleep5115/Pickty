@@ -5,6 +5,7 @@ import com.pickty.server.domain.auth.handler.OAuth2SuccessHandler
 import com.pickty.server.domain.auth.service.CustomOAuth2UserService
 import com.pickty.server.global.jwt.JwtAuthenticationFilter
 import com.pickty.server.global.oauth2.HttpCookieOAuth2AuthorizationRequestRepository
+import com.pickty.server.global.oauth2.PicktyOAuth2AuthorizationRequestResolver
 import com.pickty.server.global.security.UnauthorizedEntryPoint
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
@@ -29,6 +30,7 @@ class SecurityConfig(
     private val oAuth2FailureHandler: OAuth2FailureHandler,
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
     private val cookieAuthorizationRequestRepository: HttpCookieOAuth2AuthorizationRequestRepository,
+    private val picktyOAuth2AuthorizationRequestResolver: PicktyOAuth2AuthorizationRequestResolver,
     @Value("\${app.frontend-url:https://pickty.app}") private val frontendUrl: String,
     @Value("\${app.oauth2.allowed-frontend-origins:https://pickty.app,https://www.pickty.app,http://localhost:3002,http://127.0.0.1:3002}") private val allowedOriginsRaw: String,
 ) {
@@ -93,13 +95,16 @@ class SecurityConfig(
                     .requestMatchers(HttpMethod.DELETE, "/api/v1/tiers/results/**").authenticated()
                     // AI 자동 생성
                     .requestMatchers("/api/v1/ai/**").authenticated()
+                    .requestMatchers(HttpMethod.GET, "/api/v1/admin/**").authenticated()
                     .requestMatchers(HttpMethod.POST, "/api/v1/admin/**").authenticated()
                     .anyRequest().permitAll()
             }
             .oauth2Login { oauth2 ->
                 oauth2
                     .authorizationEndpoint { auth ->
-                        auth.authorizationRequestRepository(cookieAuthorizationRequestRepository)
+                        auth
+                            .authorizationRequestRepository(cookieAuthorizationRequestRepository)
+                            .authorizationRequestResolver(picktyOAuth2AuthorizationRequestResolver)
                     }
                     .userInfoEndpoint { it.userService(customOAuth2UserService) }
                     .successHandler(oAuth2SuccessHandler)

@@ -502,6 +502,8 @@ export default function AccountPage() {
   const [profileReloadKey, setProfileReloadKey] = useState(0);
   const [linkError, setLinkError] = useState<string | null>(null);
   const [linkBusy, setLinkBusy] = useState<string | null>(null);
+  /** 소셜 연동 확인 모달 — 병합·비식별화 안내 후에만 OAuth 진행 */
+  const [linkConfirm, setLinkConfirm] = useState<{ registrationId: string; label: string } | null>(null);
   const [user, setUser] = useState<UserInfo | null>(null);
   const [oauthRaw, setOauthRaw] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
@@ -576,6 +578,7 @@ export default function AccountPage() {
   const startSocialLink = useCallback(
     async (registrationId: string) => {
       if (!accessToken) return;
+      setLinkConfirm(null);
       setLinkError(null);
       setLinkBusy(registrationId);
       try {
@@ -859,8 +862,9 @@ export default function AccountPage() {
           <div>
             <p className="text-xs font-medium text-slate-500 dark:text-zinc-500 mb-2">연결된 로그인</p>
             <p className="text-xs text-slate-500 dark:text-zinc-500 mb-3 leading-relaxed">
-              다른 소셜을 연결하면 가입일이 더 오래된 계정 기준으로 합쳐져요. <br />
-              활동 내역이 통합되고 어느쪽으로든 로그인 할 수 있어요.
+              다른 소셜을 연결하면 <strong className="font-medium text-slate-700 dark:text-zinc-300">가입일이 더 오래된 계정이 본체</strong>가 되고,
+              나머지 계정은 병합 처리됩니다. 병합된 쪽은 이메일·이름·프로필 사진 등이 비식별화되며, 이후 계정을 다시 나누는 기능은 제공하지 않습니다.
+              연동 전 아래 버튼에서 한 번 더 확인해 주세요.
             </p>
             {linkError && (
               <div className="mb-3 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-600 dark:text-red-400">
@@ -877,7 +881,9 @@ export default function AccountPage() {
                     key={opt.registrationId}
                     type="button"
                     disabled={linkBusy !== null}
-                    onClick={() => void startSocialLink(opt.registrationId)}
+                    onClick={() =>
+                      setLinkConfirm({ registrationId: opt.registrationId, label: opt.label })
+                    }
                     className="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 disabled:opacity-45 disabled:cursor-not-allowed transition-colors"
                   >
                     {linkBusy === opt.registrationId ? `${opt.label} 연결 중…` : `${opt.label} 연동하기`}
@@ -1023,6 +1029,53 @@ export default function AccountPage() {
           회원 탈퇴
         </button>
       </div>
+
+      {linkConfirm && (
+        <div
+          className="fixed inset-0 z-[115] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="oauth-link-confirm-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && linkBusy === null) setLinkConfirm(null);
+          }}
+        >
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xl p-6 space-y-4">
+            <h2 id="oauth-link-confirm-title" className="text-lg font-bold text-slate-900 dark:text-zinc-100">
+              {linkConfirm.label} 계정 연동
+            </h2>
+            <div className="text-sm text-slate-700 dark:text-zinc-200 leading-relaxed space-y-3">
+              <p>
+                연동에 사용할 <span className="font-medium">{linkConfirm.label}</span> 계정을 로그인 화면에서 직접
+                선택·입력하게 됩니다
+              </p>
+              <p>
+                <span className="font-medium">가입일이 더 빠른 계정이 본체</span>로
+                남고 나머지는 병합됩니다.<br />
+                <span className="font-medium">이후 어느 계정으로든 로그인할 수 있습니다.</span>
+              </p>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                disabled={linkBusy !== null}
+                onClick={() => linkBusy === null && setLinkConfirm(null)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-800 disabled:opacity-50"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                disabled={linkBusy !== null}
+                onClick={() => void startSocialLink(linkConfirm.registrationId)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-violet-600 hover:bg-violet-500 disabled:opacity-50"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {deleteOpen && (
         <div

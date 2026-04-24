@@ -61,6 +61,8 @@ function TierPageInner({ routeTemplateId }: { routeTemplateId?: string }) {
   const headerMenuRef = useRef<HTMLDivElement>(null);
   /** intent로 워크스페이스 effect가 getTemplate을 안 할 때만 조회수 집계(같은 tid 재요청은 제외) */
   const templateAuthSyncCountRef = useRef<string | null>(null);
+  /** `myReaction`·카운트 동기화 GET — 늦게 도착한 응답이 최신 tid를 덮어쓰지 않게 함 */
+  const templateMetaSyncSeqRef = useRef(0);
 
   const dragSelectRef = useRef<HTMLDivElement>(null);
 
@@ -144,7 +146,7 @@ function TierPageInner({ routeTemplateId }: { routeTemplateId?: string }) {
    * intent 이어쓰기로 워크스페이스 effect가 GET을 생략하면 여기서만 집계(같은 tid 재요청은 false).
    */
   useEffect(() => {
-    if (!tierHydrated) return;
+    if (!tierHydrated || !authHydrated) return;
     const tid = templateIdParam ?? templateId;
     if (!tid) return;
 
@@ -159,9 +161,10 @@ function TierPageInner({ routeTemplateId }: { routeTemplateId?: string }) {
       workspaceGetSkipped && templateAuthSyncCountRef.current !== tid;
     if (countView) templateAuthSyncCountRef.current = tid;
 
+    const seq = ++templateMetaSyncSeqRef.current;
     let cancelled = false;
     void getTemplate(tid, accessToken ?? null, { countView }).then((d) => {
-      if (cancelled) return;
+      if (cancelled || seq !== templateMetaSyncSeqRef.current) return;
       setTemplateMyReaction(d.myReaction ?? null);
       setTemplateLikeCount(d.likeCount ?? 0);
       setTemplateViewCount(d.viewCount ?? 0);
@@ -169,7 +172,7 @@ function TierPageInner({ routeTemplateId }: { routeTemplateId?: string }) {
     return () => {
       cancelled = true;
     };
-  }, [tierHydrated, accessToken, templateIdParam, templateId]);
+  }, [tierHydrated, authHydrated, accessToken, templateIdParam, templateId]);
 
   useEffect(() => {
     if (!tierHydrated) return;
