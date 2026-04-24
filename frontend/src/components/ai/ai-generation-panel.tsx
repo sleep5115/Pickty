@@ -165,6 +165,17 @@ export function AiGenerationPanel({
             ※ API 일일 사용량 : YouTube {adminUsage.youtube}/100 · Google{adminUsage.googleSearch}/100 매일 오후 4~5시 초기화 (태평양 표준시 자정)
           </p>
         ) : null}
+        {isAiGenerating ? (
+          <div className="flex w-full justify-end">
+            <p
+              className="max-w-full text-right text-xs leading-snug text-slate-500 dark:text-zinc-400 sm:max-w-[85%]"
+              aria-live="polite"
+              aria-busy="true"
+            >
+              {loadingProgressText}
+            </p>
+          </div>
+        ) : null}
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           <div className="relative min-w-0 w-full flex-1 sm:min-w-[12rem]">
             <input
@@ -211,17 +222,12 @@ export function AiGenerationPanel({
             onClick={() => void handleAiGenerate()}
             disabled={isAiGenerating || !aiPrompt.trim()}
             aria-busy={isAiGenerating}
-            className={[
-              'inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-violet-500 disabled:pointer-events-none disabled:opacity-60 dark:bg-violet-600 dark:hover:bg-violet-500 sm:w-auto',
-              isAiGenerating ? 'whitespace-normal' : 'whitespace-nowrap',
-            ].join(' ')}
+            className="inline-flex w-full shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-violet-500 disabled:pointer-events-none disabled:opacity-60 dark:bg-violet-600 dark:hover:bg-violet-500 sm:w-auto"
           >
             {isAiGenerating ? (
               <>
                 <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
-                <span className="max-w-[min(100%,18rem)] text-center text-xs leading-snug sm:max-w-[22rem] sm:text-sm">
-                  {loadingProgressText}
-                </span>
+                생성 중
               </>
             ) : (
               <>
