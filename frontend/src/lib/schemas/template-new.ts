@@ -1,5 +1,10 @@
 import { z } from 'zod';
 
+const aiMediaCandidateSchema = z.object({
+  url: z.string().min(1).max(2048),
+  title: z.string().max(500).optional(),
+});
+
 const templateItemRowSchema = z.object({
   clientId: z.string().min(1),
   name: z
@@ -23,6 +28,9 @@ const templateItemRowSchema = z.object({
       h: z.number(),
     })
     .optional(),
+  /** 관리자 AI 후보 순환 (저장 payload에는 미사용) */
+  aiCandidates: z.array(aiMediaCandidateSchema).max(30).optional(),
+  aiCandidateIndex: z.number().int().min(0).optional(),
 });
 
 export const templateNewFormSchema = z.object({

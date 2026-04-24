@@ -9,6 +9,11 @@ import jakarta.validation.constraints.NotNull
 data class WorldCupResultSubmitRequest(
     @field:NotNull
     val winnerItemId: Long,
+    /**
+     * 선택한 출전 인원(2, 4, 8, 16, …) — N강 진출 `reached_*` 임계·조합이 이 값에 맞게 적용됨
+     */
+    @field:NotNull @field:Min(2) @field:Max(4096)
+    val startBracket: Long,
     @field:NotEmpty @field:Valid
     val rows: List<WorldCupStatSubmitRow>,
 )
@@ -17,8 +22,8 @@ data class WorldCupStatSubmitRow(
     @field:NotNull @field:Min(1)
     val itemId: Long,
     /**
-     * 해당 플레이에서 참가자가 도달한 라운드 규모(`roundDisplayPlayerCount` 최댓값).
-     * 예: 16·8·4·2 — 이 값으로 reached_* 카운터를 한 번씩 가산한다.
+     * 한 판에서의 **최종** 성과. 1=우승, 2=결승 패, 4/8/16/32/…=해당 N강에서의 탈락(승리해 다음 풀에 갔다면 R/2 기록).
+     * `reached_16/8/4/결승` 는 `startBracket`·이 값·승리 진출 규칙에 따라 1:1에만 가산한다.
      */
     @field:NotNull @field:Min(1) @field:Max(4096)
     val peakBracketSize: Int,

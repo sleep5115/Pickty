@@ -23,13 +23,6 @@ import { formatWorldCupRoundLabel } from '@/lib/worldcup/worldcup-bracket-sizes'
 const pillCounter =
   'rounded-full border border-zinc-300 bg-white/90 px-3 py-1.5 text-xs font-medium text-zinc-900 shadow-lg backdrop-blur-sm tabular-nums dark:border-white/15 dark:bg-black/55 dark:text-white sm:text-sm';
 
-/** 플레이 영역 우상단 — 둘 다 올림 / 둘 다 탈락 */
-const tieBtnUtility =
-  'rounded-xl border border-amber-400/55 bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-amber-600 dark:border-amber-300/45 dark:bg-amber-600/95 dark:hover:bg-amber-500';
-
-const dropBtnUtility =
-  'rounded-xl border border-rose-400/60 bg-rose-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-rose-600 dark:border-rose-300/55 dark:bg-rose-600/95 dark:hover:bg-rose-500';
-
 const selectMainA =
   'flex min-h-0 flex-1 items-center justify-center rounded-lg bg-gradient-to-r from-rose-600 via-red-500 to-pink-500 px-2 py-2 text-xs font-bold text-white shadow-md transition hover:brightness-110 active:scale-[0.99] disabled:opacity-40 sm:text-sm';
 
@@ -139,8 +132,6 @@ export function WorldCupPlayClient({ templateId, templateTitle }: WorldCupPlayCl
 
   const rerollItem = useWorldCupStore((s) => s.rerollItem);
   const selectWinner = useWorldCupStore((s) => s.selectWinner);
-  const dropBoth = useWorldCupStore((s) => s.dropBoth);
-  const keepBoth = useWorldCupStore((s) => s.keepBoth);
   const layoutMode = useWorldCupStore((s) => s.layoutMode) as WorldCupLayoutMode;
   const reservePoolCount = useWorldCupStore((s) => s.reservePoolCount);
   const left = useWorldCupStore((s) => s.currentRoundBracket[0]);
@@ -156,37 +147,6 @@ export function WorldCupPlayClient({ templateId, templateTitle }: WorldCupPlayCl
   const zA = topCard === 'A' ? 'z-10' : 'z-0';
   const zB = topCard === 'B' ? 'z-10' : 'z-0';
 
-  const tieDisabled = tournamentComplete || (!left && !right);
-
-  const utilityActions = (
-    <div className="pointer-events-auto absolute right-4 top-4 z-[45] flex gap-2">
-      <button
-        type="button"
-        className={tieBtnUtility}
-        title="둘 다 올림"
-        onClick={(e) => {
-          e.stopPropagation();
-          keepBoth();
-        }}
-        disabled={tieDisabled}
-      >
-        둘 다 올림
-      </button>
-      <button
-        type="button"
-        className={dropBtnUtility}
-        title="둘 다 탈락"
-        onClick={(e) => {
-          e.stopPropagation();
-          dropBoth();
-        }}
-        disabled={tieDisabled}
-      >
-        둘 다 탈락
-      </button>
-    </div>
-  );
-
   return (
     <div
       className="flex h-[calc(100dvh-11.5rem)] w-full flex-1 flex-col bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100"
@@ -197,8 +157,6 @@ export function WorldCupPlayClient({ templateId, templateTitle }: WorldCupPlayCl
        * Flex 상속 트리: flex-col 루트 → 헤더 shrink-0 아래 flex-1 플레이 영역만 세로 분배.
        */}
       <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-zinc-50 dark:bg-zinc-950">
-        {layoutMode === 'split_diagonal' ? utilityActions : null}
-
         {layoutMode === 'split_diagonal' ? (
           <>
             <div
@@ -246,17 +204,6 @@ export function WorldCupPlayClient({ templateId, templateTitle }: WorldCupPlayCl
               rootClassName={cardShellRow}
             />
             <div className="flex w-[min(7.5rem,calc(100vw-2rem))] shrink-0 flex-col items-stretch justify-center gap-3 self-center py-2">
-              <button
-                type="button"
-                className={`w-full shrink-0 whitespace-normal text-center ${tieBtnUtility}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  keepBoth();
-                }}
-                disabled={tieDisabled}
-              >
-                둘 다 올림
-              </button>
               <div
                 className="flex flex-col items-center gap-1 rounded-xl border border-zinc-200 bg-white px-2 py-3 shadow-inner dark:border-white/10 dark:bg-zinc-900/90"
                 aria-hidden
@@ -269,17 +216,6 @@ export function WorldCupPlayClient({ templateId, templateTitle }: WorldCupPlayCl
                   VS
                 </span>
               </div>
-              <button
-                type="button"
-                className={`w-full shrink-0 whitespace-normal text-center ${dropBtnUtility}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  dropBoth();
-                }}
-                disabled={tieDisabled}
-              >
-                둘 다 탈락
-              </button>
             </div>
             <CandidateCard
               side="B"

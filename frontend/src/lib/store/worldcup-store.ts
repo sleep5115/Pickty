@@ -23,20 +23,6 @@ export type WorldCupMatchHistoryEntry =
       winnerSide: 0 | 1;
     }
   | {
-      kind: 'dropBoth';
-      leftId: number;
-      rightId: number;
-      leftName: string;
-      rightName: string;
-    }
-  | {
-      kind: 'keepBoth';
-      leftId: number;
-      rightId: number;
-      leftName: string;
-      rightName: string;
-    }
-  | {
       kind: 'reroll';
       side: 0 | 1;
       removedId: number;
@@ -54,6 +40,41 @@ export type WorldCupMatchHistory = WorldCupMatchHistoryEntry[];
 
 function cloneMatchHistory(h: WorldCupMatchHistory): WorldCupMatchHistory {
   return h.map((e) => ({ ...e }));
+}
+
+/**
+ * `peakBracketSize` = 한 판 안에서 **도달한 최고 성적** (서버 N강 진출 판정용).
+ * - 1: 최종 우승
+ * - 2: 결승(2강)에서 패배
+ * - 4, 8, 16, 32, …: 해당 N강(그 라운드 `roundDisplayPlayerCount`)의 맞대결에서 패배(또는 그에 준한 탈락; 리롤·미참가 보정)
+ * 리롤로 교체된 쪽은 현재 강(라운드 인원)이 곧 `peak`가 됨.
+ */
+export function assignPeakOnLoss(peak: Record<string, number>, id: number, lossRoundSize: number): Record<string, number> {
+  const k = String(id);
+  return { ...peak, [k]: lossRoundSize };
+}
+
+/**
+ * 1:1 맞승(결승 제외) 시 승자: 다음에 붙는 라운드 인원 = currentRound/2. 결승 승리 시 1.
+ */
+export function assignPeakOnMatchWin(peak: Record<string, number>, id: number, currentRoundSize: number): Record<string, number> {
+  const k = String(id);
+  if (currentRoundSize <= 2) {
+    return { ...peak, [k]: 1 };
+  }
+  return { ...peak, [k]: currentRoundSize / 2 };
+}
+
+function cloneChampionshipWins(m: WorldCupChampionshipWinsMap): WorldCupChampionshipWinsMap {
+  return { ...m };
+}
+
+function bumpChampionWin(m: WorldCupChampionshipWinsMap, championId: number): WorldCupChampionshipWinsMap {
+  const k = String(championId);
+  return {
+    ...m,
+    [k]: (m[k] ?? 0) + 1,
+  };
 }
 
 /** 한 아이템별 월드컵 한 판(run) 통계 — 서버 페이로드 계산용 */
@@ -106,6 +127,7 @@ function mergeItemStats(
 /**
  * 현재 판의 `matchHistory`만으로 `itemStats` 누적치를 재계산한다.
  * `walkover` 는 1:1 대결이 아니므로 여기서는 반영하지 않는다.
+ * (dropped/keptBoth — 레거시 필드, 0)
  */
 export function aggregateItemStatsFromMatchHistory(history: WorldCupMatchHistory): WorldCupItemStatsMap {
   let stats: WorldCupItemStatsMap = {};
@@ -114,12 +136,6 @@ export function aggregateItemStatsFromMatchHistory(history: WorldCupMatchHistory
       stats = mergeItemStats(stats, e.leftId, { matchCount: 1 });
       stats = mergeItemStats(stats, e.rightId, { matchCount: 1 });
       stats = mergeItemStats(stats, e.winnerId, { winCount: 1 });
-    } else if (e.kind === 'dropBoth') {
-      stats = mergeItemStats(stats, e.leftId, { matchCount: 1, droppedCount: 1 });
-      stats = mergeItemStats(stats, e.rightId, { matchCount: 1, droppedCount: 1 });
-    } else if (e.kind === 'keepBoth') {
-      stats = mergeItemStats(stats, e.leftId, { matchCount: 1, keptBothCount: 1 });
-      stats = mergeItemStats(stats, e.rightId, { matchCount: 1, keptBothCount: 1 });
     } else if (e.kind === 'reroll') {
       stats = mergeItemStats(stats, e.removedId, { rerolledCount: 1 });
     }
@@ -127,26 +143,6 @@ export function aggregateItemStatsFromMatchHistory(history: WorldCupMatchHistory
   return stats;
 }
 
-function cloneChampionshipWins(m: WorldCupChampionshipWinsMap): WorldCupChampionshipWinsMap {
-  return { ...m };
-}
-
-function bumpChampionWin(m: WorldCupChampionshipWinsMap, championId: number): WorldCupChampionshipWinsMap {
-  const k = itemKey(championId);
-  return {
-    ...m,
-    [k]: (m[k] ?? 0) + 1,
-  };
-}
-
-function bumpPeakRecord(peak: Record<string, number>, id: number, roundDisplay: number): Record<string, number> {
-  const k = itemKey(id);
-  const next = { ...peak };
-  next[k] = Math.max(next[k] ?? 0, roundDisplay);
-  return next;
-}
-
-/** matchCount·winCount — 1:1 대결에서 승자 선택 */
 function applySelectWinner(
   stats: WorldCupItemStatsMap,
   left: WorldCupItem,
@@ -157,18 +153,6 @@ function applySelectWinner(
   next = mergeItemStats(next, right.id, { matchCount: 1 });
   const winner = winnerIndex === 0 ? left : right;
   next = mergeItemStats(next, winner.id, { winCount: 1 });
-  return next;
-}
-
-function applyDropBoth(stats: WorldCupItemStatsMap, left: WorldCupItem, right: WorldCupItem): WorldCupItemStatsMap {
-  let next = mergeItemStats(stats, left.id, { matchCount: 1, droppedCount: 1 });
-  next = mergeItemStats(next, right.id, { matchCount: 1, droppedCount: 1 });
-  return next;
-}
-
-function applyKeepBoth(stats: WorldCupItemStatsMap, left: WorldCupItem, right: WorldCupItem): WorldCupItemStatsMap {
-  let next = mergeItemStats(stats, left.id, { matchCount: 1, keptBothCount: 1 });
-  next = mergeItemStats(next, right.id, { matchCount: 1, keptBothCount: 1 });
   return next;
 }
 
@@ -201,7 +185,10 @@ export interface WorldCupPlaySnapshot {
   reservePoolCount: number;
   layoutMode: WorldCupLayoutMode;
   itemStats: WorldCupItemStatsMap;
-  /** 해당 판에서 아이템이 도달한 라운드 규모(`roundDisplayPlayerCount`) 최댓값 */
+  /**
+   * `peakBracketSize` 제출용 — 1(우승) ~ 2(결승 패), 4/8/16…(해당 강에서 탈락).
+   * 진출(다음 풀 합류)에 따라 승리 시 R/2로 갱신(결승 승: 1).
+   */
   itemPeakRound: Record<string, number>;
   /** 같은 페이지에서 여러 판 플레이 시 누적 우승 횟수 */
   championshipWinsByItemId: WorldCupChampionshipWinsMap;
@@ -216,17 +203,11 @@ export interface WorldCupPlayState extends WorldCupPlaySnapshot {
 }
 
 export interface WorldCupPlayActions {
-  initialize: (
-    allItems: WorldCupItem[],
-    bracketSize: number,
-    options?: { layoutMode?: WorldCupLayoutMode },
-  ) => void;
+  initialize: (allItems: WorldCupItem[], bracketSize: number, options?: { layoutMode?: WorldCupLayoutMode }) => void;
   /** 결과 화면에서 다시 하기 → 강수 선택으로 (누적 우승·완료 판 수는 유지) */
   leaveToBracketSelection: () => void;
   rerollItem: (index: 0 | 1) => void;
   selectWinner: (index: 0 | 1) => void;
-  dropBoth: () => void;
-  keepBoth: () => void;
   undo: () => void;
   reset: () => void;
 }
@@ -293,11 +274,6 @@ function pushHistory(
   }));
 }
 
-function randomIndex(n: number): number {
-  if (n <= 0) return 0;
-  return Math.floor(Math.random() * n);
-}
-
 function shuffleArray<T>(items: T[]): T[] {
   const a = [...items];
   for (let i = a.length - 1; i > 0; i--) {
@@ -307,19 +283,14 @@ function shuffleArray<T>(items: T[]): T[] {
   return a;
 }
 
-function applyOddRoundBye(pool: WorldCupItem[]): {
-  playing: WorldCupItem[];
-  bracket: WorldCupItem[];
-} {
-  if (pool.length <= 1) {
-    return { playing: pool, bracket: [] };
+/**
+ * 2의 거듭제곱(최소 2) — 부전승/홀수 강은 사용하지 않음. 짝 수는 그대로 플로우에 넣는다.
+ */
+function splitForEvenTournamentPool(pool: WorldCupItem[]): { playing: WorldCupItem[]; bracket: WorldCupItem[] } {
+  if (pool.length % 2 !== 0) {
+    throw new Error(`[worldcup] bracket must have even size (power of 2). Got ${pool.length}.`);
   }
-  if (pool.length % 2 === 0) {
-    return { playing: pool, bracket: [] };
-  }
-  const next = [...pool];
-  const bye = next.splice(randomIndex(next.length), 1)[0]!;
-  return { playing: next, bracket: [bye] };
+  return { playing: pool, bracket: [] as WorldCupItem[] };
 }
 
 function emptyPlayFields(): Omit<WorldCupPlayState, 'history'> {
@@ -350,6 +321,14 @@ function initialState(): WorldCupPlayState {
   };
 }
 
+function makeInitialItemPeak(players: WorldCupItem[], firstRoundSize: number): Record<string, number> {
+  const p: Record<string, number> = {};
+  for (const it of players) {
+    p[String(it.id)] = firstRoundSize;
+  }
+  return p;
+}
+
 function transitionToNextRound(
   set: (
     partial:
@@ -361,14 +340,6 @@ function transitionToNextRound(
 ) {
   const shuffled = shuffleArray(incomingPool);
   const displayCount = shuffled.length;
-
-  set((state) => {
-    let peak = { ...state.itemPeakRound };
-    for (const it of shuffled) {
-      peak = bumpPeakRecord(peak, it.id, displayCount);
-    }
-    return { itemPeakRound: peak };
-  });
 
   if (shuffled.length === 0) {
     set({
@@ -397,7 +368,7 @@ function transitionToNextRound(
     }));
     return;
   }
-  const { playing, bracket } = applyOddRoundBye(shuffled);
+  const { playing, bracket } = splitForEvenTournamentPool(shuffled);
   set({
     currentRoundBracket: playing,
     nextRoundBracket: bracket,
@@ -440,6 +411,7 @@ function afterMatchConsumed(
 /** 서버 `POST .../results` 용 압축 페이로드 — 원시 대진 이력 없음 */
 export function buildWorldCupStatSubmitPayload(state: WorldCupPlayState): {
   winnerItemId: number;
+  startBracket: number;
   rows: Array<{
     itemId: number;
     peakBracketSize: number;
@@ -452,6 +424,7 @@ export function buildWorldCupStatSubmitPayload(state: WorldCupPlayState): {
 } {
   const winnerId = state.champion?.id;
   if (winnerId == null) throw new Error('champion missing');
+  const start = Math.max(1, state.bracketSize);
 
   const keys = new Set<string>();
   for (const k of Object.keys(state.itemStats)) keys.add(k);
@@ -461,10 +434,10 @@ export function buildWorldCupStatSubmitPayload(state: WorldCupPlayState): {
     .map((k) => {
       const itemId = Number(k);
       const stat = state.itemStats[k] ?? emptyItemStatRow();
-      const peak = state.itemPeakRound[k] ?? 0;
+      const rawPeak = state.itemPeakRound[k] ?? 0;
       return {
         itemId,
-        peakBracketSize: Math.max(peak, 1),
+        peakBracketSize: Math.max(rawPeak, 1),
         winCount: stat.winCount,
         matchCount: stat.matchCount,
         rerolledCount: stat.rerolledCount,
@@ -474,7 +447,7 @@ export function buildWorldCupStatSubmitPayload(state: WorldCupPlayState): {
     })
     .filter((r) => Number.isFinite(r.itemId) && r.itemId > 0);
 
-  return { winnerItemId: winnerId, rows };
+  return { winnerItemId: winnerId, startBracket: start, rows };
 }
 
 export const useWorldCupStore = create<WorldCupPlayState & WorldCupPlayActions>((set, get) => ({
@@ -505,42 +478,15 @@ export const useWorldCupStore = create<WorldCupPlayState & WorldCupPlayActions>(
     const playLayout = options?.layoutMode ?? 'split_lr';
     const cap = Math.max(2, bracketSize);
     const shuffled = shuffleArray(allItems);
-    /** N강 = N명 출전. 선택한 강 수만큼만 대진에 넣고 나머지는 reserve(리롤 풀). */
+    /** N강 = N명 출전(2의 거듭제곱). 선택한 강 수만큼만 대진에 넣고 나머지는 reserve(리롤 풀). */
     const n = Math.min(cap, shuffled.length);
-    const head = shuffled.slice(0, n);
-    const reserve = shuffled.slice(n);
-    const { playing, bracket } = applyOddRoundBye(head);
-    const displayCount = n;
-
-    if (playing.length === 1 && bracket.length === 0) {
-      const only = playing[0]!;
-      set((state) => ({
-        bracketSize: cap,
-        isPlaying: true,
-        roundPlayingInitialLength: 0,
-        roundDisplayPlayerCount: 0,
-        reservePool: reserve,
-        reservePoolCount: reserve.length,
-        currentRoundBracket: [],
-        nextRoundBracket: [],
-        champion: only,
-        tournamentComplete: true,
-        layoutMode: playLayout,
-        history: [],
-        itemStats: {},
-        itemPeakRound: bumpPeakRecord({}, only.id, Math.max(cap, 1)),
-        championshipWinsByItemId: bumpChampionWin(state.championshipWinsByItemId, only.id),
-        completedWorldCupRuns: state.completedWorldCupRuns + 1,
-        matchHistory: [
-          {
-            kind: 'walkover',
-            championItemId: only.id,
-            championName: only.name,
-          },
-        ],
-      }));
+    if (n < 2 || n % 2 !== 0) {
       return;
     }
+    const head = shuffled.slice(0, n);
+    const reserve = shuffled.slice(n);
+    const { playing, bracket } = splitForEvenTournamentPool(head);
+    const displayCount = n;
 
     set({
       bracketSize: cap,
@@ -552,38 +498,14 @@ export const useWorldCupStore = create<WorldCupPlayState & WorldCupPlayActions>(
       currentRoundBracket: playing,
       nextRoundBracket: bracket,
       champion: null,
-      tournamentComplete: playing.length === 0 && bracket.length <= 1,
+      tournamentComplete: false,
       layoutMode: playLayout,
       history: [],
       itemStats: {},
-      itemPeakRound: head.reduce((peak, it) => bumpPeakRecord(peak, it.id, displayCount), {}),
+      itemPeakRound: makeInitialItemPeak(head, displayCount),
       championshipWinsByItemId: get().championshipWinsByItemId,
       matchHistory: [],
     });
-    const st = get();
-    if (st.currentRoundBracket.length === 0 && st.nextRoundBracket.length === 1) {
-      const c = st.nextRoundBracket[0]!;
-      set((state) => ({
-        champion: c,
-        tournamentComplete: true,
-        nextRoundBracket: [],
-        reservePoolCount: reserve.length,
-        history: [],
-        isPlaying: true,
-        roundPlayingInitialLength: 0,
-        roundDisplayPlayerCount: 0,
-        itemPeakRound: bumpPeakRecord({}, c.id, Math.max(cap, 1)),
-        championshipWinsByItemId: bumpChampionWin(state.championshipWinsByItemId, c.id),
-        completedWorldCupRuns: state.completedWorldCupRuns + 1,
-        matchHistory: [
-          {
-            kind: 'walkover',
-            championItemId: c.id,
-            championName: c.name,
-          },
-        ],
-      }));
-    }
   },
 
   rerollItem: (index) => {
@@ -597,12 +519,13 @@ export const useWorldCupStore = create<WorldCupPlayState & WorldCupPlayActions>(
     const next = [...currentRoundBracket];
     next[index] = fromPool;
     const R = get().roundDisplayPlayerCount;
+    if (R <= 0) return;
     set((state) => ({
       currentRoundBracket: next,
       reservePool: reservePool.slice(1),
       reservePoolCount: reservePool.length - 1,
       itemStats: applyReroll(state.itemStats, replaced.id),
-      itemPeakRound: bumpPeakRecord(state.itemPeakRound, replaced.id, R),
+      itemPeakRound: assignPeakOnLoss(assignPeakOnLoss(state.itemPeakRound, replaced.id, R), fromPool.id, R),
       matchHistory: [
         ...state.matchHistory,
         {
@@ -626,77 +549,32 @@ export const useWorldCupStore = create<WorldCupPlayState & WorldCupPlayActions>(
     const right = currentRoundBracket[1]!;
     const rest = currentRoundBracket.slice(2);
     const winner = index === 0 ? left : right;
+    const loser = index === 0 ? right : left;
     const updatedNext = [...nextRoundBracket, winner];
     const R = get().roundDisplayPlayerCount;
-    set((state) => ({
-      itemStats: applySelectWinner(state.itemStats, left, right, index),
-      itemPeakRound: bumpPeakRecord(bumpPeakRecord(state.itemPeakRound, left.id, R), right.id, R),
-      matchHistory: [
-        ...state.matchHistory,
-        {
-          kind: 'selectWinner',
-          leftId: left.id,
-          rightId: right.id,
-          leftName: left.name,
-          rightName: right.name,
-          winnerId: winner.id,
-          winnerName: winner.name,
-          winnerSide: index,
-        },
-      ],
-    }));
-    afterMatchConsumed(set, get, rest, updatedNext);
-  },
-
-  dropBoth: () => {
-    const { currentRoundBracket, nextRoundBracket } = get();
-    if (currentRoundBracket.length < 2 || get().tournamentComplete) return;
-    pushHistory(set, get);
-    const left = currentRoundBracket[0]!;
-    const right = currentRoundBracket[1]!;
-    const rest = currentRoundBracket.slice(2);
-    const updatedNext = [...nextRoundBracket];
-    const R = get().roundDisplayPlayerCount;
-    set((state) => ({
-      itemStats: applyDropBoth(state.itemStats, left, right),
-      itemPeakRound: bumpPeakRecord(bumpPeakRecord(state.itemPeakRound, left.id, R), right.id, R),
-      matchHistory: [
-        ...state.matchHistory,
-        {
-          kind: 'dropBoth',
-          leftId: left.id,
-          rightId: right.id,
-          leftName: left.name,
-          rightName: right.name,
-        },
-      ],
-    }));
-    afterMatchConsumed(set, get, rest, updatedNext);
-  },
-
-  keepBoth: () => {
-    const { currentRoundBracket, nextRoundBracket } = get();
-    if (currentRoundBracket.length < 2 || get().tournamentComplete) return;
-    pushHistory(set, get);
-    const left = currentRoundBracket[0]!;
-    const right = currentRoundBracket[1]!;
-    const rest = currentRoundBracket.slice(2);
-    const updatedNext = [...nextRoundBracket, left, right];
-    const R = get().roundDisplayPlayerCount;
-    set((state) => ({
-      itemStats: applyKeepBoth(state.itemStats, left, right),
-      itemPeakRound: bumpPeakRecord(bumpPeakRecord(state.itemPeakRound, left.id, R), right.id, R),
-      matchHistory: [
-        ...state.matchHistory,
-        {
-          kind: 'keepBoth',
-          leftId: left.id,
-          rightId: right.id,
-          leftName: left.name,
-          rightName: right.name,
-        },
-      ],
-    }));
+    if (R <= 0) return;
+    set((state) => {
+      let pkr = state.itemPeakRound;
+      pkr = assignPeakOnLoss(pkr, loser.id, R);
+      pkr = assignPeakOnMatchWin(pkr, winner.id, R);
+      return {
+        itemStats: applySelectWinner(state.itemStats, left, right, index),
+        itemPeakRound: pkr,
+        matchHistory: [
+          ...state.matchHistory,
+          {
+            kind: 'selectWinner',
+            leftId: left.id,
+            rightId: right.id,
+            leftName: left.name,
+            rightName: right.name,
+            winnerId: winner.id,
+            winnerName: winner.name,
+            winnerSide: index,
+          },
+        ],
+      };
+    });
     afterMatchConsumed(set, get, rest, updatedNext);
   },
 }));

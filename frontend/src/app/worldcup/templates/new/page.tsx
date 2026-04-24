@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Control } from 'react-hook-form';
 import { FormProvider, useFieldArray, useForm, useFormContext, useWatch } from 'react-hook-form';
@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { ArrowLeft, Camera, Layers, Loader2, Plus, Table2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { WorldCupBulkAddModal } from '@/components/worldcup/worldcup-bulk-add-modal';
+import { WorldCupCandidateMediaModal } from '@/components/worldcup/worldcup-candidate-media-modal';
 import { WorldCupEditorMediaPreview } from '@/components/worldcup/worldcup-editor-media-preview';
 import { createWorldCupTemplate } from '@/lib/worldcup/worldcup-template-api';
 import {
@@ -22,13 +23,26 @@ import { createWorldCupCompositeThumbnail } from '@/lib/worldcup/worldcup-thumbn
 import { uploadPicktyImages } from '@/lib/image-upload-api';
 import { PICKTY_IMAGE_ACCEPT } from '@/lib/pickty-image-accept';
 import { PICKTY_IMAGE_UPLOAD_HINT } from '@/lib/pickty-upload-hint';
+import { useAuthPersistHydrated } from '@/lib/hooks/use-auth-persist-hydrated';
 import { useAuthStore } from '@/lib/store/auth-store';
+import { apiFetch } from '@/lib/api-fetch';
+import { isPicktyAdminRole } from '@/lib/user-role';
+import { AiGenerationPanel } from '@/components/ai/ai-generation-panel';
+import type { AiMediaCandidateDto } from '@/lib/ai-generation-api';
+
+const aiMediaCandidateSchema = z.object({
+  url: z.string().min(1).max(2048),
+  title: z.string().max(500).optional(),
+});
 
 const itemSchema = z.object({
   name: z.string().min(1, '이름을 입력해 주세요.').max(100),
   imageUrl: z.string().max(2048).optional().or(z.literal('')),
   /** UI 전용 — 직접 업로드 시 URL 입력 숨김 */
   mediaEntryKind: z.enum(['url', 'upload']),
+  /** AI 생성 후보 순환용 (저장 시 서버로 보내지 않음) */
+  aiCandidates: z.array(aiMediaCandidateSchema).max(30).optional(),
+  aiCandidateIndex: z.number().int().min(0).optional(),
 });
 
 const formSchema = z.object({
@@ -45,7 +59,14 @@ function newItemRow(): FormValues['items'][number] {
     name: '',
     imageUrl: '',
     mediaEntryKind: 'url',
+    aiCandidates: undefined,
+    aiCandidateIndex: undefined,
   };
+}
+
+/** 이름·미디어 URL이 모두 비어 있으면 AI/일괄 추가 시 제거(깡통 슬롯). File은 업로드 즉시 URL로 반영되므로 imageUrl만 본다. */
+function isCompletelyEmptyShell(item: FormValues['items'][number]): boolean {
+  return !item.name?.trim() && !item.imageUrl?.trim();
 }
 
 /** 사선: 좌상·우하 직사각형이 가운데에서 살짝 겹침 */
@@ -171,6 +192,47 @@ function ItemThumbnailUploadCell({ index }: { index: number }) {
   );
 }
 
+function ItemMediaPreviewButton({
+  index,
+  onOpenPreview,
+}: {
+  index: number;
+  onOpenPreview: (p: { rowIndex: number; candidates: AiMediaCandidateDto[]; initialIndex: number }) => void;
+}) {
+  const { control, getValues } = useFormContext<FormValues>();
+  const imageUrl = (useWatch({ control, name: `items.${index}.imageUrl` }) as string | undefined) ?? '';
+  const raw = useWatch({ control, name: `items.${index}.aiCandidates` }) as AiMediaCandidateDto[] | undefined;
+  const normalized =
+    raw
+      ?.map((c) => ({
+        url: typeof c?.url === 'string' ? c.url.trim() : '',
+        title: typeof c?.title === 'string' && c.title.trim() ? c.title.trim() : undefined,
+      }))
+      .filter((c) => c.url.length > 0) ?? [];
+  const list: AiMediaCandidateDto[] =
+    normalized.length > 0 ? normalized : imageUrl.trim() ? [{ url: imageUrl.trim() }] : [];
+  if (list.length === 0) {
+    return <span className="text-xs text-slate-400 dark:text-zinc-600">—</span>;
+  }
+  const initialIndex =
+    normalized.length > 0
+      ? Math.min(
+          Math.max(0, (getValues(`items.${index}.aiCandidateIndex`) as number | undefined) ?? 0),
+          list.length - 1,
+        )
+      : 0;
+  return (
+    <button
+      type="button"
+      className="inline-flex items-center justify-center gap-1 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-[11px] font-semibold text-sky-900 hover:bg-sky-100 dark:border-sky-800/50 dark:bg-sky-950/40 dark:text-sky-100 dark:hover:bg-sky-950/70"
+      onClick={() => onOpenPreview({ rowIndex: index, candidates: list, initialIndex })}
+    >
+      <span aria-hidden>▶</span>
+      미리보기
+    </button>
+  );
+}
+
 function ItemMediaUrlField({ index }: { index: number }) {
   const { register, setValue, control } = useFormContext<FormValues>();
   const mediaEntryKind = useWatch({ control, name: `items.${index}.mediaEntryKind` }) ?? 'url';
@@ -223,8 +285,15 @@ function ItemMediaUrlField({ index }: { index: number }) {
 
 export default function WorldCupTemplateNewPage() {
   const router = useRouter();
+  const authHydrated = useAuthPersistHydrated();
   const accessToken = useAuthStore((s) => s.accessToken);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [mediaPreview, setMediaPreview] = useState<{
+    rowIndex: number;
+    candidates: AiMediaCandidateDto[];
+    initialIndex: number;
+  } | null>(null);
   const [savedInfo, setSavedInfo] = useState<{ id: string; title: string; itemCount: number } | null>(
     null,
   );
@@ -244,11 +313,33 @@ export default function WorldCupTemplateNewPage() {
     register,
     control,
     handleSubmit,
+    getValues,
+    setValue,
     formState: { errors, isSubmitting },
     setError,
   } = form;
 
-  const { fields, remove, append } = useFieldArray({ control, name: 'items' });
+  const { fields, remove, append, replace } = useFieldArray({ control, name: 'items' });
+
+  const appendItemsWithShellCleanup = (newRows: FormValues['items']) => {
+    const cur = getValues('items');
+    const kept = cur.filter((it) => !isCompletelyEmptyShell(it));
+    replace([...kept, ...newRows]);
+  };
+
+  useEffect(() => {
+    if (!authHydrated) return;
+    if (!accessToken) {
+      setIsAdmin(false);
+      return;
+    }
+    void apiFetch('/api/v1/user/me', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((u: { role?: string } | null) => setIsAdmin(isPicktyAdminRole(u?.role)))
+      .catch(() => setIsAdmin(false));
+  }, [authHydrated, accessToken]);
 
   const onSubmit = async (data: FormValues) => {
     if (!accessToken) {
@@ -308,13 +399,14 @@ export default function WorldCupTemplateNewPage() {
         return { trimmed, name };
       }),
     );
-    for (const { trimmed, name } of enriched) {
-      append({
-        name,
-        imageUrl: trimmed,
-        mediaEntryKind: 'url',
-      });
-    }
+    const newRows: FormValues['items'] = enriched.map(({ trimmed, name }) => ({
+      name,
+      imageUrl: trimmed,
+      mediaEntryKind: 'url' as const,
+      aiCandidates: undefined,
+      aiCandidateIndex: undefined,
+    }));
+    appendItemsWithShellCleanup(newRows);
   };
 
   const onBatchImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -329,16 +421,20 @@ export default function WorldCupTemplateNewPage() {
     void toast.promise(
       (async () => {
         const urls = await uploadPicktyImages(files, accessToken);
+        const newRows: FormValues['items'] = [];
         for (let i = 0; i < files.length; i++) {
           const f = files[i]!;
           const url = urls[i];
           if (!url) continue;
-          append({
+          newRows.push({
             name: stripUploadedImageBaseName(f.name),
             imageUrl: url,
             mediaEntryKind: 'upload',
+            aiCandidates: undefined,
+            aiCandidateIndex: undefined,
           });
         }
+        appendItemsWithShellCleanup(newRows);
       })(),
       {
         loading: `이미지 ${n}장 업로드 중…`,
@@ -350,7 +446,7 @@ export default function WorldCupTemplateNewPage() {
 
   if (savedInfo) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col px-4 py-8 sm:px-6 md:px-8">
+      <div className="flex min-h-0 flex-1 flex-col py-8">
         <div className="mx-auto w-full max-w-lg">
           <div
             role="status"
@@ -383,7 +479,7 @@ export default function WorldCupTemplateNewPage() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col px-4 py-8 sm:px-6 md:px-8">
+    <div className="flex min-h-0 flex-1 flex-col py-8">
       {isSubmitting ? (
         <div
           className="fixed inset-0 z-[70] flex items-center justify-center bg-black/45 px-4 backdrop-blur-[2px]"
@@ -406,7 +502,7 @@ export default function WorldCupTemplateNewPage() {
         </div>
       ) : null}
 
-      <div className="mx-auto w-full max-w-5xl">
+      <div className="mx-auto w-full max-w-[1600px]">
         <div className="mb-10">
           <Link
             href="/worldcup/templates"
@@ -437,7 +533,18 @@ export default function WorldCupTemplateNewPage() {
         ) : null}
 
         <FormProvider {...form}>
-          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-10">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const rows = getValues('items');
+              if (rows.some((it) => !it.imageUrl?.trim())) {
+                toast.error('모든 아이템에 썸네일(이미지/영상)을 등록해야 합니다.');
+                return;
+              }
+              void handleSubmit(onSubmit)(e);
+            }}
+            className="flex flex-col gap-10"
+          >
             {/* —— 상단: 기본 정보 —— */}
             <section
               className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm ring-1 ring-slate-200/60 dark:border-zinc-700 dark:bg-zinc-900/80 dark:ring-white/5"
@@ -533,6 +640,28 @@ export default function WorldCupTemplateNewPage() {
               </div>
             </section>
 
+            {isAdmin && accessToken ? (
+              <AiGenerationPanel
+                accessToken={accessToken}
+                inputPlaceholder="주제 입력 (예: 2026 인기 드라마, 레트로 게임 캐릭터…)"
+                generateButtonLabel="AI로 후보 생성"
+                hintText="Gemini로 이름을 만들고, 선택한 미디어 종류에 맞춰 검색 후보 URL을 채웁니다. 개수는 패널에서 조절할 수 있어요. 행의 [▶ 미리보기]에서 후보를 고를 수 있어요."
+                onGenerated={(items) => {
+                  const newRows: FormValues['items'] = items.map((it) => {
+                    const cand = it.candidates.filter((c) => c.url?.trim());
+                    return {
+                      name: it.name,
+                      imageUrl: it.imageUrl,
+                      mediaEntryKind: 'url' as const,
+                      aiCandidates: cand.length > 0 ? cand : undefined,
+                      aiCandidateIndex: cand.length > 0 ? 0 : undefined,
+                    };
+                  });
+                  appendItemsWithShellCleanup(newRows);
+                }}
+              />
+            ) : null}
+
             {/* —— 하단: 후보 테이블 —— */}
             <section
               className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm ring-1 ring-slate-200/60 dark:border-zinc-700 dark:bg-zinc-900/80 dark:ring-white/5"
@@ -595,6 +724,7 @@ export default function WorldCupTemplateNewPage() {
                       <th className="w-[92px] px-2 py-3">미리보기</th>
                       <th className="min-w-[140px] px-3 py-3">이름</th>
                       <th className="min-w-[260px] px-3 py-3">미디어 URL</th>
+                      <th className="w-[108px] px-2 py-3 text-center">미리보기</th>
                       <th className="w-24 px-2 py-3 text-center">삭제</th>
                     </tr>
                   </thead>
@@ -604,13 +734,13 @@ export default function WorldCupTemplateNewPage() {
                         key={field.id}
                         className="border-b border-slate-100 odd:bg-white even:bg-slate-50/50 last:border-0 dark:border-zinc-800 dark:odd:bg-zinc-900/40 dark:even:bg-zinc-900/70"
                       >
-                        <td className="px-3 py-3 text-center font-mono text-xs text-slate-500 tabular-nums dark:text-zinc-500">
+                        <td className="px-3 py-3 align-middle text-center font-mono text-xs text-slate-500 tabular-nums dark:text-zinc-500">
                           {index + 1}
                         </td>
                         <td className="px-2 py-3 align-middle">
                           <ItemThumbnailUploadCell index={index} />
                         </td>
-                        <td className="px-3 py-3 align-top">
+                        <td className="px-3 py-3 align-middle">
                           <input
                             type="text"
                             {...register(`items.${index}.name`)}
@@ -623,7 +753,7 @@ export default function WorldCupTemplateNewPage() {
                             </p>
                           ) : null}
                         </td>
-                        <td className="px-3 py-3 align-top">
+                        <td className="px-3 py-3 align-middle">
                           <ItemMediaUrlField index={index} />
                           {errors.items?.[index]?.imageUrl ? (
                             <p className="mt-1 text-xs text-red-600 dark:text-red-400">
@@ -632,6 +762,12 @@ export default function WorldCupTemplateNewPage() {
                           ) : null}
                         </td>
                         <td className="px-2 py-3 text-center align-middle">
+                          <div className="flex min-h-[2.5rem] items-center justify-center">
+                            <ItemMediaPreviewButton index={index} onOpenPreview={setMediaPreview} />
+                          </div>
+                        </td>
+                        <td className="px-2 py-3 text-center align-middle">
+                          <div className="flex min-h-[2.5rem] items-center justify-center">
                           <button
                             type="button"
                             onClick={() => remove(index)}
@@ -641,6 +777,7 @@ export default function WorldCupTemplateNewPage() {
                           >
                             <Trash2 className="size-4" aria-hidden />
                           </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -684,6 +821,35 @@ export default function WorldCupTemplateNewPage() {
           </form>
         </FormProvider>
       </div>
+
+      <WorldCupCandidateMediaModal
+        open={mediaPreview != null}
+        onClose={() => setMediaPreview(null)}
+        candidates={mediaPreview?.candidates ?? []}
+        initialIndex={mediaPreview?.initialIndex ?? 0}
+        onAdopt={(chosenIndex) => {
+          if (!mediaPreview) return;
+          const picked = mediaPreview.candidates[chosenIndex];
+          const url = picked?.url;
+          if (!url) return;
+          setValue(`items.${mediaPreview.rowIndex}.imageUrl`, url, {
+            shouldDirty: true,
+            shouldValidate: true,
+          });
+          setValue(`items.${mediaPreview.rowIndex}.aiCandidateIndex`, chosenIndex, {
+            shouldDirty: true,
+            shouldValidate: true,
+          });
+          const t = picked.title?.trim();
+          if (t) {
+            setValue(`items.${mediaPreview.rowIndex}.name`, t, {
+              shouldDirty: true,
+              shouldValidate: true,
+            });
+          }
+          setMediaPreview(null);
+        }}
+      />
 
       <WorldCupBulkAddModal
         open={bulkOpen}
