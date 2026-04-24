@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Control } from 'react-hook-form';
 import { FormProvider, useFieldArray, useForm, useFormContext, useWatch } from 'react-hook-form';
@@ -320,6 +320,20 @@ export default function WorldCupTemplateNewPage() {
   } = form;
 
   const { fields, remove, append, replace } = useFieldArray({ control, name: 'items' });
+
+  const watchedItemsForAi = useWatch({ control, name: 'items' }) ?? [];
+  const existingAiItemNames = useMemo(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const r of watchedItemsForAi) {
+      const n = (r.name ?? '').trim();
+      if (!n) continue;
+      if (seen.has(n)) continue;
+      seen.add(n);
+      out.push(n);
+    }
+    return out.slice(0, 200);
+  }, [watchedItemsForAi]);
 
   const appendItemsWithShellCleanup = (newRows: FormValues['items']) => {
     const cur = getValues('items');
@@ -644,6 +658,7 @@ export default function WorldCupTemplateNewPage() {
               <AiGenerationPanel
                 accessToken={accessToken}
                 isAdmin={isAdmin}
+                existingItemNames={existingAiItemNames}
                 inputPlaceholder="주제 입력 (예: 2026 인기 드라마, 레트로 게임 캐릭터…)"
                 generateButtonLabel="AI로 후보 생성"
                 hintText="Gemini로 이름을 만들고, 선택한 미디어 종류에 맞춰 검색 후보 URL을 채웁니다. 개수는 패널에서 조절할 수 있어요. 행의 [▶ 미리보기]에서 후보를 고를 수 있어요."

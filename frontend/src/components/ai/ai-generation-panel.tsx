@@ -11,7 +11,7 @@ import {
 import { fetchAdminAiUsage } from '@/lib/admin-ai-usage-api';
 
 const COUNT_MIN = 1;
-const COUNT_MAX = 50;
+const COUNT_MAX = 10;
 const COUNT_DEFAULT = 2;
 
 function clampItemCount(raw: number): number {
@@ -35,6 +35,8 @@ export type AiGenerationGeneratedRow = {
 export type AiGenerationPanelProps = {
   accessToken: string;
   onGenerated: (items: AiGenerationGeneratedRow[]) => void;
+  /** 에디터에 이미 등록된 아이템 이름(빈 이름 행은 부모에서 제외해 전달 권장) */
+  existingItemNames?: string[];
   inputPlaceholder?: string;
   generateButtonLabel?: string;
   hintText?: string;
@@ -56,12 +58,27 @@ const MEDIA_OPTIONS: { value: AiMediaTypeWire; label: string }[] = [
  * 주제·미디어 타입으로 후보를 자동 채우는 UI.
  * 호출하는 페이지에서 권한 가드(예: ADMIN)를 두는 것을 전제로 한다.
  */
+function normalizeExistingItemNamesForApi(names: string[] | undefined): string[] {
+  if (!names?.length) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of names) {
+    const n = raw.trim();
+    if (!n) continue;
+    if (seen.has(n)) continue;
+    seen.add(n);
+    out.push(n);
+  }
+  return out.slice(0, 200);
+}
+
 export function AiGenerationPanel({
   accessToken,
   onGenerated,
+  existingItemNames = [],
   inputPlaceholder = '주제 입력',
   generateButtonLabel = 'AI로 후보 생성',
-  hintText = 'Gemini로 이름을 만들고, 선택한 미디어 종류에 맞춰 검색 후보 URL을 채웁니다. 개수는 1~50까지 조절할 수 있어요. 약 수 초~1분 가까이 걸릴 수 있습니다.',
+  hintText = 'Gemini로 이름을 만들고, 선택한 미디어 종류에 맞춰 검색 후보 URL을 채웁니다. 개수는 1~10까지 조절할 수 있어요. 약 수 초~1분 가까이 걸릴 수 있습니다.',
   isAdmin = false,
   lockMediaTypeToPhoto = false,
 }: AiGenerationPanelProps) {
@@ -119,6 +136,7 @@ export function AiGenerationPanel({
         prompt: aiPrompt.trim(),
         mediaType: effectiveMediaType,
         count,
+        existingItemNames: normalizeExistingItemNamesForApi(existingItemNames),
       });
       if (rows.length === 0) {
         setAiError('생성된 아이템이 없습니다. 다른 주제로 시도해 보세요.');
@@ -185,7 +203,7 @@ export function AiGenerationPanel({
               onChange={(e) => setItemCountDraft(e.target.value)}
               onBlur={() => setItemCountDraft(String(parseCountDraft(itemCountDraft)))}
               className="w-[4.25rem] shrink-0 rounded-lg border border-slate-300 bg-white px-2 py-2.5 text-center text-sm font-mono tabular-nums text-slate-900 transition-colors focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/40 disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-violet-400 dark:focus:ring-violet-400/35"
-              aria-label="생성할 아이템 개수 (1~50)"
+              aria-label="생성할 아이템 개수 (1~10)"
             />
           </div>
           <button

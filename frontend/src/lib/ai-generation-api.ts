@@ -90,7 +90,13 @@ function parseMediaCandidates(row: Record<string, unknown>): AiMediaCandidateDto
 
 export async function postAiAutoGenerate(
   accessToken: string,
-  body: { prompt: string; mediaType: AiMediaTypeWire; count?: number },
+  body: {
+    prompt: string;
+    mediaType: AiMediaTypeWire;
+    count?: number;
+    /** 에디터에 이미 있는 후보 이름(빈 이름·깡통 행 제외 후 전달) */
+    existingItemNames?: string[];
+  },
 ): Promise<AiAutoGenerateItemDto[]> {
   const res = await apiFetch('/api/v1/admin/ai/auto-generate', {
     method: 'POST',
@@ -102,6 +108,7 @@ export async function postAiAutoGenerate(
       prompt: body.prompt,
       mediaType: body.mediaType,
       count: body.count ?? 2,
+      existingItemNames: body.existingItemNames ?? [],
     }),
   });
   if (!res.ok) {

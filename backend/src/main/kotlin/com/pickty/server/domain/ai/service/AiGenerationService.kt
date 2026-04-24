@@ -50,12 +50,13 @@ class AiGenerationService(
     }
 
     fun autoGenerate(request: AiAutoGenerateRequest): List<AiAutoGenerateItemResponse> = runBlocking {
-        val geminiItems = callGeminiForPrompt(request.prompt.trim(), request.count, request.mediaType)
+        val existing = normalizeExistingItemNames(request.existingItemNames)
+        val geminiItems = callGeminiForPrompt(request.prompt.trim(), request.count, request.mediaType, existing)
         val names = geminiItems.items
             .map { it.trim() }
             .filter { it.isNotEmpty() }
             .distinct()
-            .take(request.count.coerceIn(1, 50))
+            .take(request.count.coerceIn(1, 10))
         if (names.isEmpty()) return@runBlocking emptyList()
 
         val rows = names.map { name ->
@@ -68,10 +69,14 @@ class AiGenerationService(
         rows
     }
 
+    private fun normalizeExistingItemNames(raw: List<String>): List<String> =
+        raw.map { it.trim() }.filter { it.isNotEmpty() }.distinct().take(200)
+
     private suspend fun callGeminiForPrompt(
         prompt: String,
         count: Int,
         mediaType: AiMediaType,
+        existingItemNames: List<String>,
     ): GeminiItemsPayload {
         val mediaHint = when (mediaType) {
             AiMediaType.PHOTO -> "still photo / artwork thumbnails"
@@ -79,10 +84,21 @@ class AiGenerationService(
             AiMediaType.YOUTUBE -> "YouTube videos (search will target watch URLs)"
         }
 
+        val criticalExclusion = if (existingItemNames.isNotEmpty()) {
+            val excludedJson = objectMapper.writeValueAsString(existingItemNames)
+            """
+            
+            CRITICAL CONSTRAINT: You MUST NOT generate any of the following items. They are already in the list. Provide completely new and unique items only. EXCLUDED ITEMS: $excludedJson
+            """.trimIndent()
+        } else {
+            ""
+        }
+
         val promptText = """
             Generate exactly $count distinct item labels for a visual elimination bracket or world-cup style poll (no more, no fewer).
             Theme or subject: "$prompt"
             Each item should be a concise display name (under 80 characters) suitable for finding $mediaHint via web search.
+            $criticalExclusion
             
             Return ONLY valid JSON (no markdown) with this shape:
             {
