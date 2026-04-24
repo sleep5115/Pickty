@@ -32,6 +32,18 @@ class GlobalExceptionHandler {
         return plainTextBadRequest(msg)
     }
 
+    @ExceptionHandler(AiQuotaExhaustedException::class)
+    fun handleAiQuotaExhausted(ex: AiQuotaExhaustedException): ResponseEntity<Map<String, String>> {
+        val message = ex.message?.ifBlank { null } ?: "Gemini API 일일 생성 할당량이 소진되었습니다."
+        val body = mapOf(
+            "code" to "AI_QUOTA_EXHAUSTED",
+            "message" to message,
+        )
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(body)
+    }
+
     private fun formatFieldErrors(ex: MethodArgumentNotValidException): String {
         val fromFields = ex.bindingResult.fieldErrors.mapNotNull { fe ->
             fe.defaultMessage?.takeIf { it.isNotBlank() }

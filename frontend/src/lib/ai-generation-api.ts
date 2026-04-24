@@ -1,5 +1,10 @@
 import { apiFetch } from '@/lib/api-fetch';
 
+/** 백엔드 HTTP 429 + `code: AI_QUOTA_EXHAUSTED` 일 때 — UI에서 토스트 전용 처리 */
+export class AiGenerationQuotaExhaustedError extends Error {
+  override readonly name = 'AiGenerationQuotaExhaustedError';
+}
+
 export type AiMediaTypeWire = 'PHOTO' | 'GIF' | 'YOUTUBE';
 
 export type AiMediaCandidateDto = {
@@ -32,6 +37,22 @@ function messageFromGeminiQuotaBody(bodyText: string): string | null {
     }
   } catch {
     if (/RESOURCE_EXHAUSTED|quota exceeded|free_tier/i.test(t)) return MSG_RATE_LIMIT;
+  }
+  return null;
+}
+
+function tryParseQuotaExhausted429(bodyText: string): AiGenerationQuotaExhaustedError | null {
+  const trimmed = bodyText.trim();
+  if (!trimmed.startsWith('{')) return null;
+  try {
+    const o = JSON.parse(trimmed) as Record<string, unknown>;
+    if (o.code === 'AI_QUOTA_EXHAUSTED') {
+      return new AiGenerationQuotaExhaustedError(
+        typeof o.message === 'string' ? o.message : 'Gemini API 일일 생성 할당량이 소진되었습니다.',
+      );
+    }
+  } catch {
+    return null;
   }
   return null;
 }
@@ -113,6 +134,10 @@ export async function postAiAutoGenerate(
   });
   if (!res.ok) {
     const t = await res.text();
+    if (res.status === 429) {
+      const quota = tryParseQuotaExhausted429(t);
+      if (quota) throw quota;
+    }
     throw new Error(messageForAutoGenerateFailure(res.status, t));
   }
   const data = (await res.json()) as unknown;
