@@ -16,10 +16,14 @@ import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Service
 import org.springframework.web.client.RestClient
+import org.springframework.web.client.RestClientException
+import org.springframework.web.client.RestClientResponseException
 import org.springframework.web.util.UriComponentsBuilder
 import tools.jackson.module.kotlin.jacksonObjectMapper
 import tools.jackson.module.kotlin.readValue
 import java.net.URI
+import java.util.concurrent.ThreadLocalRandom
+import kotlin.math.min
 
 @Service
 class AiGenerationService(
@@ -35,8 +39,13 @@ class AiGenerationService(
         private const val GEMINI_GENERATE_CONTENT_URI =
             "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent"
 
-        private const val GEMINI_MAX_RETRIES = 3
-        private val GEMINI_BACKOFF_MS = longArrayOf(1_000L, 2_000L, 4_000L)
+        /**
+         * 첫 시도 + 재시도 4회 = 5회.
+         * Gemini는 과부하 시 **500**을 자주 돌려 429/503만 재시도하면 첫 응답에서 바로 실패한다.
+         * 재시도: 408, 429, 500, 502, 503, 504 + 네트워크 일시 오류(RestClientException).
+         */
+        private const val GEMINI_MAX_ATTEMPTS = 5
+
         private const val CANDIDATES_PER_ITEM = 10
     }
 
@@ -90,16 +99,51 @@ class AiGenerationService(
         val escapedPrompt = objectMapper.writeValueAsString(promptText)
         val jsonPayload = """{"contents":[{"parts":[{"text":$escapedPrompt}]}]}"""
 
-        repeat(GEMINI_MAX_RETRIES + 1) { attempt ->
+        repeat(GEMINI_MAX_ATTEMPTS) { attempt ->
             try {
                 return executeGeminiPost(uri, jsonPayload)
-            } catch (e: Exception) {
-                log.warn("Gemini attempt {} failed: {}", attempt + 1, e.message)
-                if (attempt >= GEMINI_MAX_RETRIES) throw e
-                delay(GEMINI_BACKOFF_MS[attempt])
+            } catch (e: RestClientResponseException) {
+                val code = e.statusCode.value()
+                when {
+                    code in 400..499 && !isRetryableGeminiHttp(code) -> {
+                        log.warn("Gemini client error {} — no retry: {}", code, e.message)
+                        throw e
+                    }
+                    isRetryableGeminiHttp(code) -> {
+                        log.warn("Gemini attempt {}/{} retryable HTTP {}: {}", attempt + 1, GEMINI_MAX_ATTEMPTS, code, e.message)
+                        if (attempt >= GEMINI_MAX_ATTEMPTS - 1) throw e
+                        delayGeminiBackoffWithJitter(retryIndex = attempt)
+                    }
+                    else -> {
+                        log.warn("Gemini HTTP {} — no retry: {}", code, e.message)
+                        throw e
+                    }
+                }
+            } catch (e: RestClientException) {
+                log.warn("Gemini attempt {}/{} transport error: {}", attempt + 1, GEMINI_MAX_ATTEMPTS, e.message)
+                if (attempt >= GEMINI_MAX_ATTEMPTS - 1) throw e
+                delayGeminiBackoffWithJitter(retryIndex = attempt)
             }
         }
         error("unreachable")
+    }
+
+    /** Gemini·프록시 측 일시 오류에 해당하는 HTTP만 재시도한다. */
+    private fun isRetryableGeminiHttp(code: Int): Boolean =
+        when (code) {
+            408, 429, 500, 502, 503, 504 -> true
+            else -> false
+        }
+
+    /**
+     * 지수 백오프 + 지터. 4회 대기 누적 약 10~15초(지터 포함)가 되도록 간격을 잡음.
+     * [retryIndex] 0: 첫 실패 직후, … 3: 네 번째 실패 직후.
+     */
+    private suspend fun delayGeminiBackoffWithJitter(retryIndex: Int) {
+        val exp = 900L * (1L shl min(retryIndex, 3))
+        val baseMs = min(4_800L, exp)
+        val jitterMs = ThreadLocalRandom.current().nextLong(120, 620)
+        delay(baseMs + jitterMs)
     }
 
     private fun executeGeminiPost(uri: URI, jsonPayload: String): GeminiItemsPayload {

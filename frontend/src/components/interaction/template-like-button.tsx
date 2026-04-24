@@ -1,7 +1,7 @@
 'use client';
 
 import { Heart } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useLayoutEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
   toggleReaction,
@@ -11,6 +11,16 @@ import {
 import { useReactionsInteractiveSurface } from '@/lib/hooks/use-reactions-interactive-surface';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { getStoredReaction, setStoredReaction } from '@/lib/store/reaction-store';
+
+function deriveLikedFromProps(
+  templateId: string,
+  accessToken: string | null | undefined,
+  initialMyReaction: ReactionType | null | undefined,
+): boolean {
+  if (!templateId) return false;
+  if (accessToken) return initialMyReaction === 'LIKE';
+  return getStoredReaction(templateId) === 'LIKE';
+}
 
 type Props = {
   /** `plain` — 목록 카드(테두리 없음). `boxed`(기본) — 티어 화면 헤더 등 */
@@ -41,22 +51,20 @@ export function TemplateLikeButton({
   const accessToken = useAuthStore((s) => s.accessToken);
   const isMember = Boolean(accessToken);
 
-  const [liked, setLiked] = useState(false);
+  const [liked, setLiked] = useState(() =>
+    deriveLikedFromProps(templateId, accessToken, initialMyReaction),
+  );
   const [likeCount, setLikeCount] = useState(initialLikeCount);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setLikeCount(initialLikeCount);
   }, [initialLikeCount]);
 
-  useEffect(() => {
-    if (!templateId) return;
-    if (isMember) {
-      setLiked(initialMyReaction === 'LIKE');
-      return;
-    }
-    setLiked(getStoredReaction(templateId) === 'LIKE');
-  }, [isMember, initialMyReaction, templateId]);
+  /** 서버 `myReaction`·토큰 하이드레이션·비회원 로컬 저장과 즉시 맞춤 — paint 전에 적용해 ‘꺼진’ 착각 방지 */
+  useLayoutEffect(() => {
+    setLiked(deriveLikedFromProps(templateId, accessToken, initialMyReaction));
+  }, [templateId, initialMyReaction, accessToken]);
 
   const applyCount = useCallback(
     (next: number) => {

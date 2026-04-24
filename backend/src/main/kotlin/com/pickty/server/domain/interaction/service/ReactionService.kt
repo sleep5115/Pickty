@@ -11,6 +11,7 @@ import com.pickty.server.domain.tier.enums.TemplateStatus
 import com.pickty.server.domain.tier.service.TierResultCacheService
 import com.pickty.server.domain.tier.repository.TierResultRepository
 import com.pickty.server.domain.tier.repository.TierTemplateRepository
+import com.pickty.server.domain.worldcup.repository.WorldCupTemplateRepository
 import com.pickty.server.global.util.Sha256Hex
 import com.pickty.server.global.web.ClientIpResolver
 import jakarta.servlet.http.HttpServletRequest
@@ -25,6 +26,7 @@ class ReactionService(
     private val reactionRepository: ReactionRepository,
     private val tierTemplateRepository: TierTemplateRepository,
     private val tierResultRepository: TierResultRepository,
+    private val worldCupTemplateRepository: WorldCupTemplateRepository,
     private val tierResultCacheService: TierResultCacheService,
 ) {
 
@@ -135,7 +137,11 @@ class ReactionService(
                     throw ResponseStatusException(HttpStatus.BAD_REQUEST, "티어 결과에는 추천/비추천만 가능합니다.")
                 }
 
-            ReactionTargetType.WORLDCUP_TEMPLATE,
+            ReactionTargetType.WORLDCUP_TEMPLATE ->
+                if (reactionType != ReactionType.LIKE) {
+                    throw ResponseStatusException(HttpStatus.BAD_REQUEST, "월드컵 템플릿에는 좋아요만 가능합니다.")
+                }
+
             ReactionTargetType.WORLDCUP_RESULT,
             ReactionTargetType.COMMUNITY_POST,
             ->
@@ -158,6 +164,14 @@ class ReactionService(
                     ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "티어 결과를 찾을 수 없습니다.")
                 if (r.resultStatus != ResultStatus.ACTIVE) {
                     throw ResponseStatusException(HttpStatus.GONE, "삭제되었거나 목록에서 제외된 결과입니다.")
+                }
+            }
+
+            ReactionTargetType.WORLDCUP_TEMPLATE -> {
+                val t = worldCupTemplateRepository.findById(targetId).orElse(null)
+                    ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "월드컵 템플릿을 찾을 수 없습니다.")
+                if (t.templateStatus != TemplateStatus.ACTIVE) {
+                    throw ResponseStatusException(HttpStatus.GONE, "삭제되었거나 비공개인 월드컵 템플릿입니다.")
                 }
             }
 
@@ -188,6 +202,14 @@ class ReactionService(
 
                         ReactionType.DOWNVOTE ->
                             tierResultRepository.adjustVoteCounts(targetId, 0L, delta)
+
+                        else -> 0
+                    }
+
+                ReactionTargetType.WORLDCUP_TEMPLATE ->
+                    when (reactionType) {
+                        ReactionType.LIKE ->
+                            worldCupTemplateRepository.adjustLikeCount(targetId, delta)
 
                         else -> 0
                     }

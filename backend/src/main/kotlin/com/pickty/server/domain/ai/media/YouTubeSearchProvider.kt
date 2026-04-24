@@ -2,6 +2,7 @@ package com.pickty.server.domain.ai.media
 
 import com.pickty.server.domain.ai.dto.AiMediaType
 import com.pickty.server.domain.ai.dto.MediaCandidate
+import com.pickty.server.domain.ai.service.AiApiUsageService
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
@@ -10,6 +11,7 @@ import org.springframework.web.client.RestClient
 @Component
 class YouTubeSearchProvider(
     @Value("\${pickty.ai.youtube.data-api-key:}") private val youtubeDataApiKey: String,
+    private val aiApiUsageService: AiApiUsageService,
 ) : MediaSearchService {
 
     private val log = LoggerFactory.getLogger(javaClass)
@@ -38,6 +40,9 @@ class YouTubeSearchProvider(
                 }
                 .retrieve()
                 .body(Map::class.java)
+
+            /** 2xx·본문까지 받은 경우만 카운트 */
+            aiApiUsageService.recordYouTubeSearchCall()
 
             val items = response?.get("items") as? List<*> ?: return emptyList()
             items.mapNotNull { item ->

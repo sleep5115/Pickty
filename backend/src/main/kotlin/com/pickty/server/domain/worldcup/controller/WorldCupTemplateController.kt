@@ -35,8 +35,11 @@ class WorldCupTemplateController(
         worldCupTemplateService.listSummaries(resolveUserId(authentication))
 
     @GetMapping("/{id}")
-    fun getById(@PathVariable id: UUID): WorldCupTemplateDetailResponse =
-        worldCupTemplateService.getById(id)
+    fun getById(
+        authentication: Authentication?,
+        @PathVariable id: UUID,
+    ): WorldCupTemplateDetailResponse =
+        worldCupTemplateService.getById(id, resolveUserId(authentication))
 
     @PostMapping
     fun create(

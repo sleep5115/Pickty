@@ -643,6 +643,7 @@ export default function WorldCupTemplateNewPage() {
             {isAdmin && accessToken ? (
               <AiGenerationPanel
                 accessToken={accessToken}
+                isAdmin={isAdmin}
                 inputPlaceholder="주제 입력 (예: 2026 인기 드라마, 레트로 게임 캐릭터…)"
                 generateButtonLabel="AI로 후보 생성"
                 hintText="Gemini로 이름을 만들고, 선택한 미디어 종류에 맞춰 검색 후보 URL을 채웁니다. 개수는 패널에서 조절할 수 있어요. 행의 [▶ 미리보기]에서 후보를 고를 수 있어요."

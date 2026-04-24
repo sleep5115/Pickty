@@ -717,6 +717,7 @@ function NewTemplatePageInner() {
           {isAdmin && accessToken ? (
             <AiGenerationPanel
               accessToken={accessToken}
+              isAdmin={isAdmin}
               lockMediaTypeToPhoto
               inputPlaceholder="주제 입력 (예: 롤 챔피언, 포켓몬 1세대...)"
               generateButtonLabel="AI로 아이템 생성"

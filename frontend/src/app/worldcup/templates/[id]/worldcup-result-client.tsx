@@ -8,6 +8,7 @@ import { TemplateLikeButton } from '@/components/interaction/template-like-butto
 import { apiFetch } from '@/lib/api-fetch';
 import { useAuthPersistHydrated } from '@/lib/hooks/use-auth-persist-hydrated';
 import { useAuthStore } from '@/lib/store/auth-store';
+import type { ReactionType } from '@/lib/api/interaction-api';
 import {
   captureWorldCupBracketToPng,
   downloadPngDataUrl,
@@ -26,6 +27,10 @@ interface Props {
   templateId: string;
   templateTitle: string;
   initialTemplateLikeCount: number;
+  /** 로그인 시 서버가 내려준 내 좋아요 여부 — 랭킹 등 왕복 후에도 맞추려면 필수 */
+  initialMyReaction?: ReactionType | null;
+  onLikeCountChange?: (next: number) => void;
+  onMyReactionResolved?: (reaction: ReactionType | null) => void;
   champion: WorldCupItem;
   onRestart: () => void;
   onShowRanking: () => void;
@@ -35,6 +40,9 @@ export function WorldCupResultClient({
   templateId,
   templateTitle,
   initialTemplateLikeCount,
+  initialMyReaction = null,
+  onLikeCountChange,
+  onMyReactionResolved,
   champion,
   onRestart,
   onShowRanking,
@@ -137,6 +145,9 @@ export function WorldCupResultClient({
                   interactionTargetType="WORLDCUP_TEMPLATE"
                   templateId={templateId}
                   initialLikeCount={initialTemplateLikeCount}
+                  initialMyReaction={initialMyReaction}
+                  onLikeCountChange={onLikeCountChange}
+                  onMyReactionResolved={onMyReactionResolved}
                 />
               </div>
             </div>

@@ -11,6 +11,7 @@ import {
   type InteractionTargetType,
 } from '@/lib/api/interaction-api';
 import { useAuthStore } from '@/lib/store/auth-store';
+import { CommentInput } from '@/components/interaction/comment-input';
 
 const PAGE_SIZE = 30;
 
@@ -48,6 +49,142 @@ type Props = {
   initialCommentPage?: CommentPage | null;
 };
 
+type CommentItemProps = {
+  c: Comment;
+  depth: number;
+  replyMap: Map<string, Comment[]>;
+  isLoggedIn: boolean;
+  replyingToId: string | null;
+  onToggleReply: (commentId: string) => void;
+  onOpenDeleteGuest: (c: Comment) => void;
+  onMemberDelete: (c: Comment) => void;
+  canDeleteMember: (c: Comment) => boolean;
+  /** 답글 전용 — `replyingToId === c.id` 일 때만 마운트 */
+  replyBody: string;
+  setReplyBody: (v: string) => void;
+  replyGuestNick: string;
+  setReplyGuestNick: (v: string) => void;
+  replyGuestPwd: string;
+  setReplyGuestPwd: (v: string) => void;
+  submittingReply: boolean;
+  onSubmitReply: () => void;
+  onCancelReply: () => void;
+};
+
+function CommentItem({
+  c,
+  depth,
+  replyMap,
+  isLoggedIn,
+  replyingToId,
+  onToggleReply,
+  onOpenDeleteGuest,
+  onMemberDelete,
+  canDeleteMember,
+  replyBody,
+  setReplyBody,
+  replyGuestNick,
+  setReplyGuestNick,
+  replyGuestPwd,
+  setReplyGuestPwd,
+  submittingReply,
+  onSubmitReply,
+  onCancelReply,
+}: CommentItemProps) {
+  const replies = replyMap.get(c.id) ?? [];
+  const showDelGuest = !isLoggedIn && c.authorUserId == null;
+  const showDelMember = canDeleteMember(c);
+  const inlineReplyOpen = depth === 0 && replyingToId === c.id;
+
+  return (
+    <li className={depth > 0 ? 'mt-2 border-l-2 border-slate-200 pl-3 dark:border-zinc-700' : 'mt-3'}>
+      <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900/80">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-xs font-semibold text-slate-800 dark:text-zinc-200">{formatAuthorLabel(c)}</span>
+          <div className="flex items-center gap-2">
+            {showDelGuest && (
+              <button
+                type="button"
+                onClick={() => onOpenDeleteGuest(c)}
+                className="text-xs text-red-600 hover:underline dark:text-red-400"
+              >
+                삭제
+              </button>
+            )}
+            {showDelMember && (
+              <button
+                type="button"
+                onClick={() => void onMemberDelete(c)}
+                className="text-xs text-red-600 hover:underline dark:text-red-400"
+              >
+                삭제
+              </button>
+            )}
+            {depth === 0 && (
+              <button
+                type="button"
+                onClick={() => onToggleReply(c.id)}
+                className="text-xs text-violet-600 hover:underline dark:text-violet-400"
+              >
+                답글
+              </button>
+            )}
+          </div>
+        </div>
+        <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700 dark:text-zinc-300">{c.body}</p>
+        <p className="mt-1 text-[10px] text-slate-400 tabular-nums dark:text-zinc-600">{c.createdAt}</p>
+      </div>
+      {inlineReplyOpen ? (
+        <div className="mt-2 rounded-lg border border-violet-200 bg-violet-50/50 p-3 dark:border-violet-800/60 dark:bg-violet-950/25">
+          <p className="mb-2 text-xs font-medium text-violet-800 dark:text-violet-200">이 댓글에 답글 작성</p>
+          <CommentInput
+            key={`reply-${c.id}`}
+            body={replyBody}
+            onBodyChange={setReplyBody}
+            isLoggedIn={isLoggedIn}
+            guestNick={replyGuestNick}
+            guestPwd={replyGuestPwd}
+            onGuestNickChange={setReplyGuestNick}
+            onGuestPwdChange={setReplyGuestPwd}
+            submitting={submittingReply}
+            onSubmit={onSubmitReply}
+            onCancelReply={onCancelReply}
+            submitLabel="답글 등록"
+            placeholder="답글 내용을 입력하세요"
+          />
+        </div>
+      ) : null}
+      {replies.length > 0 && (
+        <ul className="mt-1 space-y-0">
+          {replies.map((r) => (
+            <CommentItem
+              key={r.id}
+              c={r}
+              depth={depth + 1}
+              replyMap={replyMap}
+              isLoggedIn={isLoggedIn}
+              replyingToId={replyingToId}
+              onToggleReply={onToggleReply}
+              onOpenDeleteGuest={onOpenDeleteGuest}
+              onMemberDelete={onMemberDelete}
+              canDeleteMember={canDeleteMember}
+              replyBody={replyBody}
+              setReplyBody={setReplyBody}
+              replyGuestNick={replyGuestNick}
+              setReplyGuestNick={setReplyGuestNick}
+              replyGuestPwd={replyGuestPwd}
+              setReplyGuestPwd={setReplyGuestPwd}
+              submittingReply={submittingReply}
+              onSubmitReply={onSubmitReply}
+              onCancelReply={onCancelReply}
+            />
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+}
+
 export function CommentSection({
   targetType,
   targetId,
@@ -65,12 +202,19 @@ export function CommentSection({
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
 
-  const [body, setBody] = useState('');
-  const [guestNick, setGuestNick] = useState('');
-  const [guestPwd, setGuestPwd] = useState('');
-  const [replyToId, setReplyToId] = useState<string | null>(null);
+  /** 최상단 — 루트 댓글 전용 */
+  const [mainBody, setMainBody] = useState('');
+  const [mainGuestNick, setMainGuestNick] = useState('');
+  const [mainGuestPwd, setMainGuestPwd] = useState('');
+  const [submittingMain, setSubmittingMain] = useState(false);
+
+  /** 인라인 답글 전용(메인과 완전 분리) */
+  const [replyingToId, setReplyingToId] = useState<string | null>(null);
+  const [replyBody, setReplyBody] = useState('');
+  const [replyGuestNick, setReplyGuestNick] = useState('');
+  const [replyGuestPwd, setReplyGuestPwd] = useState('');
+  const [submittingReply, setSubmittingReply] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState<Comment | null>(null);
   const [deletePwd, setDeletePwd] = useState('');
@@ -121,47 +265,102 @@ export function CommentSection({
 
   const replyMap = useMemo(() => buildReplyMap(flat), [flat]);
 
-  const submit = useCallback(async () => {
-    const text = body.trim();
-    if (!targetId || !text || submitting) return;
+  const cancelReply = useCallback(() => {
+    setReplyingToId(null);
+    setReplyBody('');
+    setReplyGuestNick('');
+    setReplyGuestPwd('');
+  }, []);
+
+  const submitMain = useCallback(async () => {
+    const text = mainBody.trim();
+    if (!targetId || !text || submittingMain) return;
     if (!isLoggedIn) {
-      const pwd = guestPwd.trim();
+      const pwd = mainGuestPwd.trim();
       if (!pwd) {
         toast.error('비회원 댓글에는 비밀번호가 필요합니다.');
         return;
       }
     }
-    setSubmitting(true);
+    setSubmittingMain(true);
     try {
       await createComment(targetType, targetId, text, {
-        parentCommentId: replyToId,
-        guestPassword: isLoggedIn ? undefined : guestPwd.trim(),
-        authorName: isLoggedIn ? undefined : guestNick.trim() || undefined,
+        parentCommentId: null,
+        guestPassword: isLoggedIn ? undefined : mainGuestPwd.trim(),
+        authorName: isLoggedIn ? undefined : mainGuestNick.trim() || undefined,
       });
-      setBody('');
-      setGuestPwd('');
-      setGuestNick('');
-      setReplyToId(null);
+      setMainBody('');
+      setMainGuestPwd('');
+      setMainGuestNick('');
       toast.success('댓글을 등록했어요.');
       onCommentPosted?.();
       await loadPage(0, true);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : '등록에 실패했습니다.');
     } finally {
-      setSubmitting(false);
+      setSubmittingMain(false);
     }
   }, [
     targetId,
-    body,
-    submitting,
+    mainBody,
+    submittingMain,
     isLoggedIn,
-    guestPwd,
-    guestNick,
-    replyToId,
+    mainGuestPwd,
+    mainGuestNick,
     targetType,
     loadPage,
     onCommentPosted,
   ]);
+
+  const submitReply = useCallback(async () => {
+    const parentId = replyingToId;
+    const text = replyBody.trim();
+    if (!targetId || !parentId || !text || submittingReply) return;
+    if (!isLoggedIn) {
+      const pwd = replyGuestPwd.trim();
+      if (!pwd) {
+        toast.error('비회원 댓글에는 비밀번호가 필요합니다.');
+        return;
+      }
+    }
+    setSubmittingReply(true);
+    try {
+      await createComment(targetType, targetId, text, {
+        parentCommentId: parentId,
+        guestPassword: isLoggedIn ? undefined : replyGuestPwd.trim(),
+        authorName: isLoggedIn ? undefined : replyGuestNick.trim() || undefined,
+      });
+      setReplyBody('');
+      setReplyGuestPwd('');
+      setReplyGuestNick('');
+      setReplyingToId(null);
+      toast.success('댓글을 등록했어요.');
+      onCommentPosted?.();
+      await loadPage(0, true);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : '등록에 실패했습니다.');
+    } finally {
+      setSubmittingReply(false);
+    }
+  }, [
+    targetId,
+    replyingToId,
+    replyBody,
+    submittingReply,
+    isLoggedIn,
+    replyGuestPwd,
+    replyGuestNick,
+    targetType,
+    loadPage,
+    onCommentPosted,
+  ]);
+
+  const onToggleReply = useCallback((commentId: string) => {
+    setReplyingToId((prev) => (prev === commentId ? null : commentId));
+    setReplyBody('');
+    setReplyGuestNick('');
+    setReplyGuestPwd('');
+  }, []);
 
   const openDelete = useCallback((c: Comment) => {
     setDeleteTarget(c);
@@ -207,59 +406,6 @@ export function CommentSection({
     [onCommentPosted],
   );
 
-  const renderComment = (c: Comment, depth: number) => {
-    const replies = replyMap.get(c.id) ?? [];
-    const showDelGuest = !isLoggedIn && c.authorUserId == null;
-    const showDelMember = canDeleteMember(c);
-    return (
-      <li key={c.id} className={depth > 0 ? 'mt-2 border-l-2 border-slate-200 pl-3 dark:border-zinc-700' : 'mt-3'}>
-        <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900/80">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-xs font-semibold text-slate-800 dark:text-zinc-200">
-              {formatAuthorLabel(c)}
-            </span>
-            <div className="flex items-center gap-2">
-              {showDelGuest && (
-                <button
-                  type="button"
-                  onClick={() => openDelete(c)}
-                  className="text-xs text-red-600 hover:underline dark:text-red-400"
-                >
-                  삭제
-                </button>
-              )}
-              {showDelMember && (
-                <button
-                  type="button"
-                  onClick={() => void handleMemberDelete(c)}
-                  className="text-xs text-red-600 hover:underline dark:text-red-400"
-                >
-                  삭제
-                </button>
-              )}
-              {depth === 0 && (
-                <button
-                  type="button"
-                  onClick={() => setReplyToId((v) => (v === c.id ? null : c.id))}
-                  className="text-xs text-violet-600 hover:underline dark:text-violet-400"
-                >
-                  답글
-                </button>
-              )}
-            </div>
-          </div>
-          <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700 dark:text-zinc-300">{c.body}</p>
-          <p className="mt-1 text-[10px] text-slate-400 tabular-nums dark:text-zinc-600">{c.createdAt}</p>
-        </div>
-        {replies.length > 0 && (
-          <ul className="mt-1 space-y-0">
-            {replies.map((r) => renderComment(r, depth + 1))}
-          </ul>
-        )}
-      </li>
-    );
-  };
-
   if (!targetId) return null;
 
   return (
@@ -268,77 +414,68 @@ export function CommentSection({
         <h3 className="text-sm font-semibold text-slate-900 dark:text-zinc-100">댓글</h3>
       ) : null}
 
-      <div className={showHeading ? 'mt-3 space-y-2' : 'space-y-2'}>
-        <textarea
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          rows={3}
-          maxLength={10000}
-          placeholder="내용을 입력하세요"
-          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-        />
-        {!isLoggedIn && (
-          <div className="grid gap-2 sm:grid-cols-2">
-            <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-zinc-400">닉네임</label>
-              <input
-                type="text"
-                value={guestNick}
-                onChange={(e) => setGuestNick(e.target.value)}
-                maxLength={64}
-                placeholder="익명"
-                className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-zinc-400">
-                비밀번호 <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="password"
-                value={guestPwd}
-                onChange={(e) => setGuestPwd(e.target.value)}
-                maxLength={128}
-                placeholder="삭제 시 필요"
-                className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-              />
-            </div>
-          </div>
-        )}
-        {replyToId && (
-          <p className="text-xs text-violet-600 dark:text-violet-400">
-            답글 작성 중 —{' '}
-            <button type="button" className="underline" onClick={() => setReplyToId(null)}>
-              취소
-            </button>
-          </p>
-        )}
-        <button
-          type="button"
-          disabled={submitting || !body.trim()}
-          onClick={() => void submit()}
-          className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-50"
-        >
-          {submitting ? '등록 중…' : '등록'}
-        </button>
-      </div>
+      <div className={showHeading ? 'mt-3 space-y-4' : 'space-y-4'}>
+        {/* 1. 메인 새 댓글 — 목록 바로 위(최상단), 항상 표시 */}
+        <div>
+          <p className="mb-2 text-xs font-medium text-slate-600 dark:text-zinc-400">새 댓글</p>
+          <CommentInput
+            body={mainBody}
+            onBodyChange={setMainBody}
+            isLoggedIn={isLoggedIn}
+            guestNick={mainGuestNick}
+            guestPwd={mainGuestPwd}
+            onGuestNickChange={setMainGuestNick}
+            onGuestPwdChange={setMainGuestPwd}
+            submitting={submittingMain}
+            onSubmit={submitMain}
+            submitLabel="등록"
+            placeholder="내용을 입력하세요"
+          />
+        </div>
 
-      <div className="mt-6 border-t border-slate-200 pt-4 dark:border-zinc-800">
-        {loading && <p className="text-sm text-slate-500">불러오는 중…</p>}
-        {!loading && roots.length === 0 && (
-          <p className="text-sm text-slate-500 dark:text-zinc-500">첫 댓글을 남겨 보세요.</p>
-        )}
-        <ul className="space-y-0">{!loading && roots.map((c) => renderComment(c, 0))}</ul>
-        {hasMore && !loading && (
-          <button
-            type="button"
-            disabled={loadingMore}
-            onClick={() => void loadPage(page + 1, false)}
-            className="mt-4 text-sm font-medium text-violet-600 hover:underline disabled:opacity-50 dark:text-violet-400"
-          >
-            {loadingMore ? '불러오는 중…' : '더 보기'}
-          </button>
-        )}
+        {/* 2. 댓글 목록(무한 스크롤) — 메인 입력 아래 */}
+        <div className="border-t border-slate-200 pt-4 dark:border-zinc-800">
+          {loading && <p className="text-sm text-slate-500">불러오는 중…</p>}
+          {!loading && roots.length === 0 && (
+            <p className="text-sm text-slate-500 dark:text-zinc-500">첫 댓글을 남겨 보세요.</p>
+          )}
+          <ul className="space-y-0">
+            {!loading &&
+              roots.map((c) => (
+                <CommentItem
+                  key={c.id}
+                  c={c}
+                  depth={0}
+                  replyMap={replyMap}
+                  isLoggedIn={isLoggedIn}
+                  replyingToId={replyingToId}
+                  onToggleReply={onToggleReply}
+                  onOpenDeleteGuest={openDelete}
+                  onMemberDelete={handleMemberDelete}
+                  canDeleteMember={canDeleteMember}
+                  replyBody={replyBody}
+                  setReplyBody={setReplyBody}
+                  replyGuestNick={replyGuestNick}
+                  setReplyGuestNick={setReplyGuestNick}
+                  replyGuestPwd={replyGuestPwd}
+                  setReplyGuestPwd={setReplyGuestPwd}
+                  submittingReply={submittingReply}
+                  onSubmitReply={submitReply}
+                  onCancelReply={cancelReply}
+                />
+              ))}
+          </ul>
+          {hasMore && !loading && (
+            <button
+              type="button"
+              disabled={loadingMore}
+              onClick={() => void loadPage(page + 1, false)}
+              className="mt-4 text-sm font-medium text-violet-600 hover:underline disabled:opacity-50 dark:text-violet-400"
+            >
+              {loadingMore ? '불러오는 중…' : '더 보기'}
+            </button>
+          )}
+        </div>
       </div>
 
       {deleteTarget && (

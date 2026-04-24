@@ -83,4 +83,6 @@ data class WorldCupTemplateDetailResponse(
     val likeCount: Long = 0,
     val commentCount: Long = 0,
     val viewCount: Long = 0,
+    /** 로그인 시 이 템플릿에 대한 내 반응(없으면 null) */
+    val myReaction: ReactionType? = null,
 )

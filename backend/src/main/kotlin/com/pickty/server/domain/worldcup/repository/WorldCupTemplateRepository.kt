@@ -22,6 +22,22 @@ interface WorldCupTemplateRepository : JpaRepository<WorldCupTemplate, UUID> {
         value =
             """
             UPDATE worldcup_templates
+            SET like_count = GREATEST(0, like_count + :delta),
+                updated_at = now()
+            WHERE id = :id AND template_status = 'ACTIVE'
+            """,
+        nativeQuery = true,
+    )
+    fun adjustLikeCount(
+        @Param("id") id: UUID,
+        @Param("delta") delta: Long,
+    ): Int
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        value =
+            """
+            UPDATE worldcup_templates
             SET comment_count = comment_count + 1,
                 updated_at = now()
             WHERE id = :id AND template_status = 'ACTIVE'

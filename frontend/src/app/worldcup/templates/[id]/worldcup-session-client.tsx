@@ -5,8 +5,10 @@ import { Loader2 } from 'lucide-react';
 import { submitWorldCupPlayResult } from '@/lib/worldcup/worldcup-play-result-api';
 import {
   fetchWorldCupTemplate,
+  parseWorldCupTemplateDetailReactionFields,
   type WorldCupTemplateDetailDto,
 } from '@/lib/worldcup/worldcup-template-api';
+import type { ReactionType } from '@/lib/api/interaction-api';
 import {
   parseWorldCupItemsPayload,
   parseWorldCupLayoutMode,
@@ -21,6 +23,8 @@ import { WorldCupBracketSelect } from '@/components/worldcup/worldcup-bracket-se
 import { WorldCupPlayClient } from './worldcup-play-client';
 import { WorldCupRankingClient } from './worldcup-ranking-client';
 import { WorldCupResultClient } from './worldcup-result-client';
+import { useAuthPersistHydrated } from '@/lib/hooks/use-auth-persist-hydrated';
+import { useAuthStore } from '@/lib/store/auth-store';
 
 interface Props {
   templateId: string;
@@ -29,6 +33,8 @@ interface Props {
 type LoadPhase = 'loading' | 'error' | 'ready';
 
 export function WorldCupSessionClient({ templateId }: Props) {
+  const authHydrated = useAuthPersistHydrated();
+  const accessToken = useAuthStore((s) => s.accessToken);
   const reset = useWorldCupStore((s) => s.reset);
   const initialize = useWorldCupStore((s) => s.initialize);
   const leaveToBracketSelection = useWorldCupStore((s) => s.leaveToBracketSelection);
@@ -41,6 +47,9 @@ export function WorldCupSessionClient({ templateId }: Props) {
 
   const [showRanking, setShowRanking] = useState(false);
   const resultsSubmittedRef = useRef(false);
+  /** 결과 화면 좋아요 — 랭킹 왕복·리마운트 후에도 서버·낙관적 상태와 맞춤 */
+  const [templateLikeCount, setTemplateLikeCount] = useState(0);
+  const [templateMyReaction, setTemplateMyReaction] = useState<ReactionType | null>(null);
 
   /** 재시작 시 동일 세션 데이터로 초기화 */
   const sessionRef = useRef<{
@@ -70,8 +79,9 @@ export function WorldCupSessionClient({ templateId }: Props) {
       return;
     }
 
-    const data = (await res.json()) as WorldCupTemplateDetailDto;
+    const raw = (await res.json()) as Record<string, unknown>;
     if (!aliveRef.current) return;
+    const data = raw as unknown as WorldCupTemplateDetailDto;
     const items = parseWorldCupItemsPayload(
       data.items as Record<string, unknown> | unknown[] | null | undefined,
     );
@@ -83,11 +93,10 @@ export function WorldCupSessionClient({ templateId }: Props) {
 
     const layout = parseWorldCupLayoutMode(data.layoutMode);
     const title = typeof data.title === 'string' && data.title.trim() ? data.title.trim() : '이상형 월드컵';
-    const likeCount =
-      typeof data.likeCount === 'number' && Number.isFinite(data.likeCount)
-        ? Math.max(0, Math.floor(data.likeCount))
-        : Math.max(0, Math.floor(Number(data.likeCount)) || 0);
+    const { likeCount, myReaction } = parseWorldCupTemplateDetailReactionFields(raw);
     sessionRef.current = { items, layout, title, likeCount };
+    setTemplateLikeCount(likeCount);
+    setTemplateMyReaction(myReaction);
     setTemplateTitle(title);
     reset();
     if (!aliveRef.current) return;
@@ -95,6 +104,7 @@ export function WorldCupSessionClient({ templateId }: Props) {
   }, [templateId, reset]);
 
   useEffect(() => {
+    if (!authHydrated) return;
     aliveRef.current = true;
     queueMicrotask(() => {
       void loadTemplate();
@@ -103,7 +113,37 @@ export function WorldCupSessionClient({ templateId }: Props) {
       aliveRef.current = false;
       reset();
     };
-  }, [loadTemplate, reset]);
+  }, [loadTemplate, reset, authHydrated]);
+
+  /**
+   * `loadTemplate`은 `[templateId, reset]`만 의존해 토큰이 늦게 복원되면 비로그인 응답으로 고정될 수 있음.
+   * 티어 템플릿 메타 동기화와 같이 ready 세션에서만 좋아요·myReaction만 재조회한다 (`reset` 호출 없음).
+   */
+  useEffect(() => {
+    if (!authHydrated || !templateId) return;
+    if (phase !== 'ready') return;
+    if (!sessionRef.current) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetchWorldCupTemplate(templateId);
+        if (!res.ok || cancelled || !aliveRef.current) return;
+        const row = (await res.json()) as Record<string, unknown>;
+        if (cancelled || !aliveRef.current) return;
+        const { likeCount, myReaction } = parseWorldCupTemplateDetailReactionFields(row);
+        setTemplateLikeCount(likeCount);
+        setTemplateMyReaction(myReaction);
+        if (sessionRef.current && aliveRef.current) {
+          sessionRef.current = { ...sessionRef.current, likeCount };
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authHydrated, accessToken, templateId, phase]);
 
   useEffect(() => {
     if (phase !== 'ready') return;
@@ -166,7 +206,11 @@ export function WorldCupSessionClient({ templateId }: Props) {
 
   if (showRanking) {
     return (
-      <WorldCupRankingClient templateId={templateId} onBackToResult={() => setShowRanking(false)} />
+      <WorldCupRankingClient
+        templateId={templateId}
+        onBackToResult={() => setShowRanking(false)}
+        backNavLabel="결과로 돌아가기"
+      />
     );
   }
 
@@ -186,7 +230,15 @@ export function WorldCupSessionClient({ templateId }: Props) {
       <WorldCupResultClient
         templateId={templateId}
         templateTitle={templateTitle || sessionRef.current?.title || '이상형 월드컵'}
-        initialTemplateLikeCount={sessionRef.current?.likeCount ?? 0}
+        initialTemplateLikeCount={templateLikeCount}
+        initialMyReaction={templateMyReaction}
+        onLikeCountChange={(next) => {
+          setTemplateLikeCount(next);
+          if (sessionRef.current) {
+            sessionRef.current = { ...sessionRef.current, likeCount: next };
+          }
+        }}
+        onMyReactionResolved={setTemplateMyReaction}
         champion={champion}
         onRestart={handleRestart}
         onShowRanking={() => setShowRanking(true)}

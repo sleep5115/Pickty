@@ -11,6 +11,7 @@ export function WorldCupRankingRoute({ templateId }: { templateId: string }) {
       onBackToResult={() =>
         router.push(`/worldcup/templates/${encodeURIComponent(templateId)}`)
       }
+      backNavLabel="월드컵 시작하기"
     />
   );
 }
