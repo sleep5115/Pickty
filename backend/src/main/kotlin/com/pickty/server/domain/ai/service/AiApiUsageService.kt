@@ -19,9 +19,12 @@ class AiApiUsageService(
     private val log = LoggerFactory.getLogger(javaClass)
 
     enum class TrackedApi(val keySegment: String) {
+        GEMINI("gemini"),
         YOUTUBE("youtube"),
         GOOGLE_SEARCH("google_search"),
     }
+
+    fun recordGeminiGenerateContentCall() = increment(TrackedApi.GEMINI)
 
     fun recordYouTubeSearchCall() = increment(TrackedApi.YOUTUBE)
 
@@ -29,9 +32,10 @@ class AiApiUsageService(
 
     fun getTodayUsagePt(): AiAdminUsageResponse {
         val date = todayPtString()
+        val gm = readCount(keyFor(TrackedApi.GEMINI, date))
         val yt = readCount(keyFor(TrackedApi.YOUTUBE, date))
         val gs = readCount(keyFor(TrackedApi.GOOGLE_SEARCH, date))
-        return AiAdminUsageResponse(youtube = yt, googleSearch = gs)
+        return AiAdminUsageResponse(gemini = gm, youtube = yt, googleSearch = gs)
     }
 
     private fun increment(api: TrackedApi) {

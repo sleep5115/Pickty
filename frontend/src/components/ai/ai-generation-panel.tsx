@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import useSWR from 'swr';
 import { AlertCircle, Loader2, Plus, Sparkles } from 'lucide-react';
 import {
+  AiGenerationQuotaExhaustedError,
   type AiMediaCandidateDto,
   type AiMediaTypeWire,
   postAiAutoGenerate,
@@ -48,6 +49,16 @@ export type AiGenerationPanelProps = {
 
 const LOADING_TEXT_INITIAL = 'AI가 후보를 생성하고 있습니다...';
 
+const MSG_AI_DAILY_QUOTA_EXHAUSTED =
+  'AI 자동 생성 무료 일일 할당량(20회)이 모두 소진되었습니다. 내일 다시 시도해 주세요.';
+
+const USAGE_LIMIT_GEMINI = 20;
+const USAGE_LIMIT_YOUTUBE = 100;
+const USAGE_LIMIT_GOOGLE = 100;
+
+const TOOLTIP_PT_RESET =
+  '태평양 표준시 자정(한국 시간 오후 4~5시) 기준으로 할당량이 초기화됩니다.';
+
 const MEDIA_OPTIONS: { value: AiMediaTypeWire; label: string }[] = [
   { value: 'PHOTO', label: '사진' },
   { value: 'GIF', label: '움짤' },
@@ -82,7 +93,7 @@ export function AiGenerationPanel({
   isAdmin = false,
   lockMediaTypeToPhoto = false,
 }: AiGenerationPanelProps) {
-  const { data: adminUsage } = useSWR(
+  const { data: adminUsage, mutate: mutateAdminUsage } = useSWR(
     isAdmin && accessToken ? (['admin-ai-usage', accessToken] as const) : null,
     ([, token]) => fetchAdminAiUsage(token),
     { revalidateOnFocus: false, revalidateIfStale: false, dedupingInterval: 86_400_000 },
@@ -150,7 +161,13 @@ export function AiGenerationPanel({
           focusRect: undefined,
         })),
       );
+      if (isAdmin) void mutateAdminUsage();
     } catch (err) {
+      if (err instanceof AiGenerationQuotaExhaustedError) {
+        setAiError(MSG_AI_DAILY_QUOTA_EXHAUSTED);
+        if (isAdmin) void mutateAdminUsage();
+        return;
+      }
       setAiError(err instanceof Error ? err.message : 'AI 생성 중 오류가 발생했습니다.');
     } finally {
       setIsAiGenerating(false);
@@ -160,24 +177,31 @@ export function AiGenerationPanel({
   return (
     <div className="space-y-3 rounded-xl border border-violet-100 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-none">
       <div className="flex flex-col gap-3 [color-scheme:light] dark:[color-scheme:dark]">
-        {((isAdmin && adminUsage) || isAiGenerating) && (
-          <div className="flex items-start gap-3">
-            {isAdmin && adminUsage ? (
-              <p className="min-w-0 flex-1 text-xs text-zinc-500 dark:text-zinc-500" aria-live="polite">
-                ※ API 일일 사용량 : YouTube {adminUsage.youtube}/100 · Google{adminUsage.googleSearch}/100 매일 오후 4~5시 초기화 (태평양 표준시 자정)
-              </p>
-            ) : null}
-            {isAiGenerating ? (
-              <p
-                className="ml-auto min-w-0 max-w-full text-right text-xs leading-snug text-slate-500 break-words dark:text-zinc-400 sm:max-w-[min(42rem,65%)]"
-                aria-live="polite"
-                aria-busy="true"
+        <div className="flex flex-col gap-1">
+          {isAdmin && adminUsage ? (
+            <p className="text-xs text-slate-600 dark:text-zinc-300">
+              <span aria-hidden>💡 </span>
+              오늘 API 사용량: Gemini {adminUsage.gemini}/{USAGE_LIMIT_GEMINI} · YouTube {adminUsage.youtube}/
+              {USAGE_LIMIT_YOUTUBE} · Google {adminUsage.googleSearch}/{USAGE_LIMIT_GOOGLE}{' '}
+              <span
+                className="cursor-help select-none text-violet-600 dark:text-violet-400"
+                title={TOOLTIP_PT_RESET}
+                aria-label={TOOLTIP_PT_RESET}
               >
-                {loadingProgressText}
-              </p>
-            ) : null}
-          </div>
-        )}
+                ⓘ
+              </span>
+            </p>
+          ) : null}
+          {isAiGenerating ? (
+            <p
+              className="text-right text-xs leading-snug text-slate-500 break-words dark:text-zinc-400"
+              aria-live="polite"
+              aria-busy="true"
+            >
+              {loadingProgressText}
+            </p>
+          ) : null}
+        </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-nowrap sm:items-center sm:gap-3">
           <div className="relative min-w-0 w-full flex-1 sm:min-w-[12rem]">
             <input

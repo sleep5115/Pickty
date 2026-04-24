@@ -5,6 +5,7 @@ import com.pickty.server.domain.ai.dto.AiAutoGenerateItemResponse
 import com.pickty.server.domain.ai.dto.AiAutoGenerateRequest
 import com.pickty.server.domain.ai.dto.AiMediaType
 import com.pickty.server.domain.ai.media.MediaSearchRouter
+import com.pickty.server.global.exception.AiQuotaExhaustedException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -29,6 +30,7 @@ import kotlin.math.min
 class AiGenerationService(
     @Value("\${pickty.ai.gemini.api-key:}") apiKeyRaw: String,
     private val mediaSearchRouter: MediaSearchRouter,
+    private val aiApiUsageService: AiApiUsageService,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val objectMapper = jacksonObjectMapper()
@@ -119,6 +121,10 @@ class AiGenerationService(
             try {
                 return executeGeminiPost(uri, jsonPayload)
             } catch (e: RestClientResponseException) {
+                if (isGeminiDailyQuotaExhaustedMessage(e)) {
+                    log.warn("Gemini daily quota exhausted (GenerateRequestsPerDay) — fast-fail, no retry")
+                    throw AiQuotaExhaustedException()
+                }
                 val code = e.statusCode.value()
                 when {
                     code in 400..499 && !isRetryableGeminiHttp(code) -> {
@@ -136,12 +142,36 @@ class AiGenerationService(
                     }
                 }
             } catch (e: RestClientException) {
+                if (isGeminiDailyQuotaExhaustedMessage(e)) {
+                    log.warn("Gemini daily quota exhausted (GenerateRequestsPerDay) — fast-fail, no retry")
+                    throw AiQuotaExhaustedException()
+                }
                 log.warn("Gemini attempt {}/{} transport error: {}", attempt + 1, GEMINI_MAX_ATTEMPTS, e.message)
                 if (attempt >= GEMINI_MAX_ATTEMPTS - 1) throw e
                 delayGeminiBackoffWithJitter(retryIndex = attempt)
             }
         }
         error("unreachable")
+    }
+
+    /**
+     * Google 측 일일 생성 한도 소진 시 응답/메시지에 포함되는 토큰.
+     * 이 경우 `retryDelay`만 주는 버그성 응답이 있어 **재시도·지연 없이** 즉시 실패 처리한다.
+     */
+    private fun isGeminiDailyQuotaExhaustedMessage(e: Throwable): Boolean {
+        val buf = StringBuilder()
+        var t: Throwable? = e
+        var depth = 0
+        while (t != null && depth++ < 8) {
+            t.message?.let { buf.append('\n').append(it) }
+            if (t is RestClientResponseException) {
+                buf.append('\n').append(t.responseBodyAsString ?: "")
+            }
+            t = t.cause
+        }
+        val blob = buf.toString()
+        return blob.contains("GenerateRequestsPerDay") ||
+            blob.contains("GenerateRequestsPerDayPerProjectPerModel-FreeTier")
     }
 
     /** Gemini·프록시 측 일시 오류에 해당하는 HTTP만 재시도한다. */
@@ -177,7 +207,9 @@ class AiGenerationService(
             ?: throw IllegalStateException("Empty Gemini response")
 
         val cleanText = text.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
-        return objectMapper.readValue<GeminiItemsPayload>(cleanText)
+        val payload = objectMapper.readValue<GeminiItemsPayload>(cleanText)
+        aiApiUsageService.recordGeminiGenerateContentCall()
+        return payload
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
