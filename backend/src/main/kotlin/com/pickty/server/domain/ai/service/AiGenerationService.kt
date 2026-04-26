@@ -9,7 +9,6 @@ import com.pickty.server.global.exception.AiQuotaExhaustedException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
@@ -17,14 +16,11 @@ import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Service
 import org.springframework.web.client.RestClient
-import org.springframework.web.client.RestClientException
 import org.springframework.web.client.RestClientResponseException
 import org.springframework.web.util.UriComponentsBuilder
 import tools.jackson.module.kotlin.jacksonObjectMapper
 import tools.jackson.module.kotlin.readValue
 import java.net.URI
-import java.util.concurrent.ThreadLocalRandom
-import kotlin.math.min
 
 @Service
 class AiGenerationService(
@@ -40,13 +36,6 @@ class AiGenerationService(
     companion object {
         private const val GEMINI_GENERATE_CONTENT_URI =
             "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent"
-
-        /**
-         * 첫 시도 + 재시도 4회 = 5회.
-         * Gemini는 과부하 시 **500**을 자주 돌려 429/503만 재시도하면 첫 응답에서 바로 실패한다.
-         * 재시도: 408, 429, 500, 502, 503, 504 + 네트워크 일시 오류(RestClientException).
-         */
-        private const val GEMINI_MAX_ATTEMPTS = 5
 
         private const val CANDIDATES_PER_ITEM = 10
     }
@@ -74,7 +63,7 @@ class AiGenerationService(
     private fun normalizeExistingItemNames(raw: List<String>): List<String> =
         raw.map { it.trim() }.filter { it.isNotEmpty() }.distinct().take(200)
 
-    private suspend fun callGeminiForPrompt(
+    private fun callGeminiForPrompt(
         prompt: String,
         count: Int,
         mediaType: AiMediaType,
@@ -117,82 +106,35 @@ class AiGenerationService(
         val escapedPrompt = objectMapper.writeValueAsString(promptText)
         val jsonPayload = """{"contents":[{"parts":[{"text":$escapedPrompt}]}]}"""
 
-        repeat(GEMINI_MAX_ATTEMPTS) { attempt ->
-            try {
-                return executeGeminiPost(uri, jsonPayload)
-            } catch (e: RestClientResponseException) {
-                if (isGeminiDailyQuotaExhaustedMessage(e)) {
-                    log.warn("Gemini daily quota exhausted (GenerateRequestsPerDay) — fast-fail, no retry")
-                    throw AiQuotaExhaustedException()
-                }
-                val code = e.statusCode.value()
-                when {
-                    code in 400..499 && !isRetryableGeminiHttp(code) -> {
-                        log.warn("Gemini client error {} — no retry: {}", code, e.message)
-                        throw e
-                    }
-                    isRetryableGeminiHttp(code) -> {
-                        log.warn("Gemini attempt {}/{} retryable HTTP {}: {}", attempt + 1, GEMINI_MAX_ATTEMPTS, code, e.message)
-                        if (attempt >= GEMINI_MAX_ATTEMPTS - 1) throw e
-                        delayGeminiBackoffWithJitter(retryIndex = attempt)
-                    }
-                    else -> {
-                        log.warn("Gemini HTTP {} — no retry: {}", code, e.message)
-                        throw e
-                    }
-                }
-            } catch (e: RestClientException) {
-                if (isGeminiDailyQuotaExhaustedMessage(e)) {
-                    log.warn("Gemini daily quota exhausted (GenerateRequestsPerDay) — fast-fail, no retry")
-                    throw AiQuotaExhaustedException()
-                }
-                log.warn("Gemini attempt {}/{} transport error: {}", attempt + 1, GEMINI_MAX_ATTEMPTS, e.message)
-                if (attempt >= GEMINI_MAX_ATTEMPTS - 1) throw e
-                delayGeminiBackoffWithJitter(retryIndex = attempt)
+        try {
+            return executeGeminiPost(uri, jsonPayload)
+        } catch (e: RestClientResponseException) {
+            if (isGeminiQuotaExhaustedResponse(e)) {
+                log.warn("Gemini quota exhausted HTTP {} — fast-fail, no retry", e.statusCode.value())
+                throw AiQuotaExhaustedException()
             }
+            log.warn("Gemini HTTP {} — fast-fail, no retry: {}", e.statusCode.value(), e.message)
+            throw e
         }
-        error("unreachable")
     }
 
     /**
-     * Google 측 일일 생성 한도 소진 시 응답/메시지에 포함되는 토큰.
-     * 이 경우 `retryDelay`만 주는 버그성 응답이 있어 **재시도·지연 없이** 즉시 실패 처리한다.
+     * Google 측 쿼터 소진 시 응답/메시지에 포함되는 토큰.
+     * 실패 요청도 쿼터에 잡힐 수 있으므로 재시도 없이 즉시 실패 처리한다.
      */
-    private fun isGeminiDailyQuotaExhaustedMessage(e: Throwable): Boolean {
+    private fun isGeminiQuotaExhaustedResponse(e: RestClientResponseException): Boolean {
         val buf = StringBuilder()
-        var t: Throwable? = e
-        var depth = 0
-        while (t != null && depth++ < 8) {
-            t.message?.let { buf.append('\n').append(it) }
-            if (t is RestClientResponseException) {
-                buf.append('\n').append(t.responseBodyAsString ?: "")
-            }
-            t = t.cause
-        }
+        e.message?.let { buf.append('\n').append(it) }
+        buf.append('\n').append(e.responseBodyAsString ?: "")
         val blob = buf.toString()
-        return blob.contains("GenerateRequestsPerDay") ||
+        return e.statusCode.value() == 429 ||
+            blob.contains("RESOURCE_EXHAUSTED") ||
+            blob.contains("GenerateRequestsPerDay") ||
             blob.contains("GenerateRequestsPerDayPerProjectPerModel-FreeTier")
     }
 
-    /** Gemini·프록시 측 일시 오류에 해당하는 HTTP만 재시도한다. */
-    private fun isRetryableGeminiHttp(code: Int): Boolean =
-        when (code) {
-            408, 429, 500, 502, 503, 504 -> true
-            else -> false
-        }
-
-    /**
-     * 지수 백오프 + 지터. 4회 대기 누적 약 10~15초(지터 포함)가 되도록 간격을 잡음.
-     * [retryIndex] 0: 첫 실패 직후, … 3: 네 번째 실패 직후.
-     */
-    private suspend fun delayGeminiBackoffWithJitter(retryIndex: Int) {
-        val exp = 900L * (1L shl min(retryIndex, 3))
-        val baseMs = min(4_800L, exp)
-        val jitterMs = ThreadLocalRandom.current().nextLong(120, 620)
-        delay(baseMs + jitterMs)
-    }
-
     private fun executeGeminiPost(uri: URI, jsonPayload: String): GeminiItemsPayload {
+        aiApiUsageService.recordGeminiGenerateContentCall()
         val response = restClient.post()
             .uri(uri)
             .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
@@ -208,7 +150,6 @@ class AiGenerationService(
 
         val cleanText = text.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
         val payload = objectMapper.readValue<GeminiItemsPayload>(cleanText)
-        aiApiUsageService.recordGeminiGenerateContentCall()
         return payload
     }
 
