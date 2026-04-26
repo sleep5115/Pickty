@@ -154,9 +154,9 @@ export function AiGenerationPanel({
   return (
     <div className="space-y-3 rounded-xl border border-violet-100 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-none">
       <div className="flex flex-col gap-3 [color-scheme:light] dark:[color-scheme:dark]">
-        <div className="flex flex-col gap-1">
+        <div className="flex min-h-4 flex-wrap items-center justify-between gap-x-3 gap-y-1">
           {isAdmin && adminUsage ? (
-            <p className="text-xs text-slate-600 dark:text-zinc-300">
+            <p className="min-w-0 text-xs text-slate-600 dark:text-zinc-300">
               <span aria-hidden>💡 </span>
               오늘 API 사용량: Gemini {adminUsage.gemini}/{USAGE_LIMIT_GEMINI} · YouTube {adminUsage.youtube}/
               {USAGE_LIMIT_YOUTUBE} · Google {adminUsage.googleSearch}/{USAGE_LIMIT_GOOGLE}{' '}
@@ -171,7 +171,7 @@ export function AiGenerationPanel({
           ) : null}
           {isAiGenerating ? (
             <p
-              className="text-right text-xs leading-snug text-slate-500 break-words dark:text-zinc-400"
+              className="shrink-0 text-right text-xs leading-snug text-slate-500 dark:text-zinc-400"
               aria-live="polite"
               aria-busy="true"
             >
