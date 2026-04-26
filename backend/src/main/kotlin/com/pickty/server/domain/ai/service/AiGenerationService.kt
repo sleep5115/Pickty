@@ -47,7 +47,7 @@ class AiGenerationService(
             .map { it.trim() }
             .filter { it.isNotEmpty() }
             .distinct()
-            .take(request.count.coerceIn(1, 10))
+            .take(request.count.coerceIn(1, 100))
         if (names.isEmpty()) return@runBlocking emptyList()
 
         val rows = names.map { name ->
