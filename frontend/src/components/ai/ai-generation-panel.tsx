@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import useSWR from 'swr';
 import { AlertCircle, Loader2, Plus, Sparkles } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   AiGenerationQuotaExhaustedError,
   type AiMediaCandidateDto,
@@ -45,12 +46,14 @@ export type AiGenerationPanelProps = {
   isAdmin?: boolean;
   /** true면 미디어는 항상 사진(PHOTO)만 사용. 움짤·유튜브 버튼은 비활성화된다. */
   lockMediaTypeToPhoto?: boolean;
+  /** 지정하면 해당 미디어 타입만 사용하고 나머지 버튼은 비활성화된다. */
+  lockedMediaType?: AiMediaTypeWire;
 };
 
 const LOADING_TEXT_INITIAL = 'AI가 후보를 생성하고 있습니다...';
 
 const MSG_AI_DAILY_QUOTA_EXHAUSTED =
-  'AI 자동 생성 무료 일일 할당량(20회)이 모두 소진되었습니다. 내일 다시 시도해 주세요.';
+  '오늘의 AI 자동 생성 할당량(20회)이 모두 소진되었습니다.';
 
 const USAGE_LIMIT_GEMINI = 20;
 const USAGE_LIMIT_YOUTUBE = 100;
@@ -92,6 +95,7 @@ export function AiGenerationPanel({
   hintText = 'Gemini로 이름을 만들고, 선택한 미디어 종류에 맞춰 검색 후보 URL을 채웁니다. 개수는 1~10까지 조절할 수 있어요. 약 수 초~1분 가까이 걸릴 수 있습니다.',
   isAdmin = false,
   lockMediaTypeToPhoto = false,
+  lockedMediaType,
 }: AiGenerationPanelProps) {
   const { data: adminUsage, mutate: mutateAdminUsage } = useSWR(
     isAdmin && accessToken ? (['admin-ai-usage', accessToken] as const) : null,
@@ -104,35 +108,8 @@ export function AiGenerationPanel({
   const [itemCountDraft, setItemCountDraft] = useState(String(COUNT_DEFAULT));
   const [mediaType, setMediaType] = useState<AiMediaTypeWire>('PHOTO');
   const [aiError, setAiError] = useState<string | null>(null);
-  const [loadingProgressText, setLoadingProgressText] = useState(LOADING_TEXT_INITIAL);
 
-  useEffect(() => {
-    if (!isAiGenerating) {
-      setLoadingProgressText(LOADING_TEXT_INITIAL);
-      return;
-    }
-    const started = Date.now();
-    const tick = () => {
-      const elapsedSec = (Date.now() - started) / 1000;
-      if (elapsedSec >= 10) {
-        setLoadingProgressText('마지막으로 재시도하고 있습니다 (3/3)...');
-      } else if (elapsedSec >= 6) {
-        setLoadingProgressText('조금 더 기다려주세요. 다시 요청하고 있습니다 (2/3)...');
-      } else if (elapsedSec >= 3) {
-        setLoadingProgressText('AI 서버 지연으로 재시도 중입니다 (1/3)...');
-      } else {
-        setLoadingProgressText('AI가 후보를 생성하고 있습니다...');
-      }
-    };
-    tick();
-    const id = window.setInterval(tick, 300);
-    return () => {
-      window.clearInterval(id);
-      setLoadingProgressText(LOADING_TEXT_INITIAL);
-    };
-  }, [isAiGenerating]);
-
-  const effectiveMediaType: AiMediaTypeWire = lockMediaTypeToPhoto ? 'PHOTO' : mediaType;
+  const effectiveMediaType: AiMediaTypeWire = lockedMediaType ?? (lockMediaTypeToPhoto ? 'PHOTO' : mediaType);
 
   const handleAiGenerate = async () => {
     if (!aiPrompt.trim()) return;
@@ -164,7 +141,7 @@ export function AiGenerationPanel({
       if (isAdmin) void mutateAdminUsage();
     } catch (err) {
       if (err instanceof AiGenerationQuotaExhaustedError) {
-        setAiError(MSG_AI_DAILY_QUOTA_EXHAUSTED);
+        toast.error(MSG_AI_DAILY_QUOTA_EXHAUSTED);
         if (isAdmin) void mutateAdminUsage();
         return;
       }
@@ -198,7 +175,7 @@ export function AiGenerationPanel({
               aria-live="polite"
               aria-busy="true"
             >
-              {loadingProgressText}
+              {LOADING_TEXT_INITIAL}
             </p>
           ) : null}
         </div>
@@ -271,7 +248,9 @@ export function AiGenerationPanel({
           <span className="text-xs font-medium text-slate-600 dark:text-zinc-300">미디어 종류</span>
           {MEDIA_OPTIONS.map((opt) => {
             const isSelected = effectiveMediaType === opt.value
-            const isLockedOut = lockMediaTypeToPhoto && opt.value !== 'PHOTO'
+            const isLockedOut = Boolean(lockedMediaType)
+              ? opt.value !== lockedMediaType
+              : lockMediaTypeToPhoto && opt.value !== 'PHOTO'
             return (
               <button
                 key={opt.value}
