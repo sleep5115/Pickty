@@ -4,6 +4,20 @@
 
 [Pickty 서비스 이동하기](https://pickty.app)
 
+![](docs/AI_item_generate.gif)
+
+![](docs/AI_item_change.gif)
+
+**AI 기반 자동화 파이프라인** (자동 생성 · 항목 변경)
+
+![](docs/Tier_play.gif)
+
+`dnd-kit` · `Zustand` · 멀티 DnD · Drag Select
+
+![](docs/Worldcup_play.gif)
+
+2^n 정규화 · Peak Round · 하이브리드 무한 스크롤
+
 ---
 
 ### 🛠 Tech Stack
