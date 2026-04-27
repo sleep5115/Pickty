@@ -9,6 +9,7 @@ import com.pickty.server.domain.interaction.dto.CreateCommentResponse
 import com.pickty.server.domain.interaction.dto.DeleteCommentRequest
 import com.pickty.server.domain.interaction.dto.ReactionToggleRequest
 import com.pickty.server.domain.interaction.dto.ReactionToggleResponse
+import com.pickty.server.global.security.isAdmin
 import com.pickty.server.global.security.resolveUserId
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.Valid
@@ -77,7 +78,7 @@ class InteractionController(
         authentication: Authentication?,
     ): ResponseEntity<Void> {
         val userId = resolveUserId(authentication)
-        commentService.deleteComment(id, userId, body?.guestPassword)
+        commentService.deleteComment(id, userId, body?.guestPassword, isAdmin(authentication))
         return ResponseEntity.noContent().build()
     }
 }

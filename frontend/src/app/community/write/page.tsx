@@ -258,7 +258,7 @@ export default function BoardWritePage() {
 
         {isLoggedIn ? (
           <p className="flex flex-wrap items-baseline gap-x-2 border-b border-[var(--border-subtle)] pb-2.5 text-xs text-[var(--text-secondary)]">
-            <span className="shrink-0">로그인 작성</span>
+            <span className="shrink-0">작성자</span>
             <span className="text-[var(--border-subtle)]" aria-hidden>
               ·
             </span>

@@ -5,6 +5,9 @@ import com.pickty.server.domain.community.dto.BoardPostDetailResponse
 import com.pickty.server.domain.community.dto.BoardPostSummaryResponse
 import com.pickty.server.domain.community.dto.CreateBoardPostRequest
 import com.pickty.server.domain.community.dto.CreateBoardPostResponse
+import com.pickty.server.domain.community.dto.DeleteBoardPostRequest
+import com.pickty.server.domain.community.dto.UpdateBoardPostRequest
+import com.pickty.server.global.security.isAdmin
 import com.pickty.server.global.security.resolveUserId
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.Valid
@@ -14,7 +17,9 @@ import org.springframework.data.domain.Sort
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -53,4 +58,25 @@ class CommunityPostController(
 
     @GetMapping("/{id}")
     fun get(@PathVariable id: UUID): BoardPostDetailResponse = communityPostService.get(id)
+
+    @PatchMapping("/{id}")
+    fun update(
+        @PathVariable id: UUID,
+        @Valid @RequestBody body: UpdateBoardPostRequest,
+        authentication: Authentication?,
+    ): BoardPostDetailResponse {
+        val userId = resolveUserId(authentication)
+        return communityPostService.update(id, userId, body)
+    }
+
+    @DeleteMapping("/{id}")
+    fun delete(
+        @PathVariable id: UUID,
+        @Valid @RequestBody(required = false) body: DeleteBoardPostRequest?,
+        authentication: Authentication?,
+    ): ResponseEntity<Void> {
+        val userId = resolveUserId(authentication)
+        communityPostService.delete(id, userId, isAdmin(authentication), body?.guestPassword)
+        return ResponseEntity.noContent().build()
+    }
 }

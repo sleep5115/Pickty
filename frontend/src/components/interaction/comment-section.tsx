@@ -10,8 +10,10 @@ import {
   type CommentPage,
   type InteractionTargetType,
 } from '@/lib/api/interaction-api';
+import { apiFetch } from '@/lib/api-fetch';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { CommentInput } from '@/components/interaction/comment-input';
+import { COMMUNITY_CARD_SECTION_CLASS } from '@/lib/community-ui';
 import { guestNicknamePlainSchema } from '@/lib/schemas/guest-nickname';
 import { guestPasswordPlainSchema } from '@/lib/schemas/guest-password';
 
@@ -61,6 +63,7 @@ type CommentItemProps = {
   onOpenDeleteGuest: (c: Comment) => void;
   onMemberDelete: (c: Comment) => void;
   canDeleteMember: (c: Comment) => boolean;
+  viewerIsAdmin: boolean;
   /** 답글 전용 — `replyingToId === c.id` 일 때만 마운트 */
   replyBody: string;
   setReplyBody: (v: string) => void;
@@ -96,10 +99,13 @@ function CommentItem({
   submittingReply,
   onSubmitReply,
   onCancelReply,
+  viewerIsAdmin,
 }: CommentItemProps) {
   const replies = replyMap.get(c.id) ?? [];
-  const showDelGuest = !isLoggedIn && c.authorUserId == null;
-  const showDelMember = canDeleteMember(c);
+  /** 비회원 댓글: 비밀번호 모달. 관리자는 즉시 삭제(확인)로 동일 버튼 하나만 */
+  const showGuestPwdDelete = c.authorUserId == null && !viewerIsAdmin;
+  const showQuickDelete =
+    (c.authorUserId != null && (canDeleteMember(c) || viewerIsAdmin)) || (c.authorUserId == null && viewerIsAdmin);
   const inlineReplyOpen = depth === 0 && replyingToId === c.id;
 
   return (
@@ -108,7 +114,7 @@ function CommentItem({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-xs font-semibold text-slate-800 dark:text-zinc-200">{formatAuthorLabel(c)}</span>
           <div className="flex items-center gap-2">
-            {showDelGuest && (
+            {showGuestPwdDelete ? (
               <button
                 type="button"
                 onClick={() => onOpenDeleteGuest(c)}
@@ -116,8 +122,8 @@ function CommentItem({
               >
                 삭제
               </button>
-            )}
-            {showDelMember && (
+            ) : null}
+            {showQuickDelete ? (
               <button
                 type="button"
                 onClick={() => void onMemberDelete(c)}
@@ -125,7 +131,7 @@ function CommentItem({
               >
                 삭제
               </button>
-            )}
+            ) : null}
             {depth === 0 && (
               <button
                 type="button"
@@ -176,6 +182,7 @@ function CommentItem({
               onOpenDeleteGuest={onOpenDeleteGuest}
               onMemberDelete={onMemberDelete}
               canDeleteMember={canDeleteMember}
+              viewerIsAdmin={viewerIsAdmin}
               replyBody={replyBody}
               setReplyBody={setReplyBody}
               replyGuestNick={replyGuestNick}
@@ -206,6 +213,30 @@ export function CommentSection({
 }: Props) {
   const accessToken = useAuthStore((s) => s.accessToken);
   const isLoggedIn = Boolean(accessToken);
+  const [viewerIsAdmin, setViewerIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!accessToken) {
+      setViewerIsAdmin(false);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await apiFetch('/api/v1/user/me', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!res.ok || cancelled) return;
+        const u = (await res.json()) as { role?: unknown };
+        setViewerIsAdmin(u.role === 'ADMIN');
+      } catch {
+        if (!cancelled) setViewerIsAdmin(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken]);
 
   const [flat, setFlat] = useState<Comment[]>([]);
   const [page, setPage] = useState(0);
@@ -446,7 +477,7 @@ export function CommentSection({
     if (!deleteTarget) return;
     const isGuest = deleteTarget.authorUserId == null;
     let deleteGuestPwd: string | undefined;
-    if (isGuest) {
+    if (isGuest && !viewerIsAdmin) {
       const pv = guestPasswordPlainSchema.safeParse(deletePwd);
       if (!pv.success) {
         setDeletePwdError(pv.error.issues[0]?.message ?? null);
@@ -464,7 +495,7 @@ export function CommentSection({
     } catch (e) {
       toast.error(e instanceof Error ? e.message : '삭제에 실패했습니다.');
     }
-  }, [deleteTarget, deletePwd, onCommentPosted]);
+  }, [deleteTarget, deletePwd, onCommentPosted, viewerIsAdmin]);
 
   const canDeleteMember = useCallback(
     (c: Comment) =>
@@ -490,7 +521,7 @@ export function CommentSection({
   if (!targetId) return null;
 
   return (
-    <section className={['rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-zinc-800 dark:bg-zinc-950/50', className].join(' ')}>
+    <section className={[COMMUNITY_CARD_SECTION_CLASS, className].filter(Boolean).join(' ')}>
       {showHeading ? (
         <h3 className="text-sm font-semibold text-slate-900 dark:text-zinc-100">댓글</h3>
       ) : null}
@@ -539,6 +570,7 @@ export function CommentSection({
                   onOpenDeleteGuest={openDelete}
                   onMemberDelete={handleMemberDelete}
                   canDeleteMember={canDeleteMember}
+                  viewerIsAdmin={viewerIsAdmin}
                   replyBody={replyBody}
                   setReplyBody={setReplyBody}
                   replyGuestNick={replyGuestNick}

@@ -16,6 +16,18 @@ data class CreateBoardPostResponse(
     val id: UUID,
 )
 
+data class UpdateBoardPostRequest(
+    @field:NotBlank @field:Size(max = 200) val title: String,
+    @field:NotBlank @field:Size(max = 200_000) val contentHtml: String,
+    /** 비회원 게시글 수정 시 필수(회원 글은 무시) */
+    @field:Size(min = 4, max = 128, message = "비밀번호를 입력해주세요.") val guestPassword: String? = null,
+)
+
+data class DeleteBoardPostRequest(
+    /** 비회원 게시글 삭제 시 필수(회원 본인·관리자 삭제 시 생략) */
+    @field:Size(min = 4, max = 128, message = "비밀번호를 입력해주세요.") val guestPassword: String? = null,
+)
+
 data class BoardPostSummaryResponse(
     val id: UUID,
     val title: String,

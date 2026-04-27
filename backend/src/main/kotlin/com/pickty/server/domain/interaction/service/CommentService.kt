@@ -133,11 +133,19 @@ class CommentService(
     }
 
     @Transactional
-    fun deleteComment(commentId: UUID, userId: Long?, guestPassword: String?) {
+    fun deleteComment(commentId: UUID, userId: Long?, guestPassword: String?, isAdmin: Boolean) {
         val c =
             commentRepository.findById(commentId).orElse(null)
                 ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "댓글을 찾을 수 없습니다.")
         if (c.commentStatus == CommentStatus.DELETED) {
+            return
+        }
+        if (isAdmin) {
+            val targetType = c.targetType
+            val targetId = c.targetId
+            c.markDeleted()
+            decrementCommentCount(targetType, targetId)
+            evictResultCacheIfNeeded(targetType, targetId)
             return
         }
         when {

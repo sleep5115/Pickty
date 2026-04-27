@@ -178,3 +178,40 @@ export async function getCommunityPost(id: string): Promise<CommunityPostDetail>
   const row = (await res.json()) as Record<string, unknown>;
   return parseDetail(row);
 }
+
+export async function updateCommunityPost(
+  id: string,
+  input: { title: string; contentHtml: string; guestPassword?: string | null },
+): Promise<CommunityPostDetail> {
+  const payload: Record<string, unknown> = {
+    title: input.title,
+    contentHtml: input.contentHtml,
+  };
+  const pwd = input.guestPassword?.trim();
+  if (pwd) payload.guestPassword = pwd;
+  const res = await apiFetch(`/api/v1/community/posts/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    throw new Error((await res.text()) || `게시글 수정 실패 (${res.status})`);
+  }
+  const row = (await res.json()) as Record<string, unknown>;
+  return parseDetail(row);
+}
+
+export async function deleteCommunityPost(id: string, guestPassword?: string | null): Promise<void> {
+  const body =
+    guestPassword != null && guestPassword.trim() !== ''
+      ? JSON.stringify({ guestPassword: guestPassword.trim() })
+      : JSON.stringify({});
+  const res = await apiFetch(`/api/v1/community/posts/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body,
+  });
+  if (!res.ok) {
+    throw new Error((await res.text()) || `게시글 삭제 실패 (${res.status})`);
+  }
+}
