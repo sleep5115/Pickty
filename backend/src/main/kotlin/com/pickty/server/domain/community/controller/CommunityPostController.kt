@@ -13,7 +13,9 @@ import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.Valid
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
+import org.springframework.data.web.PageableDefault
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
@@ -24,7 +26,6 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import java.util.UUID
 
@@ -47,13 +48,14 @@ class CommunityPostController(
 
     @GetMapping
     fun list(
-        @RequestParam(defaultValue = "0") page: Int,
-        @RequestParam(defaultValue = "20") size: Int,
-    ): Page<BoardPostSummaryResponse> {
-        val safeSize = size.coerceIn(1, 100)
-        val safePage = page.coerceAtLeast(0)
-        val pageable = PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt"))
-        return communityPostService.list(pageable)
+        @PageableDefault(size = 20)
+        pageable: Pageable,
+    ): ResponseEntity<Page<BoardPostSummaryResponse>> {
+        val safeSize = pageable.pageSize.coerceIn(1, 100)
+        val safePage = pageable.pageNumber.coerceAtLeast(0)
+        // 정렬은 저장소 메서드명(`OrderByCreatedAtDesc`)에 맡기고, 클라이언트 `sort` 파라미터는 무시한다.
+        val fixed = PageRequest.of(safePage, safeSize, Sort.unsorted())
+        return ResponseEntity.ok(communityPostService.list(fixed))
     }
 
     @GetMapping("/{id}")
