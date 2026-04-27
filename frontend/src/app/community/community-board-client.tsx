@@ -92,7 +92,7 @@ export default function CommunityBoardClient() {
         <header className="flex items-end justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">커뮤니티</h1>
-            <p className="mt-1 text-sm text-slate-600 dark:text-zinc-400">티어표·템플릿 이야기를 나눠요.</p>
+            <p className="mt-1 text-sm text-slate-600 dark:text-zinc-400">이야기를 나눠요.</p>
           </div>
           <Link
             href="/community/write"
