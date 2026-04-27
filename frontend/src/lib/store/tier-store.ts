@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { clearTierAutoSaveThumbnailStash } from '@/lib/tier-autosave-thumbnail';
-import { isTierSpacerId } from '@/lib/tier-spacer-id';
+import { isTierSpacerId, newTierSpacerId } from '@/lib/tier-spacer-id';
 import {
   cloneTemplateBoardConfig,
   type TemplateBoardConfig,
@@ -43,18 +43,6 @@ export function reorderItemNextToRef<T extends { id: string }>(
   const insertAt = target + (insertAfter ? 1 : 0);
   next.splice(insertAt, 0, mv!);
   return next;
-}
-
-function newSpacerId(): string {
-  try {
-    const c = globalThis.crypto;
-    if (c && typeof c.randomUUID === 'function') {
-      return `spacer-${c.randomUUID()}`;
-    }
-  } catch {
-    // Secure Context가 아닐 때 randomUUID 사용 불가
-  }
-  return `spacer-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
 /** 기획·문서에서 쓰는 이름과 동일 — 티어 아이템 타입 */
@@ -354,7 +342,7 @@ export const useTierStore = create<TierState>()(
       addPoolSpacer: () =>
         set((state) => ({
           pool: [
-            { id: newSpacerId(), name: '투명 블록' },
+            { id: newTierSpacerId(), name: '투명 블록' },
             ...state.pool,
           ],
         })),

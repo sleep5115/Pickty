@@ -234,6 +234,7 @@
 - **수정 페이지**: `**/community/[id]/edit/page.tsx**` — 회원 글 **본인만**(미일치·비로그인 시 토스트+`replace`) · 비회원은 **URL `guestPwd`**(및 storage 보조) 수령 후 쿼리 제거 · **폼 내 비밀번호 UI 제거** · 저장 시 PATCH에 `guestPassword` 포함. `**TiptapEditor**` `initialHtml` 유지.
 - **보안 보완(커뮤니티)**: 회원 수정 페이지 **권한 없는 직접 진입 차단**·비회원 PATCH **비번 미제출 시 403** 등 이전 프리패스 이슈 반영.
 - **커뮤니티 목록 번호 페이지네이션**: 백엔드 `**GET /api/v1/community/posts**` — `**@PageableDefault(size = 20)**` + `**Pageable`** 로 `page`·`size` 수신, `**ResponseEntity<Page<BoardPostSummaryResponse>>`** 로 `totalElements`·`totalPages` 등 포함 반환. `**CommunityPostController**` — **`size` 1~100** 제한, 정렬은 저장소 `OrderByCreatedAtDesc` 고정(`**Sort.unsorted()`**·클라이언트 `sort` 무시). 프론트 `**/community/page.tsx**` — URL **`?page=`** 1-based(생략 시 1), `**useSearchParams**`·`**router.push(..., { scroll: false })**` + 목록 `#community-post-list` **scrollIntoView**(번호 클릭 시만·뒤로 가기 시 브라우저 스크롤 복원 보조), 범위 초과 시 `**router.replace**`로 마지막 페이지 보정. `**frontend/src/components/community/pagination.tsx**` — `[이전]`·번호(최대 5칸)·`[다음]`. `**listCommunityPosts**`·`Page` JSON 파싱은 기존 유지.
+- **티어 스냅샷 v2 — 투명 블록 자리 보존**: `**buildTierSnapshot**`이 `spacer-`를 필터에서 제거해 **`/tier/results`** 복원 시 간격이 사라지던 문제 — `**TIER_SNAPSHOT_SPACER_SENTINEL`(-1)** 로 행·풀 배열에 자리를 남기고, `**parseSnapshotDataToBoard**`에서 `**newTierSpacerId()**`로 복원. `**tier-spacer-id.ts**`에 `**newTierSpacerId**` 공통화 · `**tier-store**`는 해당 함수 사용.
 
 ---
 

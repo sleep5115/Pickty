@@ -2,3 +2,16 @@
 export function isTierSpacerId(id: string): boolean {
   return id.startsWith('spacer-');
 }
+
+/** 새 투명 블록 — `tier-store`·스냅샷 복원 등 공통 */
+export function newTierSpacerId(): string {
+  try {
+    const c = globalThis.crypto;
+    if (c && typeof c.randomUUID === 'function') {
+      return `spacer-${c.randomUUID()}`;
+    }
+  } catch {
+    // Secure Context가 아닐 때 randomUUID 사용 불가
+  }
+  return `spacer-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+}

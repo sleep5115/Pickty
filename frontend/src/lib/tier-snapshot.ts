@@ -4,11 +4,14 @@ import {
   rewriteTierItemsUploadUrls,
   rewriteTiersUploadUrls,
 } from '@/lib/pickty-image-url';
-import { isTierSpacerId } from '@/lib/tier-spacer-id';
+import { isTierSpacerId, newTierSpacerId } from '@/lib/tier-spacer-id';
 import type { Tier, TierItem } from '@/lib/store/tier-store';
 
 /** 프론트 ↔ 백 스냅샷 스키마 (버전 올리면 마이그레이션) — v2: 풀·티어 행은 숫자 id만 저장 */
 export const TIER_SNAPSHOT_SCHEMA_VERSION = 2;
+
+/** v2 `tiers[].items`·`pool`에서 레이아웃용 투명 블록 자리 — DB 템플릿 PK와 겹치지 않게 음수 사용 */
+export const TIER_SNAPSHOT_SPACER_SENTINEL = -1;
 
 /** v1 레거시(풀·티어에 전체 TierItem 객체 embed) */
 const TIER_SNAPSHOT_SCHEMA_VERSION_LEGACY = 1;
@@ -21,7 +24,7 @@ export interface TierSnapshotRowStored {
   paintLabelColorUnderImage?: boolean;
   showLabelColor?: boolean;
   backgroundUrl?: string;
-  /** 템플릿 아이템 PK — JSON 숫자로 저장 */
+  /** 템플릿 아이템 PK — JSON 숫자로 저장. `TIER_SNAPSHOT_SPACER_SENTINEL`이면 투명 블록 자리 */
   items: number[];
 }
 
@@ -64,7 +67,7 @@ function coerceTemplateItemNumericId(
   item: TierItem,
   itemIdRemap?: ReadonlyMap<string, number>,
 ): number | null {
-  if (isTierSpacerId(item.id)) return null;
+  if (isTierSpacerId(item.id)) return TIER_SNAPSHOT_SPACER_SENTINEL;
   if (itemIdRemap?.has(item.id)) return itemIdRemap.get(item.id)!;
   const n = Number(item.id);
   if (!Number.isFinite(n)) return null;
@@ -166,6 +169,9 @@ function buildTierItemCatalog(templateItems: TierItem[]): Map<number, TierItem> 
 
 function hydrateIdsFromCatalog(ids: readonly number[], catalog: Map<number, TierItem>): TierItem[] {
   return ids.map((nid) => {
+    if (nid === TIER_SNAPSHOT_SPACER_SENTINEL) {
+      return { id: newTierSpacerId(), name: '투명 블록' };
+    }
     const hit = catalog.get(nid);
     if (hit) return { ...hit };
     return { id: String(nid), name: '삭제된 항목' };
