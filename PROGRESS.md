@@ -135,6 +135,7 @@
 - **게시판 댓글 연동 (community_post) 1차 완료**: `comments.target_type`은 기존부터 `varchar(32)`로 `community_post` 문자열 저장은 가능했으나, 서비스에서 `NOT_IMPLEMENTED`로 막고 있었다. `CommunityCommentService`에 `community_post` 허용·대상 검증(`community_posts` ACTIVE)·댓글 수 증감 로직을 추가하고, `community_posts.comment_count` 역정규화 컬럼 마이그레이션(`docs/migrations/2026-04-07-board-post-comment-count.sql`)을 반영.
 - **게시글 상세 응답에 댓글 포함**: `GET /api/v1/community/posts/{id}`에서 `CommunityCommentService`를 호출해 댓글 첫 페이지(기본 30개)를 `comments`로 함께 반환하도록 DTO·서비스를 확장.
 - **프론트 상세 하단 댓글 UI 연결**: `/community/[id]` 하단에 `CommentSection`을 `targetType="community_post"`·`targetId={post.id}`로 연결. 상세 API의 `comments`를 초기값으로 주입해 첫 렌더에서 불필요한 추가 목록 호출을 피함.
+- **(후속)** 게시글 **PATCH·DELETE**·상세/수정 **UGC·모달 UX** 등은 **「진행 메모 (2026-04-27)」** 참고.
 
 ---
 
@@ -222,6 +223,20 @@
 
 ---
 
+## 진행 메모 **(2026-04-27)**
+
+- **커뮤니티 게시글 상세 UI**: `**/community/[id]/page.tsx**` — 본문을 `**COMMUNITY_CARD_SECTION_CLASS**`(`**/lib/community-ui.ts**`)로 `**CommentSection**` 과 동일 카드 처리 · 상단 **「← 목록으로」** 제거 · 본문/댓글 **`gap-6`** + **수정·삭제·목록** 우측 정렬(버튼 톤: 수정 연두·삭제 빨강·목록 보라).
+- **글로벌 UGC 정책(룰)**: `**.cursor/rules/pickty-project-context.mdc**` 「UGC·리소스 수정·삭제 정책」— 회원 수정 **작성자 본인만**(관리자 **수정** 프리패스 없음)·비회원 **비밀번호**·삭제는 **본인·비번·`ROLE_ADMIN` 즉시**·물리 `DELETE` 없이 **상태 소프트 삭제** 등 명문화.
+- **게시글 수정·삭제 API**: `**PATCH /api/v1/community/posts/{id}`** · `**DELETE /api/v1/community/posts/{id}`** — `**CommunityPostController**`·`**CommunityPostService**`·DTO `**UpdateBoardPostRequest`/`DeleteBoardPostRequest`**·엔티티 `**applyTitleAndHtml**`/`**markDeleted**`. 회원 PATCH는 **`author_id` 일치**만 허용; 비회원 PATCH는 **`guestPassword`** 필수·해시 일치(누락·불일치 **403**). DELETE는 본인·비회원 비번·관리자 프리패스·소프트 `**DELETED**`.
+- **댓글 삭제 정책 정합**: `**CommentService.deleteComment(..., isAdmin)`** · `**InteractionController**` `**isAdmin(authentication)**` — 관리자 **비밀번호 없이** 소프트 삭제. `**comment-section.tsx**` — 비회원 댓글 **삭제** 노출(로그인 여부와 무관)·관리자 분기·`/user/me` **ADMIN** 판별.
+- **상세 — 삭제 확인 UI**: `**community-post-delete-dialog.tsx**` — `guest_password` / `confirm_member` / `confirm_admin` · **`window.confirm` 제거** · `titleId` 옵션으로 **수정용 비번 모달**과 **id** 중복 방지.
+- **상세 — 비회원 수정 진입**: 비회원 [수정] → 동일 다이얼로그 **`guest_password_edit`**(타이틀「게시글 수정」·버튼「**수정으로 이동**」) → 검증 후 **`/community/{id}/edit?guestPwd=…`** + `**sessionStorage**` 백업(`**/lib/community-guest-edit-storage.ts**`).
+- **수정 페이지**: `**/community/[id]/edit/page.tsx**` — 회원 글 **본인만**(미일치·비로그인 시 토스트+`replace`) · 비회원은 **URL `guestPwd`**(및 storage 보조) 수령 후 쿼리 제거 · **폼 내 비밀번호 UI 제거** · 저장 시 PATCH에 `guestPassword` 포함. `**TiptapEditor**` `initialHtml` 유지.
+- **보안 보완(커뮤니티)**: 회원 수정 페이지 **권한 없는 직접 진입 차단**·비회원 PATCH **비번 미제출 시 403** 등 이전 프리패스 이슈 반영.
+- **커뮤니티 목록 번호 페이지네이션**: 백엔드 `**GET /api/v1/community/posts**` — `**@PageableDefault(size = 20)**` + `**Pageable`** 로 `page`·`size` 수신, `**ResponseEntity<Page<BoardPostSummaryResponse>>`** 로 `totalElements`·`totalPages` 등 포함 반환. `**CommunityPostController**` — **`size` 1~100** 제한, 정렬은 저장소 `OrderByCreatedAtDesc` 고정(`**Sort.unsorted()`**·클라이언트 `sort` 무시). 프론트 `**/community/page.tsx**` — URL **`?page=`** 1-based(생략 시 1), `**useSearchParams**`·`**router.push(..., { scroll: false })**` + 목록 `#community-post-list` **scrollIntoView**(번호 클릭 시만·뒤로 가기 시 브라우저 스크롤 복원 보조), 범위 초과 시 `**router.replace**`로 마지막 페이지 보정. `**frontend/src/components/community/pagination.tsx**` — `[이전]`·번호(최대 5칸)·`[다음]`. `**listCommunityPosts**`·`Page` JSON 파싱은 기존 유지.
+
+---
+
 ## 인프라 방향 · 스냅샷
 
 
@@ -256,7 +271,7 @@
 | 프론트 업로드 압축·한도 동기화                         | ✅     | `uploadPicktyImages` **파일당 순차 POST**(벌크 아님) · `browser-image-compression` WebP·장변 1024·목표 **~0.5MB** — **Nginx·Spring multipart·Tomcat 요청당 8MB** 통일 **(2026-03-30)** · `pickty-upload-hint.ts` UI 안내                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | **P2 커뮤니티 — 반응·댓글 (1차)** **(2026-03-30)** | ✅(1차) | 다형성 `reactions`·`comments` + `tier_templates`/`tier_results` 역정규화 카운트. API: `POST /api/v1/interaction/reactions/toggle`(회원·비회원 IP 해시), 댓글 CRUD·페이지 `GET`·`DELETE`(비회원 비번). 프론트: `community-api`·`TemplateLikeButton`·`ResultVoteButtons`(낙관적 UI)·`CommentSection` — `**/tier/templates**`·`**/tier**`·`**/tier/templates/{id}`**·`**/tier/results/{id}`** 연동. 마이그레이션 `**docs/migrations/2026-03-31-p2-community-unified.sql**` · **(2026-03-30) 새로고침 후 하이라이트 유지**: 로그인 시 템플릿·`tier_results` 단건/목록 GET 응답 `**myReaction**` + `ReactionRepository` **IN** bulk(`CommunityMyReactionService`) · 비회원은 `**reaction-store**`(`localStorage`) · **선택 상태 색**: 좋아요 **핑크**·추천 **빨강**·비추천 **파랑** · **회원+IP 하이브리드**: `guest_ip_hash`·부분 유니크(`user_id IS NULL`만) — `**docs/migrations/2026-03-30-reactions-member-ip-hash-hybrid.sql**`. · **(2026-03-31) 인기 티어표 Top3**: `GET .../tiers/results/popular` + `**popular-tier-results.tsx**`(`**/tier**`·`**/tier/templates/{id}`** 보드 아래·댓글 위 가로 슬라이더). · **(2026-04-03) 조회수 1차**: Valkey·`view_count`·UI — **표시용**·**당장 랭킹 등 다른 용도 계획 없음**(「2026-04-05」). · **추가 커뮤니티 확장**(집계 티어표 등)은 **「장기 아이디어」**. |
 | Tier — 장기 과제 (일반)                         | ✅(1차) | **이미 함**: 업로드 전 브라우저 압축. **(2026-03-31 1차 완료)**: `GET .../images/file/`** `**Cache-Control: public, max-age=31536000, immutable**` · `**next.config.ts**` `images.minimumCacheTTL` **31536000** · `**docs/DEPLOYMENT-CHECKLIST.md**` 「3.5 Cloudflare R2 및 CDN 캐시」. **(2026-03-30) 운영 검증**: `api.pickty.app` 프록시 경로에 대해 `**curl.exe -sI**` 2연속 → `**cf-cache-status` MISS then HIT**. **추후(선택)**: R2 `PutObject` **Cache-Control** 메타·**파생 해상도**·Cloudflare Images 등(트래픽·비용 보고 후) — 필요 시 「장기 아이디어」절.                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| **P3 커뮤니티 게시판** (TipTap·리치 에디터)           | 🟨(진행중) | 1차 기반(DB·작성/목록/상세 API·프론트 연동) + **게시판 댓글(`community_post`) 연동** 완료(2026-04-07). **잔여**: 게시글 **수정**, **삭제(소프트 삭제)**, 게시글 **추천/비추천**, 작성/상세 UX·권한/예외 처리 등 **디테일 보완**. 에디터 기능 범위는 **이미지 업로드·유튜브 링크·일반 링크** 3축 유지. |
+| **P3 커뮤니티 게시판** (TipTap·리치 에디터)           | 🟨(진행중) | 1차 기반(DB·작성/목록/상세 API·프론트 연동) + **게시판 댓글(`community_post`) 연동** 완료(2026-04-07). **(2026-04-27)** 게시글 **PATCH·DELETE(소프트)**·상세/수정 **UGC 권한·모달 UX**·비회원 수정 **모달→`guestPwd` 진입** 반영 · 목록 **`/community`** **번호 페이지네이션**(URL `?page=`·`Pageable`/`Page`·`pagination.tsx`). **잔여**: 게시글 **추천/비추천** 등 확장·기타 디테일. 에디터는 **이미지·유튜브·일반 링크** 3축 유지. |
 | **AI 자동 템플릿 생성 (AI 딸깍)**             | 🟨(진행중) | **(2026-04-26)** Gemini 재시도 제거로 **1클릭=Gemini POST 최대 1회**. 사용량 기록은 POST 직전 1회, 429 계열은 fast-fail + 프론트 토스트. 생성 개수 최대 **100개**. **(2026-04-24 후속)** `**POST /api/v1/admin/ai/auto-generate**` + `**AiGenerationPanel**` — 티어·월드컵 에디터 **ADMIN** 전용. PHOTO/GIF/YOUTUBE·응답 **`candidates[]`**(`url`·`title?`)·유튜브 제목 매핑. 월드컵 편집기: 깡통 행 정리·저장 시 미디어 검증·**미리보기 모달**·채택 시 이름 동기화. |
 | **Ideal Type 이상형 월드컵**                      | ✅(1차) | **(2026-04-20~21)** 플레이·결과·통계·랭킹·템플릿 CRUD·허브·GIF/CORS·강수·플레이 진입 등 — 「진행 메모 (2026-04-20·21)」. **(2026-04-22)** 플레이 헤더·게이지·~~대각/좌우 무승부·탈락~~·이미지/유튜브 분기·리롤 에셋·뷰포트 — 「2026-04-22」(**2026-04-24**에서 **둘 다 올림/탈락 제거**·2^n만, 「2026-04-24」절). **(2026-04-22 후속)** 결과 **TemplateLikeButton**·랭킹 지표·`totalCompletedPlays`·댓글 드로어 — 동 절. **(2026-04-24)** `peak`·`startBracket`·`reachedDeltas`로 **N강 진출(승리 기반)** 집계·**100% 진출 버그** 대응 — 「진행 메모 (2026-04-24)」. **잔여(백로그)**: 템플릿 **공개 정책 DB/API**·**AI 딸깍**·스트리머 — 「장기 아이디어」. |
 
@@ -307,7 +322,7 @@
 - **백엔드**: `ResultStatus` · `TierResult.result_status`. `**DELETE /api/v1/tiers/results/{id}`** 는 `**DELETE FROM` 없음** — `markDeleted()`로 `DELETED` + `**is_public = false`**. `**GET .../tiers/results**`(피드)·`**GET .../tiers/results/mine**`(내 티어표) 모두 `**ACTIVE`만** 반환; 삭제 후에도 **단건 `GET .../{id}`**·직접 URL·OG는 유지. 저장소: `findByUserIdAndResultStatusWithTemplateOrderByCreatedAtDesc` 등.
 - **프론트**: `tier-api` `resultStatus` 파싱·응답 타입 · `tier-result-card` / `**/tier/results/[id]`** 삭제·삭제됨 표시 · `**tier-result-delete-confirm-dialog**` 문구(소프트·비공개·피드 숨김, 링크 유지). 삭제 성공 시 상세는 `**reloadResult**` 로 상태 반영.
 - **마이그레이션 역할**: `**2026-03-30-rename-status-columns.sql`** 의 `tier_results` 블록은 `**status` 컬럼이 있을 때만** `result_status`로 RENAME — 원래 `status` 없던 DB는 **아무 컬럼도 안 생김**. 컬럼 **추가**는 `**2026-03-30-tier-results-result-status-soft-delete.sql`** (`ADD COLUMN IF NOT EXISTS`). 로컬은 `**ddl-auto: update**` 로 기동 시 컬럼이 생길 수 있어 DBeaver와 타이밍이 어긋날 수 있음.
-- **공통 정책(에이전트·구현 참고)**: `**.cursor/rules/pickty-project-context.mdc`** — **「UGC·리소스 수정·삭제 정책」** — **수정**은 **본인만**(화면마다 수정 가능 필드 범위는 다를 수 있음) · **삭제**는 **본인 + `ROLE_ADMIN`** · 문맥상 **「삭제」** 기본 = **소프트 삭제** + **비공개** + **DB 레코드 유지**; 하드 삭제는 명시 시에만.
+- **공통 정책(에이전트·구현 참고)**: `**.cursor/rules/pickty-project-context.mdc`** — **「UGC·리소스 수정·삭제 정책」**(템플릿·결과 등 **도메인 예외**는 해당 API 우선). **(2026-04-27)** 동 절 **글로벌 UGC** 확장 — 게시글·댓글 등: 회원 **수정·삭제 본인**·비회원 **비밀번호**·관리자 **`ROLE_ADMIN` 삭제만 프리패스**(타인 글 **수정 불가**)·소프트 삭제 등. (티어 템플릿 `template_status` 등 기존 문구와 병행 시 **표·다음 작업** 기준으로 정합.)
 
 ---
 
@@ -396,7 +411,7 @@
 ### Phase 3 — 구현
 
 - 티어 템플릿·이미지·`tiers/results`·프론트(R2) — **진행됨**
-- **P3 게시판** — **당면**(잔여: 수정·삭제·추천 등 — 표 참고)
+- **P3 게시판** — **당면**(잔여: 게시글 **추천/비추천** 등 — 표·「2026-04-27」메모 참고; **수정·삭제**·**목록 페이지네이션** 반영됨)
 - **이상형 월드컵** — **1차 완료 (2026-04-22)** — 세부·백로그는 표·「다음 작업」·「진행 메모 (2026-04-22)」
 
 ### Phase 4 — Auth · 운영
@@ -426,7 +441,7 @@
 
 **그다음 (제품 — 2026-04 우선순위)**  
 4. ~~**P2 커뮤니티 1차**~~ → **완료** — 반응·댓글·인기 Top3·조회수 등(본문 「진행 메모」). 추가 확장(집계 티어표·멘션 등)은 **「장기 아이디어」**.  
-5. **P3 커뮤니티 게시판** — **진행중** — 1차(게시글 DB·작성/목록/상세 연동) 완료. 다음은 **수정**, **삭제(soft delete)**, **추천/비추천**, 작성/상세 **디테일 보완(UX·권한·예외 처리)**.  
+5. **P3 커뮤니티 게시판** — **진행중** — 1차 + **(2026-04-27)** 게시글 **PATCH·DELETE(소프트)**·권한·모달 UX·비회원 수정 **모달→`guestPwd`** 흐름 · 목록 **번호 페이지네이션**(URL `?page=`·백엔드 `Pageable`/`Page`). 다음은 **추천/비추천** 등 확장·잔여 디테일.  
 6. ~~**Ideal Type 이상형 월드컵**~~ → **1차 완료 (2026-04-22)** — 템플릿 CRUD·플레이·통계·랭킹·허브·에디터·Canvas/GIF/CORS·강수·플레이 진입(`**/worldcup/templates**`·`**/new**`·`**/{id}`**)·플레이 헤더·게이지·대각/좌우 버튼·이미지/유튜브 분기·리롤 에셋 등 — 「진행 메모 (2026-04-20·21·22)」. **(2026-04-22 후속)** 결과 **제목·좋아요(boxed)** · 랭킹 **통계 UI·`totalCompletedPlays`** · 랭킹 **논모달 댓글 FAB+드로어** — 「진행 메모 (2026-04-22)」막줄·「예정 작업 — 월드컵」반영 현황. **백로그**: 템플릿 **공개 정책 DB/API**, **AI 딸깍 → 월드컵** 연동·스트리머 등은 「장기 아이디어」·표 비고.  
 7. **배포·운영** 지속 점검(`DEPLOYMENT-CHECKLIST`) · **Phase 5 Ops**(헬스 알림·Docker 재시작 정책 등 — MVP 이후 병행 가능).
 

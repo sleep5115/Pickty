@@ -84,4 +84,13 @@ class CommunityPost(
     fun incrementViewCount() {
         viewCount += 1
     }
+
+    fun applyTitleAndHtml(newTitle: String, newContentHtml: String) {
+        title = newTitle
+        contentHtml = newContentHtml
+    }
+
+    fun markDeleted() {
+        status = CommunityPostStatus.DELETED
+    }
 }

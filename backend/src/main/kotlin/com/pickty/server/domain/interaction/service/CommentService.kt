@@ -82,10 +82,18 @@ class CommentService(
                 }
                 val ipHash = Sha256Hex.hash(clientIp)
                 val ipPrefix = IpPrefixFormatter.firstTwoSegments(clientIp)
+                val displayNameRaw =
+                    request.authorName?.trim().takeUnless { it.isNullOrEmpty() }
+                        ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "닉네임을 입력해주세요.")
+                if (displayNameRaw.length < 2 || displayNameRaw.length > 10) {
+                    throw ResponseStatusException(HttpStatus.BAD_REQUEST, "닉네임을 입력해주세요.")
+                }
+                val displayName = displayNameRaw
                 val pwd = request.guestPassword?.trim().takeUnless { it.isNullOrEmpty() }
-                    ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "비회원 댓글에는 비밀번호가 필요합니다.")
-                val displayName =
-                    request.authorName?.trim()?.takeIf { it.isNotEmpty() } ?: "익명"
+                    ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "비밀번호를 입력해주세요.")
+                if (pwd.length < 4) {
+                    throw ResponseStatusException(HttpStatus.BAD_REQUEST, "비밀번호를 입력해주세요.")
+                }
                 Comment(
                     targetType = request.targetType,
                     targetId = request.targetId,
@@ -125,11 +133,19 @@ class CommentService(
     }
 
     @Transactional
-    fun deleteComment(commentId: UUID, userId: Long?, guestPassword: String?) {
+    fun deleteComment(commentId: UUID, userId: Long?, guestPassword: String?, isAdmin: Boolean) {
         val c =
             commentRepository.findById(commentId).orElse(null)
                 ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "댓글을 찾을 수 없습니다.")
         if (c.commentStatus == CommentStatus.DELETED) {
+            return
+        }
+        if (isAdmin) {
+            val targetType = c.targetType
+            val targetId = c.targetId
+            c.markDeleted()
+            decrementCommentCount(targetType, targetId)
+            evictResultCacheIfNeeded(targetType, targetId)
             return
         }
         when {
@@ -140,7 +156,10 @@ class CommentService(
             }
             else -> {
                 val pwd = guestPassword?.trim().takeUnless { it.isNullOrEmpty() }
-                    ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "비밀번호를 입력해 주세요.")
+                    ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "비밀번호를 입력해주세요.")
+                if (pwd.length < 4) {
+                    throw ResponseStatusException(HttpStatus.BAD_REQUEST, "비밀번호를 입력해주세요.")
+                }
                 val hash = c.guestPassword
                     ?: throw ResponseStatusException(HttpStatus.FORBIDDEN, "삭제할 수 없습니다.")
                 if (!passwordEncoder.matches(pwd, hash)) {

@@ -8,6 +8,9 @@ import { toast } from 'sonner';
 
 import { TiptapEditor } from '@/components/community/TiptapEditor';
 import { createCommunityPost } from '@/lib/api/community-api';
+import { isCommunityBodyHtmlEffectivelyEmpty } from '@/lib/community-body-html';
+import { guestNicknamePlainSchema } from '@/lib/schemas/guest-nickname';
+import { guestPasswordPlainSchema } from '@/lib/schemas/guest-password';
 import { apiFetch } from '@/lib/api-fetch';
 import { useAuthStore } from '@/lib/store/auth-store';
 
@@ -90,7 +93,9 @@ export default function BoardWritePage() {
   const [savedDrafts, setSavedDrafts] = useState<SavedDraft[]>([]);
   const [loadModalOpen, setLoadModalOpen] = useState(false);
   const [guestNickname, setGuestNickname] = useState('');
+  const [guestNicknameError, setGuestNicknameError] = useState<string | null>(null);
   const [guestPassword, setGuestPassword] = useState('');
+  const [guestPasswordError, setGuestPasswordError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const isLoggedIn = Boolean(accessToken);
@@ -185,24 +190,38 @@ export default function BoardWritePage() {
   }, [router]);
 
   const handleSubmit = useCallback(async () => {
+    let guestPwdPayload: string | undefined;
+    let guestNickTrimmed: string | undefined;
+
+    if (!isLoggedIn) {
+      const nickRes = guestNicknamePlainSchema.safeParse(guestNickname);
+      if (!nickRes.success) {
+        setGuestNicknameError(nickRes.error.issues[0]?.message ?? null);
+      } else {
+        setGuestNicknameError(null);
+      }
+      const pwdRes = guestPasswordPlainSchema.safeParse(guestPassword);
+      if (!pwdRes.success) {
+        setGuestPasswordError(pwdRes.error.issues[0]?.message ?? null);
+      } else {
+        setGuestPasswordError(null);
+      }
+      if (!nickRes.success || !pwdRes.success) return;
+      guestNickTrimmed = nickRes.data;
+      guestPwdPayload = pwdRes.data;
+    } else {
+      setGuestNicknameError(null);
+      setGuestPasswordError(null);
+    }
+
     const t = title.trim();
     if (!t) {
       toast.error('제목을 입력해 주세요.');
       return;
     }
-    if (!contentHtml.trim()) {
+    if (isCommunityBodyHtmlEffectivelyEmpty(contentHtml)) {
       toast.error('본문을 입력해 주세요.');
       return;
-    }
-    if (!isLoggedIn) {
-      if (!guestNickname.trim()) {
-        toast.error('비회원 닉네임을 입력해 주세요.');
-        return;
-      }
-      if (!guestPassword.trim()) {
-        toast.error('비회원 비밀번호를 입력해 주세요.');
-        return;
-      }
     }
     if (submitting) return;
     setSubmitting(true);
@@ -210,8 +229,8 @@ export default function BoardWritePage() {
       await createCommunityPost({
         title: t,
         contentHtml,
-        guestNickname: isLoggedIn ? undefined : guestNickname.trim(),
-        guestPassword: isLoggedIn ? undefined : guestPassword.trim(),
+        guestNickname: isLoggedIn ? undefined : guestNickTrimmed,
+        guestPassword: guestPwdPayload,
       });
       toast.success('게시글을 등록했습니다.');
       router.push('/community');
@@ -228,7 +247,7 @@ export default function BoardWritePage() {
 
   return (
     <main className="min-h-[calc(100dvh-3.5rem)] w-full bg-[var(--bg-base)] text-[var(--text-primary)]">
-      <div className="flex w-full flex-col gap-6 px-1 py-8 sm:px-2">
+      <div className="flex w-full min-w-0 flex-col gap-5 py-8">
         <nav className="text-sm text-[var(--text-secondary)]">
           <Link href="/community" className="hover:text-[var(--text-primary)]">
             커뮤니티
@@ -237,54 +256,82 @@ export default function BoardWritePage() {
           <span className="text-[var(--text-primary)]">글쓰기</span>
         </nav>
 
-        <label className="block">
-          <span className="sr-only">제목</span>
+        {isLoggedIn ? (
+          <p className="flex flex-wrap items-baseline gap-x-2 border-b border-[var(--border-subtle)] pb-2.5 text-xs text-[var(--text-secondary)]">
+            <span className="shrink-0">작성자</span>
+            <span className="text-[var(--border-subtle)]" aria-hidden>
+              ·
+            </span>
+            <span className="font-medium text-[var(--text-primary)]">{me?.nickname ?? '회원'}</span>
+          </p>
+        ) : (
+          <div className="border-b border-[var(--border-subtle)] pb-2.5">
+            <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-[var(--text-secondary)]">비회원</p>
+            <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
+              <label className="flex flex-col gap-0.5">
+                <span className="text-[11px] text-[var(--text-secondary)]">
+                  닉네임<span className="text-rose-500">*</span>
+                </span>
+                <input
+                  type="text"
+                  value={guestNickname}
+                  onChange={(e) => {
+                    setGuestNickname(e.target.value);
+                    setGuestNicknameError(null);
+                  }}
+                  maxLength={10}
+                  placeholder="2~10자"
+                  aria-invalid={guestNicknameError ? true : undefined}
+                  className="h-8 w-[9.5rem] rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 text-[13px] outline-none transition focus:border-fuchsia-400 focus:ring-1 focus:ring-fuchsia-400/30"
+                />
+                <p
+                  className={`min-h-[1.25rem] text-[11px] leading-tight ${guestNicknameError ? 'text-rose-600 dark:text-rose-400' : 'text-transparent'}`}
+                  aria-live="polite"
+                >
+                  {guestNicknameError ?? '\u00a0'}
+                </p>
+              </label>
+              <label className="flex flex-col gap-0.5">
+                <span className="text-[11px] text-[var(--text-secondary)]">
+                  비밀번호<span className="text-rose-500">*</span>
+                </span>
+                <input
+                  type="password"
+                  value={guestPassword}
+                  onChange={(e) => {
+                    setGuestPassword(e.target.value);
+                    setGuestPasswordError(null);
+                  }}
+                  maxLength={128}
+                  aria-invalid={guestPasswordError ? true : undefined}
+                  placeholder="4자 이상"
+                  className="h-8 w-[9.5rem] rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 text-[13px] outline-none transition focus:border-fuchsia-400 focus:ring-1 focus:ring-fuchsia-400/30"
+                />
+                <p
+                  className={`min-h-[1.25rem] text-[11px] leading-tight ${guestPasswordError ? 'text-rose-600 dark:text-rose-400' : 'text-transparent'}`}
+                  aria-live="polite"
+                >
+                  {guestPasswordError ?? '\u00a0'}
+                </p>
+              </label>
+            </div>
+          </div>
+        )}
+
+        <div>
+          <label htmlFor="community-write-title" className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">
+            제목
+          </label>
           <input
+            id="community-write-title"
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="제목을 입력하세요"
             maxLength={200}
-            className="w-full border-b-2 border-[var(--border-subtle)] bg-transparent px-0 py-3 text-3xl font-bold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:border-fuchsia-500 focus:outline-none dark:focus:border-fuchsia-400"
+            className="h-12 w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 text-base font-semibold text-[var(--text-primary)] shadow-sm outline-none transition placeholder:text-[var(--text-secondary)] placeholder:font-normal focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-400/25 sm:h-11 sm:text-lg"
           />
-        </label>
-
-        <section className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-3">
-          {isLoggedIn ? (
-            <p className="text-sm text-[var(--text-secondary)]">
-              작성자: <span className="font-semibold text-[var(--text-primary)]">{me?.nickname ?? '회원'}</span>
-            </p>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">
-                  닉네임 <span className="text-rose-500">*</span>
-                </span>
-                <input
-                  type="text"
-                  value={guestNickname}
-                  onChange={(e) => setGuestNickname(e.target.value)}
-                  maxLength={64}
-                  className="h-10 w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] px-3 text-sm outline-none focus:border-fuchsia-400"
-                  placeholder="닉네임"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">
-                  비밀번호 <span className="text-rose-500">*</span>
-                </span>
-                <input
-                  type="password"
-                  value={guestPassword}
-                  onChange={(e) => setGuestPassword(e.target.value)}
-                  maxLength={128}
-                  className="h-10 w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] px-3 text-sm outline-none focus:border-fuchsia-400"
-                  placeholder="수정/삭제 시 사용"
-                />
-              </label>
-            </div>
-          )}
-        </section>
+        </div>
 
         {hydrated ? (
           <TiptapEditor
@@ -292,15 +339,15 @@ export default function BoardWritePage() {
             content={content}
             onChange={handleEditorChange}
             placeholder="내용을 작성해 보세요. 이미지는 복붙·드래그로도 넣을 수 있어요."
-            className="min-h-[540px]"
+            className="w-full min-w-0"
           />
         ) : (
-          <div className="flex min-h-[540px] items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-secondary)]">
+          <div className="flex min-h-[540px] w-full min-w-0 items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm text-[var(--text-secondary)]">
             에디터 불러오는 중…
           </div>
         )}
 
-        <div className="mt-2 flex justify-end gap-3">
+        <div className="flex flex-wrap justify-end gap-2 sm:gap-3">
           <button
             type="button"
             onClick={handleSaveDraft}

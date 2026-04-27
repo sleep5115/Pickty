@@ -457,6 +457,11 @@ function EditorStatusBar({ editor }: { editor: Editor | null }) {
 export type TiptapEditorProps = {
   content?: JSONContent | null;
   /**
+   * 최초 마운트 시 HTML로 에디터 시드(수정 화면). 비어 있지 않으면 `content`보다 우선.
+   * 비동기 로드 후 넘길 때는 부모에서 `key={post.id}` 등으로 마운트 시점을 맞출 것.
+   */
+  initialHtml?: string | null;
+  /**
    * 본문 JSON 변경 시 호출. `safeHtml`은 `getHTML()` 후 `sanitizeBoardHtml` 적용 결과(읽기 전용 렌더·백업용).
    */
   onChange?: (json: JSONContent, safeHtml?: string) => void;
@@ -468,6 +473,7 @@ export type TiptapEditorProps = {
 
 export function TiptapEditor({
   content,
+  initialHtml,
   onChange,
   accessToken,
   placeholder = '내용을 입력하세요…',
@@ -532,12 +538,13 @@ export function TiptapEditor({
     await insertImagesFromFiles(ed, [file], accessTokenRef.current);
   }, []);
 
+  const seededFromHtml = (initialHtml?.trim() ?? '').length > 0;
   const editor = useEditor(
     {
       immediatelyRender: false,
       editable,
       extensions,
-      content: content ?? undefined,
+      content: seededFromHtml ? (initialHtml as string) : (content ?? undefined),
       editorProps,
       onUpdate: ({ editor: ed }) => {
         const json = ed.getJSON();
@@ -558,13 +565,14 @@ export function TiptapEditor({
   }, [editor, editable]);
 
   useEffect(() => {
+    if (seededFromHtml) return;
     if (!editor || editor.isDestroyed || content === undefined || content === null) return;
     const cur = JSON.stringify(editor.getJSON());
     const next = JSON.stringify(content);
     if (cur !== next) {
       editor.commands.setContent(content, { emitUpdate: false });
     }
-  }, [editor, content]);
+  }, [editor, content, seededFromHtml]);
 
   const openFilePicker = useCallback(() => {
     fileInputRef.current?.click();
@@ -572,7 +580,7 @@ export function TiptapEditor({
 
   return (
     <div
-      className={`flex max-h-[min(70vh,36rem)] min-h-0 flex-col overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-sm ${className}`}
+      className={`flex min-h-[540px] min-w-0 flex-col overflow-x-auto rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-sm ${className}`}
     >
       <TiptapToolbar
         editor={editor}
@@ -581,8 +589,8 @@ export function TiptapEditor({
         onPickImage={openFilePicker}
         onImageFileChange={handleImageSelected}
       />
-      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
-        <EditorContent editor={editor} />
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <EditorContent editor={editor} className="min-h-0 flex-1" />
       </div>
       <EditorStatusBar editor={editor} />
     </div>
