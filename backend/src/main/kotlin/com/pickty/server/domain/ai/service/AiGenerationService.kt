@@ -109,17 +109,25 @@ class AiGenerationService(
         try {
             return executeGeminiPost(uri, jsonPayload)
         } catch (e: RestClientResponseException) {
+            val responseSummary = summarizeGeminiError(e)
             if (isGeminiQuotaExhaustedResponse(e)) {
-                log.warn("Gemini quota exhausted HTTP {} — fast-fail, no retry", e.statusCode.value())
+                log.warn(
+                    "Gemini daily quota exhausted HTTP {} — fast-fail, no retry: {}",
+                    e.statusCode.value(),
+                    responseSummary,
+                )
                 throw AiQuotaExhaustedException()
             }
-            log.warn("Gemini HTTP {} — fast-fail, no retry: {}", e.statusCode.value(), e.message)
+            log.warn("Gemini HTTP {} — fast-fail, no retry: {}", e.statusCode.value(), responseSummary)
             throw e
         }
     }
 
     /**
-     * Google 측 쿼터 소진 시 응답/메시지에 포함되는 토큰.
+     * Google 측 **일일 생성 할당량** 소진 시 응답/메시지에 포함되는 토큰.
+     *
+     * 429나 RESOURCE_EXHAUSTED만으로는 분당 제한·일시 과부하와 구분할 수 없으므로,
+     * 클라이언트에 "오늘 20회 소진" 안내를 띄울 때는 daily quota 토큰으로만 판정한다.
      * 실패 요청도 쿼터에 잡힐 수 있으므로 재시도 없이 즉시 실패 처리한다.
      */
     private fun isGeminiQuotaExhaustedResponse(e: RestClientResponseException): Boolean {
@@ -127,10 +135,17 @@ class AiGenerationService(
         e.message?.let { buf.append('\n').append(it) }
         buf.append('\n').append(e.responseBodyAsString ?: "")
         val blob = buf.toString()
-        return e.statusCode.value() == 429 ||
-            blob.contains("RESOURCE_EXHAUSTED") ||
-            blob.contains("GenerateRequestsPerDay") ||
+        return blob.contains("GenerateRequestsPerDay") ||
             blob.contains("GenerateRequestsPerDayPerProjectPerModel-FreeTier")
+    }
+
+    private fun summarizeGeminiError(e: RestClientResponseException): String {
+        val body = e.responseBodyAsString?.trim().orEmpty()
+        val raw = if (body.isNotEmpty()) body else e.message.orEmpty()
+        return raw
+            .replace(Regex("\\s+"), " ")
+            .take(800)
+            .ifBlank { "(empty response body)" }
     }
 
     private fun executeGeminiPost(uri: URI, jsonPayload: String): GeminiItemsPayload {
