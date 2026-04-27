@@ -73,7 +73,7 @@ class InteractionController(
     @DeleteMapping("/comments/{id}")
     fun deleteComment(
         @PathVariable id: UUID,
-        @RequestBody(required = false) body: DeleteCommentRequest?,
+        @Valid @RequestBody(required = false) body: DeleteCommentRequest?,
         authentication: Authentication?,
     ): ResponseEntity<Void> {
         val userId = resolveUserId(authentication)

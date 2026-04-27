@@ -572,7 +572,7 @@ export function TiptapEditor({
 
   return (
     <div
-      className={`flex max-h-[min(70vh,36rem)] min-h-0 flex-col overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-sm ${className}`}
+      className={`flex min-h-[540px] min-w-0 flex-col overflow-x-auto rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-sm ${className}`}
     >
       <TiptapToolbar
         editor={editor}
@@ -581,8 +581,8 @@ export function TiptapEditor({
         onPickImage={openFilePicker}
         onImageFileChange={handleImageSelected}
       />
-      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
-        <EditorContent editor={editor} />
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <EditorContent editor={editor} className="min-h-0 flex-1" />
       </div>
       <EditorStatusBar editor={editor} />
     </div>

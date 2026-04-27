@@ -8,8 +8,8 @@ import java.util.UUID
 data class CreateBoardPostRequest(
     @field:NotBlank @field:Size(max = 200) val title: String,
     @field:NotBlank @field:Size(max = 200_000) val contentHtml: String,
-    @field:Size(max = 64) val guestNickname: String? = null,
-    @field:Size(max = 128) val guestPassword: String? = null,
+    @field:Size(min = 2, max = 10, message = "닉네임을 입력해주세요.") val guestNickname: String? = null,
+    @field:Size(min = 4, max = 128, message = "비밀번호를 입력해주세요.") val guestPassword: String? = null,
 )
 
 data class CreateBoardPostResponse(

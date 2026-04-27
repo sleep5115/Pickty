@@ -12,6 +12,8 @@ import {
 } from '@/lib/api/interaction-api';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { CommentInput } from '@/components/interaction/comment-input';
+import { guestNicknamePlainSchema } from '@/lib/schemas/guest-nickname';
+import { guestPasswordPlainSchema } from '@/lib/schemas/guest-password';
 
 const PAGE_SIZE = 30;
 
@@ -63,9 +65,11 @@ type CommentItemProps = {
   replyBody: string;
   setReplyBody: (v: string) => void;
   replyGuestNick: string;
-  setReplyGuestNick: (v: string) => void;
+  onReplyGuestNickChange: (v: string) => void;
   replyGuestPwd: string;
-  setReplyGuestPwd: (v: string) => void;
+  onReplyGuestPwdChange: (v: string) => void;
+  replyGuestNickError: string | null;
+  replyGuestPwdError: string | null;
   submittingReply: boolean;
   onSubmitReply: () => void;
   onCancelReply: () => void;
@@ -84,9 +88,11 @@ function CommentItem({
   replyBody,
   setReplyBody,
   replyGuestNick,
-  setReplyGuestNick,
+  onReplyGuestNickChange,
   replyGuestPwd,
-  setReplyGuestPwd,
+  onReplyGuestPwdChange,
+  replyGuestNickError,
+  replyGuestPwdError,
   submittingReply,
   onSubmitReply,
   onCancelReply,
@@ -144,8 +150,10 @@ function CommentItem({
             isLoggedIn={isLoggedIn}
             guestNick={replyGuestNick}
             guestPwd={replyGuestPwd}
-            onGuestNickChange={setReplyGuestNick}
-            onGuestPwdChange={setReplyGuestPwd}
+            onGuestNickChange={onReplyGuestNickChange}
+            onGuestPwdChange={onReplyGuestPwdChange}
+            guestNickError={replyGuestNickError}
+            guestPwdError={replyGuestPwdError}
             submitting={submittingReply}
             onSubmit={onSubmitReply}
             onCancelReply={onCancelReply}
@@ -171,9 +179,11 @@ function CommentItem({
               replyBody={replyBody}
               setReplyBody={setReplyBody}
               replyGuestNick={replyGuestNick}
-              setReplyGuestNick={setReplyGuestNick}
+              onReplyGuestNickChange={onReplyGuestNickChange}
               replyGuestPwd={replyGuestPwd}
-              setReplyGuestPwd={setReplyGuestPwd}
+              onReplyGuestPwdChange={onReplyGuestPwdChange}
+              replyGuestNickError={replyGuestNickError}
+              replyGuestPwdError={replyGuestPwdError}
               submittingReply={submittingReply}
               onSubmitReply={onSubmitReply}
               onCancelReply={onCancelReply}
@@ -206,18 +216,23 @@ export function CommentSection({
   /** 최상단 — 루트 댓글 전용 */
   const [mainBody, setMainBody] = useState('');
   const [mainGuestNick, setMainGuestNick] = useState('');
+  const [mainGuestNickError, setMainGuestNickError] = useState<string | null>(null);
   const [mainGuestPwd, setMainGuestPwd] = useState('');
+  const [mainGuestPwdError, setMainGuestPwdError] = useState<string | null>(null);
   const [submittingMain, setSubmittingMain] = useState(false);
 
   /** 인라인 답글 전용(메인과 완전 분리) */
   const [replyingToId, setReplyingToId] = useState<string | null>(null);
   const [replyBody, setReplyBody] = useState('');
   const [replyGuestNick, setReplyGuestNick] = useState('');
+  const [replyGuestNickError, setReplyGuestNickError] = useState<string | null>(null);
   const [replyGuestPwd, setReplyGuestPwd] = useState('');
+  const [replyGuestPwdError, setReplyGuestPwdError] = useState<string | null>(null);
   const [submittingReply, setSubmittingReply] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState<Comment | null>(null);
   const [deletePwd, setDeletePwd] = useState('');
+  const [deletePwdError, setDeletePwdError] = useState<string | null>(null);
 
   const loadPage = useCallback(
     async (pageIndex: number, replace: boolean) => {
@@ -270,28 +285,65 @@ export function CommentSection({
     setReplyBody('');
     setReplyGuestNick('');
     setReplyGuestPwd('');
+    setReplyGuestNickError(null);
+    setReplyGuestPwdError(null);
+  }, []);
+
+  const onReplyGuestPwdChange = useCallback((v: string) => {
+    setReplyGuestPwd(v);
+    setReplyGuestPwdError(null);
+  }, []);
+
+  const onReplyGuestNickChange = useCallback((v: string) => {
+    setReplyGuestNick(v);
+    setReplyGuestNickError(null);
+  }, []);
+
+  const onMainGuestNickChange = useCallback((v: string) => {
+    setMainGuestNick(v);
+    setMainGuestNickError(null);
   }, []);
 
   const submitMain = useCallback(async () => {
-    const text = mainBody.trim();
-    if (!targetId || !text || submittingMain) return;
+    if (!targetId || submittingMain) return;
+    let guestPasswordParam: string | undefined;
+    let authorNameParam: string | undefined;
     if (!isLoggedIn) {
-      const pwd = mainGuestPwd.trim();
-      if (!pwd) {
-        toast.error('비회원 댓글에는 비밀번호가 필요합니다.');
-        return;
+      const nickRes = guestNicknamePlainSchema.safeParse(mainGuestNick);
+      if (!nickRes.success) {
+        setMainGuestNickError(nickRes.error.issues[0]?.message ?? null);
+      } else {
+        setMainGuestNickError(null);
       }
+      const pwdRes = guestPasswordPlainSchema.safeParse(mainGuestPwd);
+      if (!pwdRes.success) {
+        setMainGuestPwdError(pwdRes.error.issues[0]?.message ?? null);
+      } else {
+        setMainGuestPwdError(null);
+      }
+      if (!nickRes.success || !pwdRes.success) return;
+      guestPasswordParam = pwdRes.data;
+      authorNameParam = nickRes.data;
+    } else {
+      setMainGuestNickError(null);
+      setMainGuestPwdError(null);
+    }
+    const text = mainBody.trim();
+    if (!text) {
+      toast.error('댓글 내용을 입력해 주세요.');
+      return;
     }
     setSubmittingMain(true);
     try {
       await createComment(targetType, targetId, text, {
         parentCommentId: null,
-        guestPassword: isLoggedIn ? undefined : mainGuestPwd.trim(),
-        authorName: isLoggedIn ? undefined : mainGuestNick.trim() || undefined,
+        guestPassword: guestPasswordParam,
+        authorName: isLoggedIn ? undefined : authorNameParam,
       });
       setMainBody('');
       setMainGuestPwd('');
       setMainGuestNick('');
+      setMainGuestNickError(null);
       toast.success('댓글을 등록했어요.');
       onCommentPosted?.();
       await loadPage(0, true);
@@ -314,25 +366,45 @@ export function CommentSection({
 
   const submitReply = useCallback(async () => {
     const parentId = replyingToId;
-    const text = replyBody.trim();
-    if (!targetId || !parentId || !text || submittingReply) return;
+    if (!targetId || !parentId || submittingReply) return;
+    let guestPasswordParam: string | undefined;
+    let authorNameParam: string | undefined;
     if (!isLoggedIn) {
-      const pwd = replyGuestPwd.trim();
-      if (!pwd) {
-        toast.error('비회원 댓글에는 비밀번호가 필요합니다.');
-        return;
+      const nickRes = guestNicknamePlainSchema.safeParse(replyGuestNick);
+      if (!nickRes.success) {
+        setReplyGuestNickError(nickRes.error.issues[0]?.message ?? null);
+      } else {
+        setReplyGuestNickError(null);
       }
+      const pwdRes = guestPasswordPlainSchema.safeParse(replyGuestPwd);
+      if (!pwdRes.success) {
+        setReplyGuestPwdError(pwdRes.error.issues[0]?.message ?? null);
+      } else {
+        setReplyGuestPwdError(null);
+      }
+      if (!nickRes.success || !pwdRes.success) return;
+      guestPasswordParam = pwdRes.data;
+      authorNameParam = nickRes.data;
+    } else {
+      setReplyGuestNickError(null);
+      setReplyGuestPwdError(null);
+    }
+    const text = replyBody.trim();
+    if (!text) {
+      toast.error('댓글 내용을 입력해 주세요.');
+      return;
     }
     setSubmittingReply(true);
     try {
       await createComment(targetType, targetId, text, {
         parentCommentId: parentId,
-        guestPassword: isLoggedIn ? undefined : replyGuestPwd.trim(),
-        authorName: isLoggedIn ? undefined : replyGuestNick.trim() || undefined,
+        guestPassword: guestPasswordParam,
+        authorName: isLoggedIn ? undefined : authorNameParam,
       });
       setReplyBody('');
       setReplyGuestPwd('');
       setReplyGuestNick('');
+      setReplyGuestNickError(null);
       setReplyingToId(null);
       toast.success('댓글을 등록했어요.');
       onCommentPosted?.();
@@ -360,22 +432,31 @@ export function CommentSection({
     setReplyBody('');
     setReplyGuestNick('');
     setReplyGuestPwd('');
+    setReplyGuestNickError(null);
+    setReplyGuestPwdError(null);
   }, []);
 
   const openDelete = useCallback((c: Comment) => {
     setDeleteTarget(c);
     setDeletePwd('');
+    setDeletePwdError(null);
   }, []);
 
   const confirmDelete = useCallback(async () => {
     if (!deleteTarget) return;
     const isGuest = deleteTarget.authorUserId == null;
-    if (isGuest && !deletePwd.trim()) {
-      toast.error('비밀번호를 입력해 주세요.');
-      return;
+    let deleteGuestPwd: string | undefined;
+    if (isGuest) {
+      const pv = guestPasswordPlainSchema.safeParse(deletePwd);
+      if (!pv.success) {
+        setDeletePwdError(pv.error.issues[0]?.message ?? null);
+        return;
+      }
+      deleteGuestPwd = pv.data;
     }
+    setDeletePwdError(null);
     try {
-      await deleteComment(deleteTarget.id, isGuest ? deletePwd.trim() : undefined);
+      await deleteComment(deleteTarget.id, deleteGuestPwd);
       toast.success('댓글을 삭제했어요.');
       setDeleteTarget(null);
       onCommentPosted?.();
@@ -424,8 +505,13 @@ export function CommentSection({
             isLoggedIn={isLoggedIn}
             guestNick={mainGuestNick}
             guestPwd={mainGuestPwd}
-            onGuestNickChange={setMainGuestNick}
-            onGuestPwdChange={setMainGuestPwd}
+            onGuestNickChange={onMainGuestNickChange}
+            onGuestPwdChange={(v) => {
+              setMainGuestPwd(v);
+              setMainGuestPwdError(null);
+            }}
+            guestNickError={mainGuestNickError}
+            guestPwdError={mainGuestPwdError}
             submitting={submittingMain}
             onSubmit={submitMain}
             submitLabel="등록"
@@ -456,9 +542,11 @@ export function CommentSection({
                   replyBody={replyBody}
                   setReplyBody={setReplyBody}
                   replyGuestNick={replyGuestNick}
-                  setReplyGuestNick={setReplyGuestNick}
+                  onReplyGuestNickChange={onReplyGuestNickChange}
                   replyGuestPwd={replyGuestPwd}
-                  setReplyGuestPwd={setReplyGuestPwd}
+                  onReplyGuestPwdChange={onReplyGuestPwdChange}
+                  replyGuestNickError={replyGuestNickError}
+                  replyGuestPwdError={replyGuestPwdError}
                   submittingReply={submittingReply}
                   onSubmitReply={submitReply}
                   onCancelReply={cancelReply}
@@ -493,11 +581,21 @@ export function CommentSection({
             <input
               type="password"
               value={deletePwd}
-              onChange={(e) => setDeletePwd(e.target.value)}
+              onChange={(e) => {
+                setDeletePwd(e.target.value);
+                setDeletePwdError(null);
+              }}
+              aria-invalid={deletePwdError ? true : undefined}
               className="mt-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
               placeholder="비밀번호"
               autoFocus
             />
+            <p
+              className={`mt-1 min-h-[1.125rem] text-xs leading-normal ${deletePwdError ? 'text-red-600 dark:text-red-400' : 'text-transparent'}`}
+              aria-live="polite"
+            >
+              {deletePwdError ?? '\u00a0'}
+            </p>
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"

@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react';
 import { CommentSection } from '@/components/interaction/comment-section';
 import { getCommunityPost, type CommunityPostDetail } from '@/lib/api/community-api';
 import { apiFetch } from '@/lib/api-fetch';
-import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
 import { useAuthStore } from '@/lib/store/auth-store';
 
 export default function BoardPostPage({
@@ -72,55 +71,50 @@ export default function BoardPostPage({
         : post.authorNickname;
 
   return (
-    <main className="min-h-[calc(100dvh-3.5rem)] bg-[var(--bg-base)] px-4 py-8 text-[var(--text-primary)]">
-      <div className="w-full">
+    <main className="min-h-[calc(100dvh-3.5rem)] bg-[var(--bg-base)] px-3 py-8 text-[var(--text-primary)] sm:px-4">
+      <div className="w-full min-w-0">
         <Link
           href="/community"
-          className="inline-flex h-10 items-center justify-center rounded-xl border border-[var(--border-subtle)] px-4 text-sm font-medium hover:bg-[var(--bg-surface)]"
+          className="inline-flex text-sm font-medium text-[var(--text-secondary)] underline-offset-4 hover:text-[var(--text-primary)] hover:underline"
         >
-          목록으로
+          ← 목록으로
         </Link>
 
         {loading ? (
-          <div className="mt-6 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-8 text-center text-sm text-[var(--text-secondary)]">
-            불러오는 중…
-          </div>
+          <div className="mt-10 py-16 text-center text-sm text-[var(--text-secondary)]">불러오는 중…</div>
         ) : error || !post ? (
-          <div className="mt-6 rounded-xl border border-rose-200 bg-rose-50/70 p-8 text-center text-sm text-rose-700 dark:border-rose-800/40 dark:bg-rose-950/20 dark:text-rose-300">
+          <div className="mt-10 rounded-lg border border-rose-200/80 bg-rose-50/50 px-4 py-8 text-center text-sm text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/25 dark:text-rose-300">
             {error ?? '게시글을 찾을 수 없습니다.'}
-            <p className="mt-2 text-xs opacity-70">id: {id}</p>
+            <p className="mt-2 text-xs text-rose-600/80 dark:text-rose-400/80">id: {id}</p>
           </div>
         ) : (
-          <article className="mt-6 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5">
+          <article className="mt-8">
             <header>
-              <h1 className="text-2xl font-bold">{post.title}</h1>
-              <div className="mt-4 flex items-center gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-base)] p-3">
-                <div className="h-12 w-12 overflow-hidden rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
-                  {post.authorAvatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element -- 사용자 프로필 이미지 URL
-                    <img src={picktyImageDisplaySrc(post.authorAvatarUrl)} alt={authorLabel} className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-[var(--text-secondary)]">
-                      {post.authorNickname.slice(0, 1)}
-                    </div>
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold">{authorLabel}</p>
-                  <p className="text-xs text-[var(--text-secondary)]">
-                    {post.createdAt} · 조회 {post.viewCount.toLocaleString()}
-                  </p>
-                </div>
+              <h1 className="text-[1.65rem] font-bold leading-snug tracking-tight text-[var(--text-primary)] sm:text-4xl sm:leading-tight">
+                {post.title}
+              </h1>
+              <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-[var(--border-subtle)] pb-4 text-sm text-[var(--text-secondary)]">
+                <span className="font-medium text-[var(--text-primary)]">{authorLabel}</span>
+                <span className="text-[var(--border-subtle)]" aria-hidden>
+                  ·
+                </span>
+                <time dateTime={post.createdAt} className="tabular-nums">
+                  {post.createdAt}
+                </time>
+                <span className="text-[var(--border-subtle)]" aria-hidden>
+                  ·
+                </span>
+                <span className="tabular-nums">조회 {post.viewCount.toLocaleString()}</span>
               </div>
             </header>
 
             <section
-              className="prose prose-sm mt-6 max-w-none dark:prose-invert [&_img]:my-4 [&_img]:h-auto [&_img]:w-auto [&_img]:max-w-[800px] [&_img]:rounded-lg [&_img]:border [&_img]:border-[var(--border-subtle)] [&_iframe[src*='youtube']]:aspect-video [&_iframe[src*='youtube']]:h-auto [&_iframe[src*='youtube']]:w-full [&_iframe[src*='youtube']]:max-w-4xl"
+              className="prose prose-sm mt-10 max-w-none text-[var(--text-primary)] dark:prose-invert prose-headings:text-[var(--text-primary)] prose-p:text-[var(--text-primary)] [&_img]:my-5 [&_img]:h-auto [&_img]:w-auto [&_img]:max-w-full [&_img]:rounded-lg [&_iframe[src*='youtube']]:aspect-video [&_iframe[src*='youtube']]:h-auto [&_iframe[src*='youtube']]:w-full [&_iframe[src*='youtube']]:max-w-4xl"
               dangerouslySetInnerHTML={{ __html: post.contentHtml }}
             />
 
             <CommentSection
-              className="mt-8"
+              className="mt-12 border-t border-[var(--border-subtle)] pt-8"
               targetType="COMMUNITY_POST"
               targetId={post.id}
               currentUserId={meId}

@@ -48,7 +48,7 @@ class CommunityPostService(
         if (title.isEmpty()) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "제목을 입력해 주세요.")
         }
-        if (sanitized.isBlank()) {
+        if (!communityHtmlSanitizer.hasMeaningfulTextOrEmbeddedMedia(sanitized)) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "본문을 입력해 주세요.")
         }
 
@@ -64,9 +64,17 @@ class CommunityPostService(
                 if (clientIp == "unknown") {
                     throw ResponseStatusException(HttpStatus.BAD_REQUEST, "클라이언트 IP 를 확인할 수 없습니다.")
                 }
+                val nick =
+                    request.guestNickname?.trim().takeUnless { it.isNullOrEmpty() }
+                        ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "닉네임을 입력해주세요.")
+                if (nick.length < 2 || nick.length > 10) {
+                    throw ResponseStatusException(HttpStatus.BAD_REQUEST, "닉네임을 입력해주세요.")
+                }
                 val guestPassword = request.guestPassword?.trim().takeUnless { it.isNullOrEmpty() }
-                    ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "비회원 글에는 비밀번호가 필요합니다.")
-                val nick = request.guestNickname?.trim().takeUnless { it.isNullOrEmpty() } ?: "익명"
+                    ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "비밀번호를 입력해주세요.")
+                if (guestPassword.length < 4) {
+                    throw ResponseStatusException(HttpStatus.BAD_REQUEST, "비밀번호를 입력해주세요.")
+                }
                 CommunityPost(
                     title = title,
                     contentHtml = sanitized,

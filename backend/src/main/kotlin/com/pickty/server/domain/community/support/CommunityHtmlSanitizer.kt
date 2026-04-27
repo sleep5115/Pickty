@@ -23,4 +23,19 @@ class CommunityHtmlSanitizer {
         out = out.replace(Regex("(?i)(href|src)\\s*=\\s*'\\s*(javascript:|data:text/html)[^']*'"), "$1='#'")
         return out
     }
+
+    /**
+     * `<p></p>`·공백만 있는 HTML 등은 의미 없는 본문으로 본다.
+     * 이미지·iframe·video만 있는 경우는 의미 있는 본문으로 본다.
+     */
+    fun hasMeaningfulTextOrEmbeddedMedia(html: String): Boolean {
+        val textOnly =
+            html
+                .replace(Regex("<[^>]+>"), " ")
+                .replace(Regex("(?i)&nbsp;|&#160;"), " ")
+                .replace(Regex("\\s+"), " ")
+                .trim()
+        if (textOnly.isNotEmpty()) return true
+        return Regex("(?i)<(img|iframe|video)\\b").containsMatchIn(html)
+    }
 }
