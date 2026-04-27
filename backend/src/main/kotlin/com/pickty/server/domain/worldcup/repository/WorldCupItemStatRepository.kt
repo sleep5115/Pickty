@@ -1,8 +1,6 @@
 package com.pickty.server.domain.worldcup.repository
 
 import com.pickty.server.domain.worldcup.entity.WorldCupItemStat
-import org.springframework.data.domain.Page
-import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
@@ -15,29 +13,6 @@ interface WorldCupItemStatRepository : JpaRepository<WorldCupItemStat, Long> {
 
     @Query("SELECT COALESCE(SUM(s.finalWinCount), 0) FROM WorldCupItemStat s WHERE s.template.id = :templateId")
     fun sumFinalWinCountByTemplateId(@Param("templateId") templateId: UUID): Long
-
-    @Query(
-        value =
-            """
-            SELECT s.* FROM worldcup_item_stats s
-            WHERE s.template_id = :templateId
-            ORDER BY s.final_win_count DESC,
-                CASE WHEN s.match_count <= 0 THEN 0
-                     ELSE (ROUND((s.win_count::numeric / s.match_count::numeric) * 100))::int
-                END DESC,
-                s.item_id ASC
-            """,
-        countQuery =
-            """
-            SELECT count(*) FROM worldcup_item_stats s
-            WHERE s.template_id = :templateId
-            """,
-        nativeQuery = true,
-    )
-    fun findRankingPage(
-        @Param("templateId") templateId: UUID,
-        pageable: Pageable,
-    ): Page<WorldCupItemStat>
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(

@@ -116,37 +116,11 @@ function buildItemMeta(itemsPayload: unknown): Map<string, { name: string; image
   return m;
 }
 
-/** DB 집계 행이 없을 때 — 템플릿 후보만큼 0% 행을 채워 표에 이름·썸네일이 보이게 함 */
 function isAbortLike(e: unknown): boolean {
   return (
     (typeof DOMException !== 'undefined' && e instanceof DOMException && e.name === 'AbortError') ||
     (e !== null && typeof e === 'object' && (e as { name?: string }).name === 'AbortError')
   );
-}
-
-function syntheticRankingFromItemsPayload(itemsPayload: unknown): WorldCupRankingRowDto[] {
-  const list = parseWorldCupItemsPayload(
-    itemsPayload as Record<string, unknown> | unknown[] | null | undefined,
-  );
-  return list.map((it, idx) => ({
-    rank: idx + 1,
-    itemId: it.id,
-    matchCount: 0,
-    winCount: 0,
-    rerolledCount: 0,
-    droppedCount: 0,
-    keptBothCount: 0,
-    finalWinCount: 0,
-    reached16Count: 0,
-    reached8Count: 0,
-    reached4Count: 0,
-    reachedFinalCount: 0,
-    winRatePct: 0,
-    championshipRatePct: 0,
-    skipRatePct: 0,
-    dropRatePct: 0,
-    nailBiterRatePct: 0,
-  }));
 }
 
 export function WorldCupRankingClient({ templateId, onBackToResult, backNavLabel }: Props) {
@@ -160,8 +134,6 @@ export function WorldCupRankingClient({ templateId, onBackToResult, backNavLabel
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const [rows, setRows] = useState<WorldCupRankingRowDto[]>([]);
   const [itemMeta, setItemMeta] = useState<Map<string, { name: string; imageUrl?: string }>>(new Map());
-  /** 서버 `worldcup_item_stats` 에서 온 행이 1건 이상일 때만 true (0이면 합성 행만 표시 중) */
-  const [hasServerRanking, setHasServerRanking] = useState(false);
   /** `championshipRatePct` 분모 — 템플릿 전체 완료 플레이 수 (백엔드 `totalCompletedPlays`) */
   const [totalCompletedPlays, setTotalCompletedPlays] = useState(0);
   const [expandedItemId, setExpandedItemId] = useState<number | null>(null);
@@ -219,22 +191,12 @@ export function WorldCupRankingClient({ templateId, onBackToResult, backNavLabel
       }
       if (stale()) return;
 
-      const serverHasRows = rankData.totalElements > 0;
-      setHasServerRanking(serverHasRows);
-      if (serverHasRows) {
-        setRows(rankData.content);
-        setTotalCompletedPlays(rankData.totalCompletedPlays);
-        const more = !rankData.last;
-        setHasMore(more);
-        hasMoreRef.current = more;
-        nextPageRef.current = rankData.number + 1;
-      } else {
-        setRows(syntheticRankingFromItemsPayload(itemsPayload));
-        setTotalCompletedPlays(0);
-        setHasMore(false);
-        hasMoreRef.current = false;
-        nextPageRef.current = 0;
-      }
+      setRows(rankData.content);
+      setTotalCompletedPlays(rankData.totalCompletedPlays);
+      const more = !rankData.last;
+      setHasMore(more);
+      hasMoreRef.current = more;
+      nextPageRef.current = rankData.number + 1;
       setPhase('ready');
     } catch (e) {
       if (stale() || isAbortLike(e)) return;
@@ -248,7 +210,7 @@ export function WorldCupRankingClient({ templateId, onBackToResult, backNavLabel
   }, [templateId]);
 
   const fetchNextPage = useCallback(async () => {
-    if (!aliveRef.current || loadingRef.current || !hasServerRanking || !hasMoreRef.current) return;
+    if (!aliveRef.current || loadingRef.current || !hasMoreRef.current) return;
     loadingRef.current = true;
     setLoadingMore(true);
     setLoadMoreError(null);
@@ -272,7 +234,7 @@ export function WorldCupRankingClient({ templateId, onBackToResult, backNavLabel
       loadingRef.current = false;
       setLoadingMore(false);
     }
-  }, [templateId, hasServerRanking]);
+  }, [templateId]);
 
   useEffect(() => {
     aliveRef.current = true;
@@ -309,7 +271,7 @@ export function WorldCupRankingClient({ templateId, onBackToResult, backNavLabel
   }, [authHydrated, accessToken]);
 
   useEffect(() => {
-    if (phase !== 'ready' || !hasServerRanking || !hasMoreRef.current) return;
+    if (phase !== 'ready' || !hasMoreRef.current) return;
     const el = sentinelRef.current;
     if (!el) return;
     /**
@@ -327,7 +289,7 @@ export function WorldCupRankingClient({ templateId, onBackToResult, backNavLabel
     );
     obs.observe(el);
     return () => obs.disconnect();
-  }, [phase, hasServerRanking, hasMore, fetchNextPage, rows.length]);
+  }, [phase, hasMore, fetchNextPage, rows.length]);
 
   return (
     <div
@@ -386,13 +348,13 @@ export function WorldCupRankingClient({ templateId, onBackToResult, backNavLabel
           <>
             <RankingMetricsHintLine />
 
-            {!hasServerRanking && rows.length > 0 ? (
+            {totalCompletedPlays === 0 && rows.length > 0 ? (
               <div
                 role="status"
                 className="mb-4 rounded-xl border border-amber-200/80 bg-amber-50/90 px-4 py-3 text-sm text-amber-950 dark:border-amber-500/30 dark:bg-amber-950/35 dark:text-amber-100"
               >
-                아직 이 템플릿으로 서버에 쌓인 플레이 통계가 없어요. 한 판을 끝까지 완료하면 비율이 집계됩니다. 아래는
-                템플릿 후보 목록이에요 (현재는 모두 0%).
+                아직 이 템플릿으로 끝까지 완료된 플레이가 없어요. 한 판을 끝까지 완료하면 비율이 집계됩니다. 아래는 템플릿
+                후보 전체이며, 아직 맞대결에 나오지 않은 후보는 0%로 표시됩니다.
               </div>
             ) : null}
 
@@ -594,7 +556,7 @@ export function WorldCupRankingClient({ templateId, onBackToResult, backNavLabel
               </table>
             </div>
 
-            {hasServerRanking && hasMore ? (
+            {hasMore ? (
               <div ref={sentinelRef} className="h-4 w-full shrink-0" aria-hidden />
             ) : null}
 
@@ -611,7 +573,7 @@ export function WorldCupRankingClient({ templateId, onBackToResult, backNavLabel
               </div>
             ) : null}
 
-            {hasServerRanking && loadingMore ? (
+            {loadingMore ? (
               <div className="flex justify-center py-6">
                 <div className="size-8 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" />
               </div>

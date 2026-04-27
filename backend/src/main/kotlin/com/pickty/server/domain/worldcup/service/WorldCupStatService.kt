@@ -5,9 +5,9 @@ import com.pickty.server.domain.worldcup.dto.WorldCupRankingPageResponse
 import com.pickty.server.domain.worldcup.dto.WorldCupRankingRowResponse
 import com.pickty.server.domain.worldcup.dto.WorldCupResultSubmitRequest
 import com.pickty.server.domain.worldcup.dto.WorldCupStatSubmitRow
+import com.pickty.server.domain.worldcup.entity.WorldCupItemStat
 import com.pickty.server.domain.worldcup.repository.WorldCupItemStatRepository
 import com.pickty.server.domain.worldcup.repository.WorldCupTemplateRepository
-import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
@@ -119,16 +119,42 @@ class WorldCupStatService(
 
         val safePage = pageable.pageNumber.coerceAtLeast(0)
         val safeSize = pageable.pageSize.coerceIn(1, 100)
-        val fixedPageable = PageRequest.of(safePage, safeSize)
 
         val totalGames =
             worldCupItemStatRepository.sumFinalWinCountByTemplateId(templateId).coerceAtLeast(0L)
 
-        val statPage = worldCupItemStatRepository.findRankingPage(templateId, fixedPageable)
-        val baseRank = statPage.number * statPage.size + 1
+        val templateItemIds = parseTemplateItemIds(tpl.items)
+        val statsByItemId =
+            worldCupItemStatRepository.findAllByTemplate_Id(templateId).associateBy { it.itemId }
+
+        val merged =
+            templateItemIds.map { itemId ->
+                snapshotFromStatOrEmpty(itemId, statsByItemId[itemId])
+            }.sortedWith(
+                compareByDescending<RankingStatSnapshot> { it.finalWinCount }
+                    .thenByDescending { winRateSortKey(it.matchCount, it.winCount) }
+                    .thenBy { it.itemId },
+            )
+
+        val totalElements = merged.size.toLong()
+        val totalPages =
+            if (totalElements == 0L) {
+                0
+            } else {
+                ((totalElements + safeSize - 1) / safeSize).toInt()
+            }
+        val effPage =
+            when {
+                totalPages <= 0 -> 0
+                safePage >= totalPages -> totalPages - 1
+                else -> safePage
+            }
+        val fromIndex = effPage * safeSize
+        val pageSlice = merged.drop(fromIndex).take(safeSize)
+        val baseRank = fromIndex + 1
 
         val content =
-            statPage.content.mapIndexed { index, row ->
+            pageSlice.mapIndexed { index, row ->
                 val mc = row.matchCount
                 WorldCupRankingRowResponse(
                     rank = baseRank + index,
@@ -154,15 +180,78 @@ class WorldCupStatService(
         return WorldCupRankingPageResponse(
             totalCompletedPlays = totalGames,
             content = content,
-            totalElements = statPage.totalElements,
-            totalPages = statPage.totalPages,
-            size = statPage.size,
-            number = statPage.number,
-            first = statPage.isFirst,
-            last = statPage.isLast,
-            empty = statPage.isEmpty,
+            totalElements = totalElements,
+            totalPages = totalPages,
+            size = safeSize,
+            number = effPage,
+            first = effPage == 0,
+            last = totalPages == 0 || effPage >= totalPages - 1,
+            empty = content.isEmpty(),
         )
     }
+
+    /** 템플릿 JSON `items` 안의 `id` 를 앞에서부터(중복 제거) */
+    private fun parseTemplateItemIds(items: List<Map<String, Any?>>): List<Long> {
+        val out = ArrayList<Long>()
+        val seen = HashSet<Long>()
+        for (m in items) {
+            val id = parseItemIdFromMap(m) ?: continue
+            if (id <= 0L) continue
+            if (seen.add(id)) {
+                out.add(id)
+            }
+        }
+        return out
+    }
+
+    private fun parseItemIdFromMap(m: Map<String, Any?>): Long? {
+        val v = m["id"] ?: return null
+        return when (v) {
+            is Number -> v.toLong().takeIf { it > 0L }
+            is String -> v.trim().toLongOrNull()?.takeIf { it > 0L }
+            else -> null
+        }
+    }
+
+    private fun snapshotFromStatOrEmpty(itemId: Long, stat: WorldCupItemStat?): RankingStatSnapshot {
+        if (stat == null) {
+            return RankingStatSnapshot(itemId = itemId)
+        }
+        return RankingStatSnapshot(
+            itemId = stat.itemId,
+            matchCount = stat.matchCount,
+            winCount = stat.winCount,
+            rerolledCount = stat.rerolledCount,
+            droppedCount = stat.droppedCount,
+            keptBothCount = stat.keptBothCount,
+            finalWinCount = stat.finalWinCount,
+            reached16Count = stat.reached16Count,
+            reached8Count = stat.reached8Count,
+            reached4Count = stat.reached4Count,
+            reachedFinalCount = stat.reachedFinalCount,
+        )
+    }
+
+    /** native 랭킹 쿼리의 `CASE WHEN match_count <= 0 THEN 0 ELSE ROUND(win/match*100) END` 와 동일 키 */
+    private fun winRateSortKey(matchCount: Long, winCount: Long): Int {
+        if (matchCount <= 0L) return 0
+        val v = (winCount.toDouble() / matchCount.toDouble()) * 100.0
+        return v.roundToInt().coerceIn(0, 100)
+    }
+
+    private data class RankingStatSnapshot(
+        val itemId: Long,
+        val matchCount: Long = 0L,
+        val winCount: Long = 0L,
+        val rerolledCount: Long = 0L,
+        val droppedCount: Long = 0L,
+        val keptBothCount: Long = 0L,
+        val finalWinCount: Long = 0L,
+        val reached16Count: Long = 0L,
+        val reached8Count: Long = 0L,
+        val reached4Count: Long = 0L,
+        val reachedFinalCount: Long = 0L,
+    )
 
     private fun coerceNonNegative(v: Long): Long = if (v < 0) 0 else v
 
