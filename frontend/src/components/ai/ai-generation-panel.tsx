@@ -158,7 +158,7 @@ export function AiGenerationPanel({
           {isAdmin && adminUsage ? (
             <p className="min-w-0 text-xs text-slate-600 dark:text-zinc-300">
               <span aria-hidden>💡 </span>
-              오늘 API 사용량: Gemini {adminUsage.gemini}/{USAGE_LIMIT_GEMINI} · YouTube {adminUsage.youtube}/
+              오늘 API 사용량: {/*Gemini {adminUsage.gemini}/{USAGE_LIMIT_GEMINI} · */}YouTube {adminUsage.youtube}/
               {USAGE_LIMIT_YOUTUBE} · Google {adminUsage.googleSearch}/{USAGE_LIMIT_GOOGLE}{' '}
               <span
                 className="cursor-help select-none text-violet-600 dark:text-violet-400"
