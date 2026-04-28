@@ -71,6 +71,7 @@ class SecurityConfig(
             .authorizeHttpRequests { auth ->
                 auth
                     .requestMatchers(HttpMethod.POST, "/api/v1/auth/oauth-exchange").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/v1/auth/demo-login").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/v1/auth/refresh").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/v1/auth/logout").permitAll()
                     .requestMatchers(HttpMethod.GET, "/oauth2/link/start").permitAll()

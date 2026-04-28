@@ -2,6 +2,7 @@ package com.pickty.server.domain.auth.controller
 
 import com.pickty.server.domain.auth.dto.AccessTokenResponse
 import com.pickty.server.domain.auth.dto.OAuthExchangeRequest
+import com.pickty.server.domain.auth.service.DemoLoginService
 import com.pickty.server.domain.auth.service.JwtBlacklistService
 import com.pickty.server.domain.auth.service.OAuthExchangeService
 import com.pickty.server.domain.auth.service.RefreshTokenService
@@ -27,6 +28,7 @@ class AuthSessionController(
     private val jwtBlacklistService: JwtBlacklistService,
     private val oauthExchangeService: OAuthExchangeService,
     private val refreshTokenCookieWriter: RefreshTokenCookieWriter,
+    private val demoLoginService: DemoLoginService,
 ) {
 
     @PostMapping("/oauth-exchange")
@@ -46,6 +48,15 @@ class AuthSessionController(
 
         val accessToken = jwtTokenProvider.generateAccessToken(userId)
         return ResponseEntity.ok(AccessTokenResponse(accessToken))
+    }
+
+    @PostMapping("/demo-login")
+    fun demoLogin(
+        response: HttpServletResponse,
+    ): ResponseEntity<AccessTokenResponse> {
+        val tokens = demoLoginService.login()
+        refreshTokenCookieWriter.write(response, tokens.refreshToken)
+        return ResponseEntity.ok(AccessTokenResponse(tokens.accessToken))
     }
 
     @PostMapping("/refresh")

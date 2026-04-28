@@ -1,6 +1,7 @@
 package com.pickty.server.domain.user.service
 
 import com.pickty.server.domain.auth.service.RefreshTokenService
+import com.pickty.server.domain.auth.service.DemoAccountPolicy
 import com.pickty.server.domain.user.enums.AccountStatus
 import com.pickty.server.domain.user.dto.SensitiveLinkedAccountDto
 import com.pickty.server.domain.user.repository.SocialAccountRepository
@@ -24,6 +25,7 @@ class UserService(
     private val userRepository: UserRepository,
     private val socialAccountRepository: SocialAccountRepository,
     private val refreshTokenService: RefreshTokenService,
+    private val demoAccountPolicy: DemoAccountPolicy,
     private val redisTemplate: StringRedisTemplate,
     private val objectMapper: ObjectMapper,
 ) {
@@ -44,6 +46,7 @@ class UserService(
             accountStatus = user.accountStatus.name,
             gender = user.gender?.name,
             birthYear = user.birthYear,
+            demoAiEnabled = demoAccountPolicy.canUseAiDemo(user),
         )
     }
 

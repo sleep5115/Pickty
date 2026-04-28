@@ -14,6 +14,16 @@ export async function exchangeOAuthCode(exchangeCode: string): Promise<string | 
   return j.accessToken ?? null;
 }
 
+export async function loginWithDemoAccount(): Promise<string | null> {
+  const res = await fetch(`${API_URL}/api/v1/auth/demo-login`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+  if (!res.ok) return null;
+  const j = (await res.json()) as { accessToken?: string };
+  return j.accessToken ?? null;
+}
+
 export async function refreshAccessToken(): Promise<string | null> {
   const res = await fetch(`${API_URL}/api/v1/auth/refresh`, {
     method: 'POST',

@@ -7,3 +7,7 @@ export const PICKTY_USER_ROLE_ADMIN = 'ADMIN' as const;
 export function isPicktyAdminRole(role: string | null | undefined): boolean {
   return role === PICKTY_USER_ROLE_ADMIN;
 }
+
+export function canUseAiGeneration(user: { role?: string | null; demoAiEnabled?: boolean } | null | undefined): boolean {
+  return isPicktyAdminRole(user?.role) || user?.demoAiEnabled === true;
+}
