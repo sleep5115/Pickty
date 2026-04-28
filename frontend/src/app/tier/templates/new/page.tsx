@@ -7,7 +7,7 @@ import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuthPersistHydrated } from '@/lib/hooks/use-auth-persist-hydrated';
 import { useAuthStore } from '@/lib/store/auth-store';
-import { isPicktyAdminRole } from '@/lib/user-role';
+import { canUseAiGeneration, isPicktyAdminRole } from '@/lib/user-role';
 import { apiFetch } from '@/lib/api-fetch';
 import { uploadPicktyImages } from '@/lib/image-upload-api';
 import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
@@ -67,6 +67,7 @@ function NewTemplatePageInner() {
     itemCount: number;
   } | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [canUseAi, setCanUseAi] = useState(false);
   const [customThumbFile, setCustomThumbFile] = useState<File | null>(null);
   const [customThumbPreview, setCustomThumbPreview] = useState<string | null>(null);
   const customThumbInputRef = useRef<HTMLInputElement>(null);
@@ -172,15 +173,24 @@ function NewTemplatePageInner() {
   useEffect(() => {
     if (!hydrated) return;
     if (!accessToken) {
-      setIsAdmin(false);
+      queueMicrotask(() => {
+        setIsAdmin(false);
+        setCanUseAi(false);
+      });
       return;
     }
     void apiFetch('/api/v1/user/me', {
       headers: { Authorization: `Bearer ${accessToken}` },
     })
       .then((r) => (r.ok ? r.json() : null))
-      .then((u: { role?: string } | null) => setIsAdmin(isPicktyAdminRole(u?.role)))
-      .catch(() => setIsAdmin(false));
+      .then((u: { role?: string; demoAiEnabled?: boolean } | null) => {
+        setIsAdmin(isPicktyAdminRole(u?.role));
+        setCanUseAi(canUseAiGeneration(u));
+      })
+      .catch(() => {
+        setIsAdmin(false);
+        setCanUseAi(false);
+      });
   }, [hydrated, accessToken]);
 
   useEffect(() => {
@@ -726,10 +736,10 @@ function NewTemplatePageInner() {
             )}
           </div>
 
-          {isAdmin && accessToken ? (
+          {canUseAi && accessToken ? (
             <AiGenerationPanel
               accessToken={accessToken}
-              isAdmin={isAdmin}
+              isAdmin={canUseAi}
               existingItemNames={existingAiItemNames}
               lockMediaTypeToPhoto
               inputPlaceholder="주제 입력 (예: 롤 챔피언, 포켓몬 1세대...)"

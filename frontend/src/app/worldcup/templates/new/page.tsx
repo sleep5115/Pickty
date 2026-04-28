@@ -26,7 +26,7 @@ import { PICKTY_IMAGE_UPLOAD_HINT } from '@/lib/pickty-upload-hint';
 import { useAuthPersistHydrated } from '@/lib/hooks/use-auth-persist-hydrated';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { apiFetch } from '@/lib/api-fetch';
-import { isPicktyAdminRole } from '@/lib/user-role';
+import { canUseAiGeneration } from '@/lib/user-role';
 import { AiGenerationPanel } from '@/components/ai/ai-generation-panel';
 import type { AiMediaCandidateDto } from '@/lib/ai-generation-api';
 
@@ -287,7 +287,7 @@ export default function WorldCupTemplateNewPage() {
   const router = useRouter();
   const authHydrated = useAuthPersistHydrated();
   const accessToken = useAuthStore((s) => s.accessToken);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [canUseAi, setCanUseAi] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [mediaPreview, setMediaPreview] = useState<{
     rowIndex: number;
@@ -344,15 +344,21 @@ export default function WorldCupTemplateNewPage() {
   useEffect(() => {
     if (!authHydrated) return;
     if (!accessToken) {
-      setIsAdmin(false);
+      queueMicrotask(() => {
+        setCanUseAi(false);
+      });
       return;
     }
     void apiFetch('/api/v1/user/me', {
       headers: { Authorization: `Bearer ${accessToken}` },
     })
       .then((r) => (r.ok ? r.json() : null))
-      .then((u: { role?: string } | null) => setIsAdmin(isPicktyAdminRole(u?.role)))
-      .catch(() => setIsAdmin(false));
+      .then((u: { role?: string; demoAiEnabled?: boolean } | null) => {
+        setCanUseAi(canUseAiGeneration(u));
+      })
+      .catch(() => {
+        setCanUseAi(false);
+      });
   }, [authHydrated, accessToken]);
 
   const onSubmit = async (data: FormValues) => {
@@ -654,10 +660,10 @@ export default function WorldCupTemplateNewPage() {
               </div>
             </section>
 
-            {isAdmin && accessToken ? (
+            {canUseAi && accessToken ? (
               <AiGenerationPanel
                 accessToken={accessToken}
-                isAdmin={isAdmin}
+                isAdmin={canUseAi}
                 existingItemNames={existingAiItemNames}
                 lockedMediaType="YOUTUBE"
                 inputPlaceholder="주제 입력 (예: 2026 인기 드라마, 레트로 게임 캐릭터…)"

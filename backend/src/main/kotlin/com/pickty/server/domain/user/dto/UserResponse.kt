@@ -14,4 +14,5 @@ data class UserResponse(
     val accountStatus: String,
     val gender: String?,
     val birthYear: Int?,
+    val demoAiEnabled: Boolean = false,
 )

@@ -14,6 +14,7 @@ import { onboardingSchema, type OnboardingFormValues } from '@/lib/schemas/auth'
 import { PUBLIC_API_BASE_URL } from '@/lib/public-site-config';
 import { PICKTY_IMAGE_ACCEPT } from '@/lib/pickty-image-accept';
 import { PICKTY_IMAGE_UPLOAD_HINT } from '@/lib/pickty-upload-hint';
+import { toast } from 'sonner';
 
 interface UserInfo {
   id: number;
@@ -25,6 +26,7 @@ interface UserInfo {
   accountStatus: string;
   gender: string | null;
   birthYear: number | null;
+  demoAiEnabled?: boolean;
 }
 
 interface SensitiveLinkedAccount {
@@ -167,9 +169,20 @@ type ProfileEditModalProps = {
   user: UserInfo;
   onSaved: (u: UserInfo) => void;
   onUnauthorized: () => void;
+  isDemoUser: boolean;
 };
 
-function ProfileEditModal({ open, onClose, accessToken, user, onSaved, onUnauthorized }: ProfileEditModalProps) {
+const DEMO_ACCOUNT_RESTRICTED_MESSAGE = '데모 계정에서는 계정 정보를 변경할 수 없습니다.';
+
+function ProfileEditModal({
+  open,
+  onClose,
+  accessToken,
+  user,
+  onSaved,
+  onUnauthorized,
+  isDemoUser,
+}: ProfileEditModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarDragOver, setAvatarDragOver] = useState(false);
@@ -254,6 +267,10 @@ function ProfileEditModal({ open, onClose, accessToken, user, onSaved, onUnautho
   );
 
   const onSubmit = async (data: OnboardingFormValues) => {
+    if (isDemoUser) {
+      toast.info(DEMO_ACCOUNT_RESTRICTED_MESSAGE);
+      return;
+    }
     setSaveError(null);
     setSaving(true);
     try {
@@ -744,6 +761,7 @@ export default function AccountPage() {
   if (!user || !accessToken) return null;
 
   const isAdmin = user.role === 'ADMIN';
+  const isDemoUser = user.demoAiEnabled === true;
   const accountTypeLabel = isAdmin ? '관리자' : '일반 회원';
 
   const joinDateCompact = formatJoinDateKoCompact(user.createdAt);
@@ -881,9 +899,13 @@ export default function AccountPage() {
                     key={opt.registrationId}
                     type="button"
                     disabled={linkBusy !== null}
-                    onClick={() =>
-                      setLinkConfirm({ registrationId: opt.registrationId, label: opt.label })
-                    }
+                    onClick={() => {
+                      if (isDemoUser) {
+                        toast.info(DEMO_ACCOUNT_RESTRICTED_MESSAGE);
+                        return;
+                      }
+                      setLinkConfirm({ registrationId: opt.registrationId, label: opt.label });
+                    }}
                     className="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 disabled:opacity-45 disabled:cursor-not-allowed transition-colors"
                   >
                     {linkBusy === opt.registrationId ? `${opt.label} 연결 중…` : `${opt.label} 연동하기`}
@@ -1138,6 +1160,7 @@ export default function AccountPage() {
           clearAuth();
           router.replace('/login');
         }}
+        isDemoUser={isDemoUser}
       />
       </div>
     </div>
