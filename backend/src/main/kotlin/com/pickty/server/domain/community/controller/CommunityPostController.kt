@@ -59,7 +59,10 @@ class CommunityPostController(
     }
 
     @GetMapping("/{id}")
-    fun get(@PathVariable id: UUID): BoardPostDetailResponse = communityPostService.get(id)
+    fun get(
+        @PathVariable id: UUID,
+        authentication: Authentication?,
+    ): BoardPostDetailResponse = communityPostService.get(id, resolveUserId(authentication))
 
     @PatchMapping("/{id}")
     fun update(

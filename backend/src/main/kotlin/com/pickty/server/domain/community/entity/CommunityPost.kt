@@ -70,6 +70,16 @@ class CommunityPost(
     var viewCount: Long = 0
         protected set
 
+    @Column(name = "up_count", nullable = false)
+    @ColumnDefault("0")
+    var upCount: Long = 0
+        protected set
+
+    @Column(name = "down_count", nullable = false)
+    @ColumnDefault("0")
+    var downCount: Long = 0
+        protected set
+
     @Column(name = "comment_count", nullable = false)
     @ColumnDefault("0")
     var commentCount: Long = 0

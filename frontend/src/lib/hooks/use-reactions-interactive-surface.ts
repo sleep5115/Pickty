@@ -19,5 +19,6 @@ export function useReactionsInteractiveSurface(): boolean {
     const rest = pathname.slice('/worldcup/templates/'.length).split('/')[0] ?? '';
     if (rest !== '' && rest !== 'new' && rest !== 'my') return true;
   }
+  if (pathname.startsWith('/community/')) return true;
   return false;
 }

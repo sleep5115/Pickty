@@ -3,7 +3,7 @@
 import { ThumbsDown, ThumbsUp } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { toggleReaction, type ReactionType } from '@/lib/api/interaction-api';
+import { toggleReaction, type InteractionTargetType, type ReactionType } from '@/lib/api/interaction-api';
 import { useReactionsInteractiveSurface } from '@/lib/hooks/use-reactions-interactive-surface';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { getStoredReaction, setStoredReaction } from '@/lib/store/reaction-store';
@@ -20,6 +20,8 @@ type Props = {
   onCountsChange?: (up: number, down: number) => void;
   /** 기본 `sm` — 카드 등. `lg`는 결과 상세 등 강조 UI */
   size?: 'sm' | 'lg';
+  /** 기본 `TIER_RESULT` — 다른 대상(예: `COMMUNITY_POST`)에도 재사용 */
+  targetType?: InteractionTargetType;
 };
 
 function predictToggle(
@@ -72,6 +74,7 @@ export function ResultVoteButtons({
   className = '',
   onCountsChange,
   size = 'sm',
+  targetType = 'TIER_RESULT',
 }: Props) {
   const surfaceInteractive = useReactionsInteractiveSurface();
   const accessToken = useAuthStore((s) => s.accessToken);
@@ -127,7 +130,7 @@ export function ResultVoteButtons({
       applyCounts(prevUp + dUp, prevDown + dDown);
       setBusy(click === 'UPVOTE' ? 'UP' : 'DOWN');
       try {
-        const r = await toggleReaction('TIER_RESULT', resultId, click);
+        const r = await toggleReaction(targetType, resultId, click);
         const serverSel = selectionFromServer(r.active, r.reactionType);
         setSelection(serverSel);
         const { up, down } = countsForServerSelection(prevSel, prevUp, prevDown, serverSel);
@@ -158,6 +161,7 @@ export function ResultVoteButtons({
     },
     [
       surfaceInteractive,
+      targetType,
       resultId,
       busy,
       selection,

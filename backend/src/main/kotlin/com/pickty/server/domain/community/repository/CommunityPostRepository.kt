@@ -19,6 +19,23 @@ interface CommunityPostRepository : JpaRepository<CommunityPost, UUID> {
     @Query(
         value = """
         UPDATE community_posts
+        SET up_count   = GREATEST(0, up_count   + :dUp),
+            down_count = GREATEST(0, down_count + :dDown),
+            updated_at = now()
+        WHERE id = :id AND status = 'ACTIVE'
+        """,
+        nativeQuery = true,
+    )
+    fun adjustVoteCounts(
+        @Param("id") id: UUID,
+        @Param("dUp") dUp: Long,
+        @Param("dDown") dDown: Long,
+    ): Int
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        value = """
+        UPDATE community_posts
         SET comment_count = comment_count + 1,
             updated_at = now()
         WHERE id = :id AND status = 'ACTIVE'
