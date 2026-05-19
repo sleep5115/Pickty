@@ -163,7 +163,7 @@ export function TemplateLikeButton({
                 : '',
             ].join(' ')
           : [
-              'rounded-lg border px-2.5 py-1.5',
+              'rounded-lg border px-2.5 py-2',
               liked ? boxedLit : boxedIdle,
               canInteract
                 ? liked
