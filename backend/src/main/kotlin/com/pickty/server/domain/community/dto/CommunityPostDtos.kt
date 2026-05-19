@@ -1,6 +1,7 @@
 package com.pickty.server.domain.community.dto
 
 import com.pickty.server.domain.interaction.dto.CommentResponse
+import com.pickty.server.domain.interaction.enums.ReactionType
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size
 import java.util.UUID
@@ -32,6 +33,8 @@ data class BoardPostSummaryResponse(
     val id: UUID,
     val title: String,
     val viewCount: Long,
+    val upCount: Long,
+    val downCount: Long,
     val createdAt: String,
     val authorUserId: Long?,
     val authorNickname: String,
@@ -55,7 +58,10 @@ data class BoardPostDetailResponse(
     val title: String,
     val contentHtml: String,
     val viewCount: Long,
+    val upCount: Long,
+    val downCount: Long,
     val commentCount: Long,
+    val myReaction: ReactionType?,
     val createdAt: String,
     val updatedAt: String,
     val authorUserId: Long?,

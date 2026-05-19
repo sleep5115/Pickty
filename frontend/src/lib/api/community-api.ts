@@ -1,10 +1,12 @@
 import { apiFetch } from '@/lib/api-fetch';
-import { parseCommentPage, type CommentPage } from '@/lib/api/interaction-api';
+import { parseCommentPage, type CommentPage, type ReactionType } from '@/lib/api/interaction-api';
 
 export type CommunityPostSummary = {
   id: string;
   title: string;
   viewCount: number;
+  upCount: number;
+  downCount: number;
   createdAt: string;
   authorUserId: number | null;
   authorNickname: string;
@@ -16,7 +18,10 @@ export type CommunityPostDetail = {
   title: string;
   contentHtml: string;
   viewCount: number;
+  upCount: number;
+  downCount: number;
   commentCount: number;
+  myReaction: ReactionType | null;
   createdAt: string;
   updatedAt: string;
   authorUserId: number | null;
@@ -54,6 +59,8 @@ function parseSummary(row: Record<string, unknown>): CommunityPostSummary {
     id: String(row.id ?? ''),
     title: typeof row.title === 'string' ? row.title : '',
     viewCount: toNum(row.viewCount ?? row.view_count),
+    upCount: toNum(row.upCount ?? row.up_count),
+    downCount: toNum(row.downCount ?? row.down_count),
     createdAt: typeof row.createdAt === 'string' ? row.createdAt : String(row.created_at ?? ''),
     authorUserId: parseAuthorId(row.authorUserId ?? row.author_user_id),
     authorNickname:
@@ -87,12 +94,19 @@ function parseDetail(row: Record<string, unknown>): CommunityPostDetail {
           empty: true,
         };
 
+  const rawMr = row.myReaction ?? row.my_reaction;
+  const myReaction: ReactionType | null =
+    rawMr === 'LIKE' || rawMr === 'UPVOTE' || rawMr === 'DOWNVOTE' ? rawMr : null;
+
   return {
     id: String(row.id ?? ''),
     title: typeof row.title === 'string' ? row.title : '',
     contentHtml: typeof row.contentHtml === 'string' ? row.contentHtml : String(row.content_html ?? ''),
     viewCount: toNum(row.viewCount ?? row.view_count),
+    upCount: toNum(row.upCount ?? row.up_count),
+    downCount: toNum(row.downCount ?? row.down_count),
     commentCount: toNum(row.commentCount ?? row.comment_count),
+    myReaction,
     createdAt: typeof row.createdAt === 'string' ? row.createdAt : String(row.created_at ?? ''),
     updatedAt: typeof row.updatedAt === 'string' ? row.updatedAt : String(row.updated_at ?? ''),
     authorUserId: parseAuthorId(row.authorUserId ?? row.author_user_id),

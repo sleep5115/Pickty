@@ -1,5 +1,7 @@
 package com.pickty.server.domain.interaction.service
 
+import com.pickty.server.domain.community.enums.CommunityPostStatus
+import com.pickty.server.domain.community.repository.CommunityPostRepository
 import com.pickty.server.domain.interaction.entity.Reaction
 import com.pickty.server.domain.interaction.repository.ReactionRepository
 import com.pickty.server.domain.interaction.enums.ReactionTargetType
@@ -27,6 +29,7 @@ class ReactionService(
     private val tierTemplateRepository: TierTemplateRepository,
     private val tierResultRepository: TierResultRepository,
     private val worldCupTemplateRepository: WorldCupTemplateRepository,
+    private val communityPostRepository: CommunityPostRepository,
     private val tierResultCacheService: TierResultCacheService,
 ) {
 
@@ -102,14 +105,19 @@ class ReactionService(
             }
 
             else -> {
-                if (request.targetType != ReactionTargetType.TIER_RESULT) {
+                if (request.targetType != ReactionTargetType.TIER_RESULT &&
+                    request.targetType != ReactionTargetType.COMMUNITY_POST
+                ) {
                     throw ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
                         "이 대상에서는 반응 종류를 전환할 수 없습니다.",
                     )
                 }
-                applyVoteSwitch(request.targetId, existing.reactionType, request.reactionType)
+                val fromType = existing.reactionType
                 existing.changeReactionType(request.reactionType)
+                // changeReactionType을 먼저 호출해야 applyVoteSwitch의 native SQL(clearAutomatically=true)이
+                // 1차 캐시를 초기화하기 전에 flushAutomatically=true로 변경사항이 flush된다.
+                applyVoteSwitch(request.targetType, request.targetId, fromType, request.reactionType)
                 evictTierResultDetailCache(request.targetType, request.targetId)
                 return ReactionToggleResponse(active = true, reactionType = request.reactionType)
             }
@@ -142,9 +150,12 @@ class ReactionService(
                     throw ResponseStatusException(HttpStatus.BAD_REQUEST, "월드컵 템플릿에는 좋아요만 가능합니다.")
                 }
 
-            ReactionTargetType.WORLDCUP_RESULT,
-            ReactionTargetType.COMMUNITY_POST,
-            ->
+            ReactionTargetType.COMMUNITY_POST ->
+                if (reactionType != ReactionType.UPVOTE && reactionType != ReactionType.DOWNVOTE) {
+                    throw ResponseStatusException(HttpStatus.BAD_REQUEST, "커뮤니티 글에는 추천/비추천만 가능합니다.")
+                }
+
+            ReactionTargetType.WORLDCUP_RESULT ->
                 throw ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, "아직 이 대상에는 반응을 지원하지 않습니다.")
         }
     }
@@ -172,6 +183,14 @@ class ReactionService(
                     ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "월드컵 템플릿을 찾을 수 없습니다.")
                 if (t.templateStatus != TemplateStatus.ACTIVE) {
                     throw ResponseStatusException(HttpStatus.GONE, "삭제되었거나 비공개인 월드컵 템플릿입니다.")
+                }
+            }
+
+            ReactionTargetType.COMMUNITY_POST -> {
+                val p = communityPostRepository.findById(targetId).orElse(null)
+                    ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "게시글을 찾을 수 없습니다.")
+                if (p.status != CommunityPostStatus.ACTIVE) {
+                    throw ResponseStatusException(HttpStatus.GONE, "삭제된 게시글입니다.")
                 }
             }
 
@@ -214,6 +233,17 @@ class ReactionService(
                         else -> 0
                     }
 
+                ReactionTargetType.COMMUNITY_POST ->
+                    when (reactionType) {
+                        ReactionType.UPVOTE ->
+                            communityPostRepository.adjustVoteCounts(targetId, delta, 0L)
+
+                        ReactionType.DOWNVOTE ->
+                            communityPostRepository.adjustVoteCounts(targetId, 0L, delta)
+
+                        else -> 0
+                    }
+
                 else -> 0
             }
         if (rows == 0) {
@@ -222,6 +252,7 @@ class ReactionService(
     }
 
     private fun applyVoteSwitch(
+        targetType: ReactionTargetType,
         targetId: UUID,
         from: ReactionType,
         to: ReactionType,
@@ -237,7 +268,16 @@ class ReactionService(
                 else ->
                     throw ResponseStatusException(HttpStatus.BAD_REQUEST, "허용되지 않는 투표 전환입니다.")
             }
-        val rows = tierResultRepository.adjustVoteCounts(targetId, dUp, dDown)
+        val rows = when (targetType) {
+            ReactionTargetType.TIER_RESULT ->
+                tierResultRepository.adjustVoteCounts(targetId, dUp, dDown)
+
+            ReactionTargetType.COMMUNITY_POST ->
+                communityPostRepository.adjustVoteCounts(targetId, dUp, dDown)
+
+            else ->
+                throw ResponseStatusException(HttpStatus.BAD_REQUEST, "허용되지 않는 대상입니다.")
+        }
         if (rows == 0) {
             throw ResponseStatusException(HttpStatus.CONFLICT, "투표 수를 갱신하지 못했습니다.")
         }

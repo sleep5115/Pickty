@@ -11,6 +11,7 @@ import com.pickty.server.domain.community.dto.CreateBoardPostResponse
 import com.pickty.server.domain.community.dto.UpdateBoardPostRequest
 import com.pickty.server.domain.community.entity.CommunityPost
 import com.pickty.server.domain.interaction.service.CommentService
+import com.pickty.server.domain.interaction.service.MyReactionService
 import com.pickty.server.domain.interaction.enums.ReactionTargetType
 import com.pickty.server.domain.user.repository.UserRepository
 import com.pickty.server.global.util.IpPrefixFormatter
@@ -34,6 +35,7 @@ class CommunityPostService(
     private val passwordEncoder: PasswordEncoder,
     private val communityHtmlSanitizer: CommunityHtmlSanitizer,
     private val commentService: CommentService,
+    private val myReactionService: MyReactionService,
 ) {
     companion object {
         private const val COMMUNITY_POST_COMMENTS_PAGE_SIZE = 30
@@ -103,6 +105,8 @@ class CommunityPostService(
                 id = post.id!!,
                 title = post.title,
                 viewCount = post.viewCount,
+                upCount = post.upCount,
+                downCount = post.downCount,
                 createdAt = post.createdAt.toString(),
                 authorUserId = post.authorId,
                 authorNickname = user?.nickname ?: (post.guestNickname ?: "익명"),
@@ -112,13 +116,13 @@ class CommunityPostService(
     }
 
     @Transactional
-    fun get(id: UUID): BoardPostDetailResponse {
+    fun get(id: UUID, userId: Long? = null): BoardPostDetailResponse {
         val any = loadPostOrThrow(id)
         if (any.status == CommunityPostStatus.DELETED) {
             throw ResponseStatusException(HttpStatus.GONE, "삭제된 게시글입니다.")
         }
         any.incrementViewCount()
-        return buildBoardPostDetail(any)
+        return buildBoardPostDetail(any, userId)
     }
 
     @Transactional
@@ -139,7 +143,7 @@ class CommunityPostService(
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "본문을 입력해 주세요.")
         }
         any.applyTitleAndHtml(title, sanitized)
-        return buildBoardPostDetail(any)
+        return buildBoardPostDetail(any, userId)
     }
 
     @Transactional
@@ -211,7 +215,7 @@ class CommunityPostService(
         }
     }
 
-    private fun buildBoardPostDetail(any: CommunityPost): BoardPostDetailResponse {
+    private fun buildBoardPostDetail(any: CommunityPost, userId: Long? = null): BoardPostDetailResponse {
         val user = any.authorId?.let { userRepository.findById(it).orElse(null) }
         val postId = any.id!!
         val commentPage =
@@ -220,12 +224,16 @@ class CommunityPostService(
                 postId,
                 PageRequest.of(0, COMMUNITY_POST_COMMENTS_PAGE_SIZE),
             )
+        val myReaction = myReactionService.single(ReactionTargetType.COMMUNITY_POST, postId, userId)
         return BoardPostDetailResponse(
             id = postId,
             title = any.title,
             contentHtml = any.contentHtml,
             viewCount = any.viewCount,
+            upCount = any.upCount,
+            downCount = any.downCount,
             commentCount = any.commentCount,
+            myReaction = myReaction,
             createdAt = any.createdAt.toString(),
             updatedAt = any.updatedAt.toString(),
             authorUserId = any.authorId,

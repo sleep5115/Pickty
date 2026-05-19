@@ -6,12 +6,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { CommunityPostDeleteDialog } from '@/components/community/community-post-delete-dialog';
 import { CommentSection } from '@/components/interaction/comment-section';
+import { ResultVoteButtons } from '@/components/interaction/result-vote-buttons';
 import { deleteCommunityPost, getCommunityPost, type CommunityPostDetail } from '@/lib/api/community-api';
 import { COMMUNITY_CARD_SECTION_CLASS } from '@/lib/community-ui';
 import { communityGuestEditStorageKey } from '@/lib/community-guest-edit-storage';
 import { guestPasswordPlainSchema } from '@/lib/schemas/guest-password';
 import { apiFetch } from '@/lib/api-fetch';
 import { useAuthStore } from '@/lib/store/auth-store';
+import type { ReactionType } from '@/lib/api/interaction-api';
 
 type DeleteModalMode = 'guest_password' | 'confirm_member' | 'confirm_admin';
 
@@ -24,6 +26,7 @@ export default function BoardPostPage({
   const accessToken = useAuthStore((s) => s.accessToken);
   const [id, setId] = useState<string>('');
   const [post, setPost] = useState<CommunityPostDetail | null>(null);
+  const [myReaction, setMyReaction] = useState<ReactionType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [meId, setMeId] = useState<number | null>(null);
@@ -44,7 +47,10 @@ export default function BoardPostPage({
       void (async () => {
         try {
           const p = await getCommunityPost(pid);
-          if (!cancelled) setPost(p);
+          if (!cancelled) {
+            setPost(p);
+            setMyReaction(p.myReaction);
+          }
         } catch (e) {
           if (!cancelled) setError(e instanceof Error ? e.message : '게시글을 불러오지 못했습니다.');
         } finally {
@@ -236,6 +242,18 @@ export default function BoardPostPage({
                 className="prose prose-sm mt-8 max-w-none text-[var(--text-primary)] dark:prose-invert prose-headings:text-[var(--text-primary)] prose-p:text-[var(--text-primary)] [&_img]:my-5 [&_img]:h-auto [&_img]:w-auto [&_img]:max-w-full [&_img]:rounded-lg [&_iframe[src*='youtube']]:aspect-video [&_iframe[src*='youtube']]:h-auto [&_iframe[src*='youtube']]:w-full [&_iframe[src*='youtube']]:max-w-4xl"
                 dangerouslySetInnerHTML={{ __html: post.contentHtml }}
               />
+
+              <div className="mt-8 flex justify-center border-t border-[var(--border-subtle)] pt-6">
+                <ResultVoteButtons
+                  targetType="COMMUNITY_POST"
+                  resultId={post.id}
+                  initialUpCount={post.upCount}
+                  initialDownCount={post.downCount}
+                  initialMyReaction={myReaction}
+                  onMyReactionResolved={setMyReaction}
+                  size="lg"
+                />
+              </div>
             </section>
 
             <div className="flex flex-wrap justify-end gap-2">

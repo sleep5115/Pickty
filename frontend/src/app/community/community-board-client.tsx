@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { PenLine } from 'lucide-react';
+import { PenLine, ThumbsUp } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Pagination } from '@/components/community/pagination';
@@ -107,10 +107,11 @@ export default function CommunityBoardClient() {
           id="community-post-list"
           className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
         >
-          <div className="hidden grid-cols-[1fr_180px_110px_90px] items-center border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 dark:border-zinc-800 dark:bg-zinc-950/70 dark:text-zinc-400 md:grid">
+          <div className="hidden grid-cols-[1fr_180px_110px_60px_60px] items-center border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 dark:border-zinc-800 dark:bg-zinc-950/70 dark:text-zinc-400 md:grid">
             <span>제목</span>
             <span>작성자</span>
             <span>작성일</span>
+            <span className="text-right">추천</span>
             <span className="text-right">조회</span>
           </div>
 
@@ -127,7 +128,7 @@ export default function CommunityBoardClient() {
                   <article>
                     <Link
                       href={`/community/${post.id}`}
-                      className="grid items-center gap-2 px-3 py-2.5 text-sm transition hover:bg-fuchsia-50/60 dark:hover:bg-fuchsia-950/20 md:grid-cols-[1fr_180px_110px_90px]"
+                      className="grid items-center gap-2 px-3 py-2.5 text-sm transition hover:bg-fuchsia-50/60 dark:hover:bg-fuchsia-950/20 md:grid-cols-[1fr_180px_110px_60px_60px]"
                     >
                       <div className="relative min-w-0">
                         <div className="group/preview inline-flex max-w-full items-center gap-1.5 align-middle">
@@ -135,8 +136,21 @@ export default function CommunityBoardClient() {
                             {post.title}
                           </span>
                         </div>
-                        <div className="mt-1 text-xs text-slate-500 dark:text-zinc-500 md:hidden">
-                          {authorLabel(post)} · {dateOnly(post.createdAt)} · 조회 {post.viewCount.toLocaleString()}
+                        <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500 dark:text-zinc-500 md:hidden">
+                          <span>{authorLabel(post)}</span>
+                          <span aria-hidden>·</span>
+                          <span>{dateOnly(post.createdAt)}</span>
+                          {post.upCount > 0 && (
+                            <>
+                              <span aria-hidden>·</span>
+                              <span className="inline-flex items-center gap-0.5 text-red-500">
+                                <ThumbsUp className="size-3" aria-hidden />
+                                {post.upCount.toLocaleString()}
+                              </span>
+                            </>
+                          )}
+                          <span aria-hidden>·</span>
+                          <span>조회 {post.viewCount.toLocaleString()}</span>
                         </div>
                       </div>
 
@@ -144,6 +158,9 @@ export default function CommunityBoardClient() {
                       <time className="hidden text-slate-500 dark:text-zinc-400 md:block" dateTime={post.createdAt}>
                         {dateOnly(post.createdAt)}
                       </time>
+                      <span className="hidden text-right font-mono text-red-500 dark:text-red-400 md:block">
+                        {post.upCount > 0 ? post.upCount.toLocaleString() : '-'}
+                      </span>
                       <span className="hidden text-right font-mono text-slate-600 dark:text-zinc-300 md:block">
                         {post.viewCount.toLocaleString()}
                       </span>
