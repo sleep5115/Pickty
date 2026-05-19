@@ -51,6 +51,8 @@ export function WorldCupResultClient({
   const authHydrated = useAuthPersistHydrated();
   const accessToken = useAuthStore((s) => s.accessToken);
   const matchHistory = useWorldCupStore((s) => s.matchHistory);
+  const bracketSize = useWorldCupStore((s) => s.bracketSize);
+  const layoutMode = useWorldCupStore((s) => s.layoutMode);
   const [meId, setMeId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -94,6 +96,9 @@ export function WorldCupResultClient({
       const dataUrl = await captureWorldCupBracketToPng({
         matchHistory,
         championName: champion.name,
+        title: templateTitle,
+        layoutMode,
+        startBracket: bracketSize,
       });
       downloadPngDataUrl(dataUrl, `pickty-worldcup-bracket-${templateId.slice(0, 8)}.png`);
       toast.success('이미지를 저장했어요.', { id: toastId });
