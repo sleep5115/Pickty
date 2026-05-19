@@ -1,7 +1,8 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
-import { Crown, Download, RefreshCw, Share2, Trophy } from 'lucide-react';
+import { Crown, Download, GitBranch, RefreshCw, Share2, Trophy } from 'lucide-react';
 import { toast } from 'sonner';
 import { CommentSection } from '@/components/interaction/comment-section';
 import { TemplateLikeButton } from '@/components/interaction/template-like-button';
@@ -140,7 +141,18 @@ export function WorldCupResultClient({
               <h2 className="min-w-0 flex-1 truncate text-lg font-semibold leading-snug text-zinc-900 dark:text-white">
                 {templateTitle}
               </h2>
-              <div className="flex shrink-0 items-center">
+              <div className="flex shrink-0 items-center gap-2">
+                <Link
+                  href={
+                    accessToken
+                      ? `/worldcup/templates/new?forkTemplateId=${encodeURIComponent(templateId)}`
+                      : `/login?returnTo=${encodeURIComponent(`/worldcup/templates/new?forkTemplateId=${templateId}`)}`
+                  }
+                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-violet-400/70 bg-violet-50 px-3 py-2 text-sm font-medium text-violet-900 shadow-sm transition hover:bg-violet-100 dark:border-violet-700 dark:bg-violet-950/45 dark:text-violet-100 dark:hover:bg-violet-950/75"
+                >
+                  <GitBranch className="size-4 shrink-0" aria-hidden />
+                  이 템플릿을 바탕으로 새 템플릿 만들기
+                </Link>
                 <TemplateLikeButton
                   interactionTargetType="WORLDCUP_TEMPLATE"
                   templateId={templateId}

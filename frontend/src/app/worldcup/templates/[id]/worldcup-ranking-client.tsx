@@ -1,7 +1,8 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, BarChart3, Loader2 } from 'lucide-react';
+import { ArrowLeft, BarChart3, GitBranch, Loader2 } from 'lucide-react';
 import { fetchWorldCupTemplate, type WorldCupTemplateDetailDto } from '@/lib/worldcup/worldcup-template-api';
 import { parseWorldCupItemsPayload } from '@/lib/worldcup/worldcup-template-items';
 import {
@@ -309,14 +310,27 @@ export function WorldCupRankingClient({ templateId, onBackToResult, backNavLabel
               <h1 className="text-lg font-semibold text-zinc-900 dark:text-white">통계 랭킹</h1>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onBackToResult}
-            className="inline-flex items-center justify-center gap-2 self-start rounded-lg border border-zinc-300 bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-900 shadow-sm transition hover:bg-zinc-200 dark:border-white/15 dark:bg-zinc-800 dark:text-white dark:hover:bg-zinc-700 sm:self-auto"
-          >
-            <ArrowLeft className="size-4" aria-hidden />
-            {backNavLabel}
-          </button>
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+            <Link
+              href={
+                accessToken
+                  ? `/worldcup/templates/new?forkTemplateId=${encodeURIComponent(templateId)}`
+                  : `/login?returnTo=${encodeURIComponent(`/worldcup/templates/new?forkTemplateId=${templateId}`)}`
+              }
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-violet-400/70 bg-violet-50 px-4 py-2 text-sm font-medium text-violet-900 shadow-sm transition hover:bg-violet-100 dark:border-violet-700 dark:bg-violet-950/45 dark:text-violet-100 dark:hover:bg-violet-950/75"
+            >
+              <GitBranch className="size-4" aria-hidden />
+              이 템플릿을 바탕으로 새 템플릿 만들기
+            </Link>
+            <button
+              type="button"
+              onClick={onBackToResult}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-300 bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-900 shadow-sm transition hover:bg-zinc-200 dark:border-white/15 dark:bg-zinc-800 dark:text-white dark:hover:bg-zinc-700"
+            >
+              <ArrowLeft className="size-4" aria-hidden />
+              {backNavLabel}
+            </button>
+          </div>
         </div>
       </div>
 

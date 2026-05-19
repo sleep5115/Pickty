@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import type { Control } from 'react-hook-form';
 import { FormProvider, useFieldArray, useForm, useFormContext, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -12,7 +12,12 @@ import { toast } from 'sonner';
 import { WorldCupBulkAddModal } from '@/components/worldcup/worldcup-bulk-add-modal';
 import { WorldCupCandidateMediaModal } from '@/components/worldcup/worldcup-candidate-media-modal';
 import { WorldCupEditorMediaPreview } from '@/components/worldcup/worldcup-editor-media-preview';
-import { createWorldCupTemplate } from '@/lib/worldcup/worldcup-template-api';
+import {
+  createWorldCupTemplate,
+  fetchWorldCupTemplate,
+  type WorldCupTemplateDetailDto,
+} from '@/lib/worldcup/worldcup-template-api';
+import { parseWorldCupItemsPayload, parseWorldCupLayoutMode } from '@/lib/worldcup/worldcup-template-items';
 import {
   fetchYoutubeOembedTitle,
   parseYoutubeVideoId,
@@ -283,8 +288,10 @@ function ItemMediaUrlField({ index }: { index: number }) {
   );
 }
 
-export default function WorldCupTemplateNewPage() {
+function WorldCupTemplateNewPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const forkTemplateId = searchParams.get('forkTemplateId')?.trim() ?? '';
   const authHydrated = useAuthPersistHydrated();
   const accessToken = useAuthStore((s) => s.accessToken);
   const [canUseAi, setCanUseAi] = useState(false);
@@ -298,6 +305,8 @@ export default function WorldCupTemplateNewPage() {
     null,
   );
   const batchImageInputRef = useRef<HTMLInputElement>(null);
+  const [forkLoading, setForkLoading] = useState(false);
+  const [forkError, setForkError] = useState<string | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -315,6 +324,7 @@ export default function WorldCupTemplateNewPage() {
     handleSubmit,
     getValues,
     setValue,
+    reset,
     formState: { errors, isSubmitting },
     setError,
   } = form;
@@ -340,6 +350,50 @@ export default function WorldCupTemplateNewPage() {
     const kept = cur.filter((it) => !isCompletelyEmptyShell(it));
     replace([...kept, ...newRows]);
   };
+
+  useEffect(() => {
+    if (!forkTemplateId) return;
+    let cancelled = false;
+    setForkLoading(true);
+    setForkError(null);
+    void (async () => {
+      try {
+        const res = await fetchWorldCupTemplate(forkTemplateId);
+        if (cancelled) return;
+        if (!res.ok) {
+          setForkError(res.status === 404 ? '원본 템플릿을 찾을 수 없습니다.' : '원본 템플릿을 불러올 수 없습니다.');
+          setForkLoading(false);
+          return;
+        }
+        const d = (await res.json()) as WorldCupTemplateDetailDto;
+        if (cancelled) return;
+        const parsedItems = parseWorldCupItemsPayload(
+          d.items as Record<string, unknown> | unknown[] | null | undefined,
+        );
+        const lm = parseWorldCupLayoutMode(d.layoutMode ?? '');
+        reset({
+          title: d.title ?? '',
+          description: d.description ?? '',
+          layoutMode: lm,
+          items:
+            parsedItems.length >= 2
+              ? parsedItems.map((it) => ({
+                  name: it.name,
+                  imageUrl: it.imageUrl ?? '',
+                  mediaEntryKind: 'url' as const,
+                  aiCandidates: undefined,
+                  aiCandidateIndex: undefined,
+                }))
+              : [newItemRow(), newItemRow()],
+        });
+      } catch {
+        if (!cancelled) setForkError('네트워크 오류가 발생했습니다.');
+      } finally {
+        if (!cancelled) setForkLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [forkTemplateId, reset]);
 
   useEffect(() => {
     if (!authHydrated) return;
@@ -532,12 +586,25 @@ export default function WorldCupTemplateNewPage() {
             월드컵 목록
           </Link>
           <h1 className="mt-4 text-2xl font-semibold tracking-tight text-slate-900 dark:text-zinc-100">
-            월드컵 템플릿 만들기
+            {forkTemplateId ? '템플릿을 받아와서 새로 만들기' : '월드컵 템플릿 만들기'}
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-zinc-400">
             위에서는 제목·설명·레이아웃을 정하고, 아래 표에서 후보 미디어를 대량으로 붙여 넣거나 행별로
             다듬을 수 있습니다.
           </p>
+          {forkTemplateId && !forkLoading && !forkError && (
+            <p className="mt-2 text-xs leading-relaxed text-violet-600 dark:text-violet-400">
+              기존 템플릿의 후보 목록을 그대로 불러왔어요. 빠진 항목을 추가하거나 필요 없는 건 지워서 나만의 월드컵으로 만들어 보세요.
+            </p>
+          )}
+          {forkError && (
+            <div
+              role="alert"
+              className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+            >
+              {forkError}
+            </div>
+          )}
         </div>
 
         {!accessToken ? (
@@ -880,5 +947,13 @@ export default function WorldCupTemplateNewPage() {
         onApply={appendBulkUrls}
       />
     </div>
+  );
+}
+
+export default function WorldCupTemplateNewPage() {
+  return (
+    <Suspense>
+      <WorldCupTemplateNewPageInner />
+    </Suspense>
   );
 }
