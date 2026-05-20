@@ -59,10 +59,11 @@ async function prefetchItemImages(
 
 // ── DOM 빌더 유틸 ─────────────────────────────────────────────
 
-const ITEM_W = 85;    // 개별 아이템 카드 너비
-const ITEM_GAP = 5;   // 같은 행 내 아이템 사이 간격
+const ITEM_W = 85;
+const ITEM_GAP = 5;
 const ITEM_IMG_H = 56;
-const PAD_H = 28;
+const PAD_L = 52; // Left padding to secure space for round labels
+const PAD_R = 28;
 const PAD_V = 24;
 
 function css(...rules: string[]): string {
@@ -76,8 +77,12 @@ function makeRoundHeader(text: string): HTMLElement {
     'font-weight:700',
     'color:#7c3aed',
     'letter-spacing:0.06em',
-    'margin-bottom:6px',
     'white-space:nowrap',
+    'position:absolute',
+    'right:calc(100% + 8px)',
+    'top:50%',
+    'transform:translateY(-50%)',
+    'text-align:right',
   );
   el.textContent = text;
   return el;
@@ -173,6 +178,59 @@ function makeChampionBox(name: string, dataUrl?: string): HTMLElement {
   return box;
 }
 
+function getParticipantCenterX(dr: number, p_idx: number): number {
+  const span = Math.pow(2, dr);
+  const leftX = p_idx * span * (ITEM_W + ITEM_GAP);
+  const rightX = (p_idx * span + span - 1) * (ITEM_W + ITEM_GAP) + ITEM_W;
+  return (leftX + rightX) / 2;
+}
+
+function createSvgLinesRow(
+  dr: number,
+  matchCount: number,
+  contentW: number,
+  lineHeight: number,
+  strokeColor: string = '#cbd5e1',
+  strokeWidth: number = 2,
+): HTMLElement {
+  const container = document.createElement('div');
+  container.style.cssText = css(
+    'position:relative',
+    `width:${contentW}px`,
+    `height:${lineHeight}px`,
+  );
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width', contentW.toString());
+  svg.setAttribute('height', lineHeight.toString());
+  svg.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;';
+
+  for (let i = 0; i < matchCount; i++) {
+    const x1 = getParticipantCenterX(dr, 2 * i);
+    const x2 = getParticipantCenterX(dr, 2 * i + 1);
+    const xMid = (x1 + x2) / 2;
+
+    const yBottom = lineHeight;
+    const yMid = lineHeight / 2;
+    const yTop = 0;
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute(
+      'd',
+      `M ${x1} ${yBottom} L ${x1} ${yMid} L ${x2} ${yMid} L ${x2} ${yBottom} M ${xMid} ${yMid} L ${xMid} ${yTop}`,
+    );
+    path.setAttribute('stroke', strokeColor);
+    path.setAttribute('stroke-width', strokeWidth.toString());
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke-linecap', 'round');
+    path.setAttribute('stroke-linejoin', 'round');
+    svg.appendChild(path);
+  }
+
+  container.appendChild(svg);
+  return container;
+}
+
 // ── 대진표 빌더 ───────────────────────────────────────────────
 //
 // 각 행을 CSS Grid(N열, 열 너비 ITEM_W, column-gap ITEM_GAP)로 구성한다.
@@ -201,22 +259,26 @@ function buildBracket(
   wrap.style.cssText = css(
     'display:flex',
     'flex-direction:column',
-    'gap:10px',
+    'gap:0px',
     `width:${contentW}px`,
   );
 
   // 우승자 (최상단, 전체 너비 가운데 정렬)
   const champRow = document.createElement('div');
-  champRow.style.cssText = 'display:flex;flex-direction:column;align-items:center';
+  champRow.style.cssText = 'display:flex;flex-direction:column;align-items:center;position:relative';
   champRow.appendChild(makeRoundHeader('우승'));
   champRow.appendChild(makeChampionBox(champion, championId != null ? imageMap?.get(championId) : undefined));
   wrap.appendChild(champRow);
+
+  if (rounds.length > 0) {
+    wrap.appendChild(createSvgLinesRow(rounds.length - 1, 1, contentW, 24));
+  }
 
   // 결승 → 1라운드 순으로 DOM에 추가 (flex-column → 위에서 아래로)
   for (let dr = rounds.length - 1; dr >= 0; dr--) {
     const span = Math.pow(2, dr);
     const row = document.createElement('div');
-    row.style.cssText = 'display:flex;flex-direction:column';
+    row.style.cssText = 'display:flex;flex-direction:column;position:relative';
     row.appendChild(makeRoundHeader(labels[dr] ?? `R${dr}`));
 
     const cards = document.createElement('div');
@@ -225,6 +287,8 @@ function buildBracket(
       `grid-template-columns:repeat(${N},${ITEM_W}px)`,
       `column-gap:${ITEM_GAP}px`,
       `width:${contentW}px`,
+      'position:relative',
+      'z-index:1',
     );
 
     if (dr === 0) {
@@ -256,6 +320,10 @@ function buildBracket(
 
     row.appendChild(cards);
     wrap.appendChild(row);
+
+    if (dr > 0) {
+      wrap.appendChild(createSvgLinesRow(dr - 1, rounds[dr - 1]!.length, contentW, 24));
+    }
   }
 
   return wrap;
@@ -392,13 +460,13 @@ export async function captureWorldCupBracketToPng(labels: BracketCaptureLabels):
   const rLabels = rounds.map((_, i) => roundLabel(effectiveBracket, i));
 
   // 이미지 너비: 표시 라운드 참가자 수(= effectiveBracket) 기준
-  const imageWidth = PAD_H * 2 + effectiveBracket * ITEM_W + (effectiveBracket - 1) * ITEM_GAP;
+  const imageWidth = PAD_L + PAD_R + effectiveBracket * ITEM_W + (effectiveBracket - 1) * ITEM_GAP;
 
   const root = document.createElement('div');
   root.style.cssText = css(
     'box-sizing:border-box',
     `width:${imageWidth}px`,
-    `padding:${PAD_V}px ${PAD_H}px 36px`,
+    `padding:${PAD_V}px ${PAD_R}px 36px ${PAD_L}px`,
     'background:#fafafa',
     'color:#18181b',
     'font-family:ui-sans-serif,system-ui,sans-serif',
