@@ -240,6 +240,7 @@ export function WorldCupSessionClient({ templateId }: Props) {
         }}
         onMyReactionResolved={setTemplateMyReaction}
         champion={champion}
+        items={sessionRef.current?.items ?? []}
         onRestart={handleRestart}
         onShowRanking={() => setShowRanking(true)}
       />

@@ -33,6 +33,7 @@ interface Props {
   onLikeCountChange?: (next: number) => void;
   onMyReactionResolved?: (reaction: ReactionType | null) => void;
   champion: WorldCupItem;
+  items: WorldCupItem[];
   onRestart: () => void;
   onShowRanking: () => void;
 }
@@ -45,12 +46,14 @@ export function WorldCupResultClient({
   onLikeCountChange,
   onMyReactionResolved,
   champion,
+  items,
   onRestart,
   onShowRanking,
 }: Props) {
   const authHydrated = useAuthPersistHydrated();
   const accessToken = useAuthStore((s) => s.accessToken);
   const matchHistory = useWorldCupStore((s) => s.matchHistory);
+  const bracketSize = useWorldCupStore((s) => s.bracketSize);
   const [meId, setMeId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -94,6 +97,9 @@ export function WorldCupResultClient({
       const dataUrl = await captureWorldCupBracketToPng({
         matchHistory,
         championName: champion.name,
+        title: templateTitle,
+        startBracket: bracketSize,
+        items,
       });
       downloadPngDataUrl(dataUrl, `pickty-worldcup-bracket-${templateId.slice(0, 8)}.png`);
       toast.success('이미지를 저장했어요.', { id: toastId });
