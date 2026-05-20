@@ -1,6 +1,7 @@
 import { toPng } from 'html-to-image';
 import { appendPicktyWatermark, formatImageCaptureError } from '@/lib/tier-capture-png';
-import type { WorldCupMatchHistoryEntry, WorldCupLayoutMode } from '@/lib/store/worldcup-store';
+import type { WorldCupItem, WorldCupMatchHistoryEntry } from '@/lib/store/worldcup-store';
+import { freezeRasterImageUrlToJpegDataUrl } from '@/lib/worldcup/worldcup-raster-static';
 
 export { formatImageCaptureError };
 
@@ -10,8 +11,9 @@ export type BracketCaptureLabels = {
   matchHistory: WorldCupMatchHistoryEntry[];
   championName: string;
   title?: string;
-  layoutMode?: WorldCupLayoutMode;
   startBracket?: number;
+  /** 썸네일 표시용 — 없으면 텍스트만 표시 */
+  items?: WorldCupItem[];
 };
 
 // ── 라운드 분할 ──────────────────────────────────────────────
@@ -35,51 +37,36 @@ function roundLabel(start: number, idx: number): string {
   return players <= 2 ? '결승' : `${players}강`;
 }
 
+// ── 이미지 프리패치 ───────────────────────────────────────────
+
+async function prefetchItemImages(
+  items: WorldCupItem[],
+  matchIds: Set<number>,
+): Promise<Map<number, string>> {
+  const targets = items.filter((it) => matchIds.has(it.id) && it.imageUrl?.trim());
+  const settled = await Promise.allSettled(
+    targets.map(async (it) => {
+      const dataUrl = await freezeRasterImageUrlToJpegDataUrl(it.imageUrl!, 80);
+      return [it.id, dataUrl] as const;
+    }),
+  );
+  const map = new Map<number, string>();
+  for (const r of settled) {
+    if (r.status === 'fulfilled') map.set(r.value[0], r.value[1]);
+  }
+  return map;
+}
+
 // ── DOM 빌더 유틸 ─────────────────────────────────────────────
 
-const CARD_W_H = 160; // 가로 레이아웃 카드 너비
-const CARD_W_V = 150; // 세로 레이아웃 카드 너비
-const COL_GAP = 12;
+const ITEM_W = 85;    // 개별 아이템 카드 너비
+const ITEM_GAP = 5;   // 같은 행 내 아이템 사이 간격
+const ITEM_IMG_H = 56;
 const PAD_H = 28;
 const PAD_V = 24;
 
 function css(...rules: string[]): string {
   return rules.join(';');
-}
-
-function makeMatchCard(entry: SelectWinnerEntry, cardW: number): HTMLElement {
-  const card = document.createElement('div');
-  card.style.cssText = css(
-    `width:${cardW}px`,
-    'border-radius:8px',
-    'overflow:hidden',
-    'border:1px solid #e4e4e7',
-    'font-size:11px',
-    'line-height:1.4',
-    'flex-shrink:0',
-  );
-  for (const side of [0, 1] as const) {
-    if (side === 1) {
-      const sep = document.createElement('div');
-      sep.style.cssText = 'height:1px;background:#e4e4e7';
-      card.appendChild(sep);
-    }
-    const isWin = entry.winnerSide === side;
-    const name = side === 0 ? entry.leftName : entry.rightName;
-    const row = document.createElement('div');
-    row.style.cssText = css(
-      'padding:5px 7px',
-      'overflow:hidden',
-      'text-overflow:ellipsis',
-      'white-space:nowrap',
-      isWin
-        ? 'background:#ede9fe;font-weight:600;color:#09090b'
-        : 'background:#f4f4f5;color:#a1a1aa',
-    );
-    row.textContent = (isWin ? '✓ ' : '') + name;
-    card.appendChild(row);
-  }
-  return card;
 }
 
 function makeRoundHeader(text: string): HTMLElement {
@@ -96,86 +83,177 @@ function makeRoundHeader(text: string): HTMLElement {
   return el;
 }
 
-function makeChampionBox(name: string, cardW: number): HTMLElement {
+/** 개별 아이템 카드 (참가자 또는 라운드 승자) */
+function makeItemCard(name: string, hasImages: boolean, dataUrl?: string, showCheck = false): HTMLElement {
+  const card = document.createElement('div');
+  card.style.cssText = css(
+    `width:${ITEM_W}px`,
+    'flex-shrink:0',
+    'border-radius:5px',
+    'overflow:hidden',
+    'border:1.5px solid #e4e4e7',
+    'background:#fff',
+  );
+
+  if (hasImages) {
+    const imgWrap = document.createElement('div');
+    imgWrap.style.cssText = css(
+      'width:100%',
+      `height:${ITEM_IMG_H}px`,
+      'background:#d4d4d8',
+      'overflow:hidden',
+    );
+    if (dataUrl) {
+      const img = document.createElement('img');
+      img.src = dataUrl;
+      img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block';
+      img.alt = '';
+      imgWrap.appendChild(img);
+    }
+    card.appendChild(imgWrap);
+  }
+
+  const nameEl = document.createElement('div');
+  nameEl.style.cssText = css(
+    'padding:3px 4px',
+    'font-size:9px',
+    'text-align:center',
+    'overflow:hidden',
+    'text-overflow:ellipsis',
+    'white-space:nowrap',
+    showCheck ? 'color:#7c3aed;font-weight:700' : 'color:#09090b;font-weight:500',
+  );
+  nameEl.textContent = (showCheck ? '✓ ' : '') + name;
+  card.appendChild(nameEl);
+
+  return card;
+}
+
+function makeChampionBox(name: string, dataUrl?: string): HTMLElement {
   const box = document.createElement('div');
   box.style.cssText = css(
-    `width:${cardW}px`,
-    'padding:8px 10px',
-    'border-radius:8px',
+    `width:${ITEM_W}px`,
+    'flex-shrink:0',
+    'border-radius:5px',
+    'overflow:hidden',
     'border:2px solid #fbbf24',
     'background:#fffbeb',
+  );
+
+  if (dataUrl) {
+    const imgWrap = document.createElement('div');
+    imgWrap.style.cssText = css(
+      'width:100%',
+      `height:${ITEM_IMG_H}px`,
+      'background:#d4d4d8',
+      'overflow:hidden',
+    );
+    const img = document.createElement('img');
+    img.src = dataUrl;
+    img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block';
+    img.alt = '';
+    imgWrap.appendChild(img);
+    box.appendChild(imgWrap);
+  }
+
+  const label = document.createElement('div');
+  label.style.cssText = css(
+    'padding:3px 4px',
     'font-weight:700',
-    'font-size:12px',
+    'font-size:9px',
     'color:#0a0a0a',
     'text-align:center',
     'overflow:hidden',
     'text-overflow:ellipsis',
     'white-space:nowrap',
   );
-  box.textContent = '🏆 ' + name;
+  label.textContent = '🏆 ' + name;
+  box.appendChild(label);
+
   return box;
 }
 
-// ── 가로 대진표 (split_diagonal: 왼쪽 → 오른쪽) ──────────────
+// ── 대진표 빌더 ───────────────────────────────────────────────
+//
+// 각 행을 CSS Grid(N열, 열 너비 ITEM_W, column-gap ITEM_GAP)로 구성한다.
+//
+// display_row 0 (최하단): rounds[0]의 leftId·rightId를 개별 카드로 N개 나열
+//   → 각 매치 i: left at col 2i+1, right at col 2i+2 (span 1)
+//
+// display_row r (r≥1): rounds[r-1] 각 match의 승자만 배치
+//   → span = 2^r, start_col = i * span + 1
+//   → justify-self:center 로 하위 두 카드의 정가운데에 위치
+//
+// champion: display_row rounds.length의 승자를 gold 박스로 별도 표시
 
-function buildHorizontalBracket(
+function buildBracket(
   rounds: SelectWinnerEntry[][],
   labels: string[],
   champion: string,
+  imageMap?: Map<number, string>,
+  championId?: number,
 ): HTMLElement {
+  const N = rounds.length > 0 ? rounds[0]!.length * 2 : 2; // = startBracket
+  const contentW = N * ITEM_W + (N - 1) * ITEM_GAP;
+  const hasImages = imageMap != null && imageMap.size > 0;
+
   const wrap = document.createElement('div');
   wrap.style.cssText = css(
     'display:flex',
-    'flex-direction:row',
-    'align-items:flex-start',
-    `gap:${COL_GAP}px`,
+    'flex-direction:column',
+    'gap:10px',
+    `width:${contentW}px`,
   );
 
-  rounds.forEach((round, i) => {
-    const col = document.createElement('div');
-    col.style.cssText = 'display:flex;flex-direction:column';
-    col.appendChild(makeRoundHeader(labels[i] ?? `R${i + 1}`));
-    const list = document.createElement('div');
-    list.style.cssText = 'display:flex;flex-direction:column;gap:5px';
-    round.forEach((e) => list.appendChild(makeMatchCard(e, CARD_W_H)));
-    col.appendChild(list);
-    wrap.appendChild(col);
-  });
-
-  const champCol = document.createElement('div');
-  champCol.style.cssText = 'display:flex;flex-direction:column';
-  champCol.appendChild(makeRoundHeader('우승'));
-  champCol.appendChild(makeChampionBox(champion, CARD_W_H));
-  wrap.appendChild(champCol);
-
-  return wrap;
-}
-
-// ── 세로 대진표 (split_lr: 아래 → 위; 이미지 상 결승이 위, 첫 라운드가 아래) ──
-
-function buildVerticalBracket(
-  rounds: SelectWinnerEntry[][],
-  labels: string[],
-  champion: string,
-): HTMLElement {
-  const wrap = document.createElement('div');
-  wrap.style.cssText = 'display:flex;flex-direction:column;gap:10px';
-
-  // 우승자를 이미지 최상단에 배치 (아래→위 흐름에서 도달점이 위쪽)
+  // 우승자 (최상단, 전체 너비 가운데 정렬)
   const champRow = document.createElement('div');
-  champRow.style.cssText = 'display:flex;flex-direction:column';
+  champRow.style.cssText = 'display:flex;flex-direction:column;align-items:center';
   champRow.appendChild(makeRoundHeader('우승'));
-  champRow.appendChild(makeChampionBox(champion, CARD_W_V));
+  champRow.appendChild(makeChampionBox(champion, championId != null ? imageMap?.get(championId) : undefined));
   wrap.appendChild(champRow);
 
-  // 라운드를 역순으로 배치 (결승 → ... → 첫 라운드가 이미지 하단)
-  for (let i = rounds.length - 1; i >= 0; i--) {
+  // 결승 → 1라운드 순으로 DOM에 추가 (flex-column → 위에서 아래로)
+  for (let dr = rounds.length - 1; dr >= 0; dr--) {
+    const span = Math.pow(2, dr);
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;flex-direction:column';
-    row.appendChild(makeRoundHeader(labels[i] ?? `R${i + 1}`));
+    row.appendChild(makeRoundHeader(labels[dr] ?? `R${dr}`));
+
     const cards = document.createElement('div');
-    cards.style.cssText = 'display:flex;flex-direction:row;flex-wrap:wrap;gap:5px';
-    rounds[i]!.forEach((e) => cards.appendChild(makeMatchCard(e, CARD_W_V)));
+    cards.style.cssText = css(
+      'display:grid',
+      `grid-template-columns:repeat(${N},${ITEM_W}px)`,
+      `column-gap:${ITEM_GAP}px`,
+      `width:${contentW}px`,
+    );
+
+    if (dr === 0) {
+      // 최하단: 1라운드 참가자 전원을 개별 카드로 순서대로 배치 (승자 ✓ 표시)
+      rounds[0]!.forEach((match, i) => {
+        const left = makeItemCard(match.leftName, hasImages, imageMap?.get(match.leftId), match.winnerSide === 0);
+        left.style.gridColumn = `${i * 2 + 1} / span 1`;
+        cards.appendChild(left);
+
+        const right = makeItemCard(match.rightName, hasImages, imageMap?.get(match.rightId), match.winnerSide === 1);
+        right.style.gridColumn = `${i * 2 + 2} / span 1`;
+        cards.appendChild(right);
+      });
+    } else {
+      // 상위 행: rounds[dr-1] 각 매치의 승자를 span 2^dr 열에 가운데 배치
+      // 이 행의 항목들은 rounds[dr]에서 경쟁 → 거기서 이긴 사람에게 ✓ 표시
+      const nextRound = rounds[dr];
+      rounds[dr - 1]!.forEach((match, i) => {
+        const nextMatch = nextRound?.[Math.floor(i / 2)];
+        const isWinner = nextMatch != null &&
+          ((i % 2 === 0 && nextMatch.winnerSide === 0) ||
+           (i % 2 === 1 && nextMatch.winnerSide === 1));
+        const card = makeItemCard(match.winnerName, hasImages, imageMap?.get(match.winnerId), isWinner);
+        card.style.gridColumn = `${i * span + 1} / span ${span}`;
+        card.style.justifySelf = 'center';
+        cards.appendChild(card);
+      });
+    }
+
     row.appendChild(cards);
     wrap.appendChild(row);
   }
@@ -213,7 +291,7 @@ async function captureDomToPng(root: HTMLElement, width: number): Promise<string
   }
 }
 
-// ── 텍스트 목록 폴백 (startBracket 없거나 매치 없을 때) ────────
+// ── 텍스트 목록 폴백 ─────────────────────────────────────────
 
 function entryLabel(e: WorldCupMatchHistoryEntry): string {
   switch (e.kind) {
@@ -248,7 +326,8 @@ async function captureTextFallback(labels: BracketCaptureLabels): Promise<string
 
   const title = document.createElement('div');
   title.textContent = labels.title ?? '이상형 월드컵 대진표';
-  title.style.cssText = 'font-size:20px;font-weight:800;margin-bottom:16px;letter-spacing:-0.02em;color:#09090b';
+  title.style.cssText =
+    'font-size:20px;font-weight:800;margin-bottom:16px;letter-spacing:-0.02em;color:#09090b';
   root.appendChild(title);
 
   if (labels.matchHistory.length === 0) {
@@ -290,14 +369,30 @@ export async function captureWorldCupBracketToPng(labels: BracketCaptureLabels):
     return captureTextFallback(labels);
   }
 
-  const rounds = splitIntoRounds(selectWins, startBracket);
-  const rLabels = rounds.map((_, i) => roundLabel(startBracket, i));
-  const isHorizontal = labels.layoutMode === 'split_diagonal';
+  // 16강 초과 시 앞 라운드를 잘라 16강부터만 표시
+  const MAX_DISPLAY = 16;
+  const effectiveBracket = Math.min(startBracket, MAX_DISPLAY);
+  const displayWins = startBracket > MAX_DISPLAY
+    ? selectWins.slice(startBracket - MAX_DISPLAY)
+    : selectWins;
 
-  // 가로: 라운드 수에 따라 너비 동적 계산, 세로: 고정 720px
-  const imageWidth = isHorizontal
-    ? PAD_H * 2 + (rounds.length + 1) * CARD_W_H + rounds.length * COL_GAP
-    : 720;
+  const matchIds = new Set<number>();
+  displayWins.forEach((e) => { matchIds.add(e.leftId); matchIds.add(e.rightId); });
+
+  const lastMatch = selectWins[selectWins.length - 1];
+  const championId = lastMatch?.winnerId;
+  if (championId != null) matchIds.add(championId);
+
+  let imageMap: Map<number, string> | undefined;
+  if (labels.items && labels.items.some((it) => it.imageUrl?.trim())) {
+    imageMap = await prefetchItemImages(labels.items, matchIds);
+  }
+
+  const rounds = splitIntoRounds(displayWins, effectiveBracket);
+  const rLabels = rounds.map((_, i) => roundLabel(effectiveBracket, i));
+
+  // 이미지 너비: 표시 라운드 참가자 수(= effectiveBracket) 기준
+  const imageWidth = PAD_H * 2 + effectiveBracket * ITEM_W + (effectiveBracket - 1) * ITEM_GAP;
 
   const root = document.createElement('div');
   root.style.cssText = css(
@@ -319,10 +414,7 @@ export async function captureWorldCupBracketToPng(labels: BracketCaptureLabels):
     'font-size:18px;font-weight:800;margin-bottom:16px;letter-spacing:-0.02em;color:#09090b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
   root.appendChild(titleEl);
 
-  const bracket = isHorizontal
-    ? buildHorizontalBracket(rounds, rLabels, labels.championName)
-    : buildVerticalBracket(rounds, rLabels, labels.championName);
-  root.appendChild(bracket);
+  root.appendChild(buildBracket(rounds, rLabels, labels.championName, imageMap, championId));
 
   appendPicktyWatermark(root);
   return captureDomToPng(root, imageWidth);
