@@ -244,8 +244,69 @@ function createSvgLinesRow(
 //
 // champion: display_row rounds.length의 승자를 gold 박스로 별도 표시
 
+function alignRoundsToTree(rounds: SelectWinnerEntry[][]): (SelectWinnerEntry | null)[][] {
+  const R = rounds.length;
+  if (R <= 1) return rounds;
+
+  const aligned: (SelectWinnerEntry | null)[][] = Array.from({ length: R }, () => []);
+
+  const finalMatch = rounds[R - 1]?.[0];
+  if (!finalMatch) return rounds;
+  aligned[R - 1] = [finalMatch];
+
+  for (let dr = R - 2; dr >= 0; dr--) {
+    const parentRound = aligned[dr + 1];
+    const originalRoundMatches = [...rounds[dr]];
+
+    for (const parentMatch of parentRound) {
+      if (!parentMatch) {
+        aligned[dr].push(null, null);
+        continue;
+      }
+
+      let leftIdx = originalRoundMatches.findIndex((m) => m.winnerId === parentMatch.leftId);
+      let leftChild: SelectWinnerEntry | null = null;
+      if (leftIdx !== -1) {
+        leftChild = originalRoundMatches[leftIdx];
+        originalRoundMatches.splice(leftIdx, 1);
+      }
+
+      let rightIdx = originalRoundMatches.findIndex((m) => m.winnerId === parentMatch.rightId);
+      let rightChild: SelectWinnerEntry | null = null;
+      if (rightIdx !== -1) {
+        rightChild = originalRoundMatches[rightIdx];
+        originalRoundMatches.splice(rightIdx, 1);
+      }
+
+      if (!leftChild && originalRoundMatches.length > 0) {
+        leftChild = originalRoundMatches.shift()!;
+      }
+      if (!rightChild && originalRoundMatches.length > 0) {
+        rightChild = originalRoundMatches.shift()!;
+      }
+
+      aligned[dr].push(leftChild, rightChild);
+    }
+  }
+
+  return aligned;
+}
+
+function makeEmptyCard(): HTMLElement {
+  const card = document.createElement('div');
+  card.style.cssText = css(
+    `width:${ITEM_W}px`,
+    'flex-shrink:0',
+    'border-radius:5px',
+    'border:1.5px dashed #d4d4d8',
+    'background:#f4f4f5',
+    `height:${ITEM_IMG_H + 18}px`,
+  );
+  return card;
+}
+
 function buildBracket(
-  rounds: SelectWinnerEntry[][],
+  rounds: (SelectWinnerEntry | null)[][],
   labels: string[],
   champion: string,
   imageMap?: Map<number, string>,
@@ -294,6 +355,17 @@ function buildBracket(
     if (dr === 0) {
       // 최하단: 1라운드 참가자 전원을 개별 카드로 순서대로 배치 (승자 ✓ 표시)
       rounds[0]!.forEach((match, i) => {
+        if (!match) {
+          const leftPlaceholder = makeEmptyCard();
+          leftPlaceholder.style.gridColumn = `${i * 2 + 1} / span 1`;
+          cards.appendChild(leftPlaceholder);
+
+          const rightPlaceholder = makeEmptyCard();
+          rightPlaceholder.style.gridColumn = `${i * 2 + 2} / span 1`;
+          cards.appendChild(rightPlaceholder);
+          return;
+        }
+
         const left = makeItemCard(match.leftName, hasImages, imageMap?.get(match.leftId), match.winnerSide === 0);
         left.style.gridColumn = `${i * 2 + 1} / span 1`;
         cards.appendChild(left);
@@ -307,6 +379,14 @@ function buildBracket(
       // 이 행의 항목들은 rounds[dr]에서 경쟁 → 거기서 이긴 사람에게 ✓ 표시
       const nextRound = rounds[dr];
       rounds[dr - 1]!.forEach((match, i) => {
+        if (!match) {
+          const placeholder = makeEmptyCard();
+          placeholder.style.gridColumn = `${i * span + 1} / span ${span}`;
+          placeholder.style.justifySelf = 'center';
+          cards.appendChild(placeholder);
+          return;
+        }
+
         const nextMatch = nextRound?.[Math.floor(i / 2)];
         const isWinner = nextMatch != null &&
           ((i % 2 === 0 && nextMatch.winnerSide === 0) ||
@@ -456,7 +536,8 @@ export async function captureWorldCupBracketToPng(labels: BracketCaptureLabels):
     imageMap = await prefetchItemImages(labels.items, matchIds);
   }
 
-  const rounds = splitIntoRounds(displayWins, effectiveBracket);
+  const rawRounds = splitIntoRounds(displayWins, effectiveBracket);
+  const rounds = alignRoundsToTree(rawRounds);
   const rLabels = rounds.map((_, i) => roundLabel(effectiveBracket, i));
 
   // 이미지 너비: 표시 라운드 참가자 수(= effectiveBracket) 기준
