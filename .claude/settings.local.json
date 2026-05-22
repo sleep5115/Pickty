@@ -3,7 +3,15 @@
     "allow": [
       "Bash(xargs grep -l \"like\\\\|dislike\\\\|recommend\\\\|vote\" -i)",
       "Bash(npx tsc *)",
-      "Bash(./gradlew compileKotlin)"
+      "Bash(./gradlew compileKotlin)",
+      "Bash(./gradlew compileKotlin -q)",
+      "PowerShell($javaHome = \\(Get-Command java -ErrorAction SilentlyContinue\\).Source; if \\($javaHome\\) { $javaHome } else { Get-ChildItem 'C:\\\\Program Files\\\\Java\\\\' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName; Get-ChildItem 'C:\\\\Program Files\\\\Eclipse Adoptium\\\\' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName; Get-ChildItem 'C:\\\\Program Files\\\\Microsoft\\\\' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName })",
+      "PowerShell(Write-Output \"JAVA_HOME=$env:JAVA_HOME\"; Get-ChildItem 'C:\\\\Program Files\\\\' -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -match 'Java|JDK|Adoptium|Microsoft' } | Select-Object -ExpandProperty FullName)",
+      "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Administrator\\\\.jdks\\\\corretto-25.0.2'; $env:Path = \"$env:JAVA_HOME\\\\bin;$env:Path\"; & .\\\\backend\\\\gradlew.bat -p backend compileKotlin --console=plain 2>&1 | Select-Object -Last 60)",
+      "Bash(export JAVA_HOME='/c/Users/Administrator/.jdks/corretto-25.0.2')",
+      "Bash(export PATH=\"$JAVA_HOME/bin:$PATH\")",
+      "Bash(./gradlew compileKotlin --no-daemon --console=plain)",
+      "Bash(./gradlew compileKotlin --no-daemon --stacktrace --console=plain)"
     ]
   }
 }
