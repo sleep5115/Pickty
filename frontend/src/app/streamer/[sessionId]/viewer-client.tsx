@@ -8,6 +8,7 @@ import { castWorldcupVote, type StreamerStatus } from '@/lib/streamer/streamer-a
 import { fetchWorldCupTemplate } from '@/lib/worldcup/worldcup-template-api';
 import { parseWorldCupItemsPayload } from '@/lib/worldcup/worldcup-template-items';
 import type { WorldCupItem } from '@/lib/store/worldcup-store';
+import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
 
 interface ViewerClientProps {
   sessionId: string;
@@ -130,7 +131,6 @@ export function ViewerClient({ sessionId }: ViewerClientProps) {
         <WaitingForMatch />
       ) : (
         <MatchBallot
-          matchKey={currentMatchInfo.matchKey}
           leftId={currentMatchInfo.leftId}
           rightId={currentMatchInfo.rightId}
           label={currentMatchInfo.label}
@@ -194,7 +194,6 @@ function SessionFinished() {
 }
 
 interface MatchBallotProps {
-  matchKey: string;
   leftId: string;
   rightId: string;
   label: string | null;
@@ -204,7 +203,7 @@ interface MatchBallotProps {
   onVote: (selectedId: string) => void;
 }
 
-function MatchBallot({ matchKey, leftId, rightId, label, left, right, vote, onVote }: MatchBallotProps) {
+function MatchBallot({ leftId, rightId, label, left, right, vote, onVote }: MatchBallotProps) {
   return (
     <section className="flex flex-col gap-3">
       {label ? <div className="text-center text-sm text-zinc-500">{label}</div> : null}
@@ -231,7 +230,7 @@ function MatchBallot({ matchKey, leftId, rightId, label, left, right, vote, onVo
             : '투표 완료! 방장이 다음 매치로 넘기면 다시 투표할 수 있어요.'}
         </div>
       ) : (
-        <div className="text-center text-xs text-zinc-400">매치 키: {matchKey}</div>
+        <div className="text-center text-xs text-zinc-400">한 쪽을 골라 표를 던져 주세요.</div>
       )}
     </section>
   );
@@ -263,7 +262,7 @@ function Candidate({
     >
       {item?.imageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={item.imageUrl} alt={item.name || itemId} className="h-2/3 w-full rounded-xl object-cover" />
+        <img src={picktyImageDisplaySrc(item.imageUrl)} alt={item.name || itemId} className="h-2/3 w-full rounded-xl object-cover" />
       ) : (
         <div className="flex h-2/3 w-full items-center justify-center rounded-xl bg-zinc-100 text-zinc-400">
           ?

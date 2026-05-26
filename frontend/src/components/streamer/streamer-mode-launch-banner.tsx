@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { Radio, Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useAuthPersistHydrated } from '@/lib/hooks/use-auth-persist-hydrated';
@@ -18,10 +18,15 @@ interface Props {
  */
 export function StreamerModeLaunchBanner({ templateId }: Props) {
   const router = useRouter();
+  const pathname = usePathname();
   const authHydrated = useAuthPersistHydrated();
   const accessToken = useAuthStore((s) => s.accessToken);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // 호스트 모드 wrapper(/streamer/host/...)가 WorldCupSessionClient를 다시 mount할 때
+  // BracketSelect 위에 또 띄워지는 걸 방지 — 동일 페이지에서 세션을 중복 발급할 위험 차단.
+  if (pathname?.startsWith('/streamer/host/')) return null;
 
   const ready = authHydrated && !!accessToken;
 

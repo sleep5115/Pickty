@@ -19,6 +19,7 @@ import {
   parseYoutubeVideoId,
 } from '@/lib/worldcup/worldcup-media-url';
 import { formatWorldCupRoundLabel } from '@/lib/worldcup/worldcup-bracket-sizes';
+import { StreamerVoteGauge } from '@/components/streamer/streamer-vote-gauge';
 
 const pillCounter =
   'rounded-full border border-zinc-300 bg-white/90 px-3 py-1.5 text-xs font-medium text-zinc-900 shadow-lg backdrop-blur-sm tabular-nums dark:border-white/15 dark:bg-black/55 dark:text-white sm:text-sm';
@@ -298,6 +299,7 @@ function CandidateCard({
           <span className="truncate">{item?.name ?? '후보'} 선택 ✔</span>
         </button>
       </div>
+      <StreamerVoteGauge itemId={item?.id} side={side} />
     </div>
   );
 }
