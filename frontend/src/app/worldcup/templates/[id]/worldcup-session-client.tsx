@@ -25,6 +25,7 @@ import { WorldCupRankingClient } from './worldcup-ranking-client';
 import { WorldCupResultClient } from './worldcup-result-client';
 import { useAuthPersistHydrated } from '@/lib/hooks/use-auth-persist-hydrated';
 import { useAuthStore } from '@/lib/store/auth-store';
+import { StreamerModeLaunchBanner } from '@/components/streamer/streamer-mode-launch-banner';
 
 interface Props {
   templateId: string;
@@ -217,11 +218,14 @@ export function WorldCupSessionClient({ templateId }: Props) {
   if (phase === 'ready' && !isPlaying && sessionRef.current) {
     const total = sessionRef.current.items.length;
     return (
-      <WorldCupBracketSelect
-        templateTitle={templateTitle || sessionRef.current.title}
-        totalItems={total}
-        onSelectBracket={handleBracketChosen}
-      />
+      <div className="flex flex-1 flex-col">
+        <StreamerModeLaunchBanner templateId={templateId} />
+        <WorldCupBracketSelect
+          templateTitle={templateTitle || sessionRef.current.title}
+          totalItems={total}
+          onSelectBracket={handleBracketChosen}
+        />
+      </div>
     );
   }
 
