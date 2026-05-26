@@ -94,6 +94,10 @@ class SecurityConfig(
                     .requestMatchers(HttpMethod.GET, "/api/v1/tiers/results/mine").authenticated()
                     .requestMatchers(HttpMethod.PATCH, "/api/v1/tiers/results/**").authenticated()
                     .requestMatchers(HttpMethod.DELETE, "/api/v1/tiers/results/**").authenticated()
+                    // 스트리머 세션 생성과 fallback 토큰 재발급만 로그인 필수
+                    // (나머지 방장 제어는 X-Host-Token 헤더로 서비스 레이어 검증)
+                    .requestMatchers(HttpMethod.POST, "/api/v1/streamer/sessions").authenticated()
+                    .requestMatchers(HttpMethod.GET, "/api/v1/streamer/sessions/*/fallback-token").authenticated()
                     // AI 자동 생성
                     .requestMatchers("/api/v1/ai/**").authenticated()
                     .requestMatchers(HttpMethod.GET, "/api/v1/admin/**").authenticated()
