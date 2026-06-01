@@ -20,7 +20,7 @@ import {
 } from '@/lib/streamer/streamer-api';
 import { WorldCupSessionClient } from '@/app/worldcup/templates/[id]/worldcup-session-client';
 import { TierBoard } from '@/components/tier/tier-board';
-import { useTierStore, type TierItem } from '@/lib/store/tier-store';
+import { useTierStore, isTierSpacerId, type TierItem } from '@/lib/store/tier-store';
 import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
 
 interface HostClientProps {
@@ -304,11 +304,11 @@ function TierHostClient({ sessionId, hostToken }: { sessionId: string; hostToken
         </div>
       </div>
       {showAverage ? (
-        stats && stats.minSampleReached ? (
+        stats ? (
           <AverageTierView tiers={tiers} itemsById={itemsById} stats={stats} />
         ) : (
           <div className="flex flex-1 items-center justify-center p-8 text-center text-sm text-zinc-500">
-            데이터 수집 중 ({total}/10) — 10명 이상 제출하면 평균 티어표가 열려요.
+            통계를 불러오는 중…
           </div>
         )
       ) : (
@@ -317,6 +317,8 @@ function TierHostClient({ sessionId, hostToken }: { sessionId: string; hostToken
     </div>
   );
 }
+
+type UnplacedKind = 'tie' | 'none';
 
 function AverageTierView({
   tiers,
@@ -328,29 +330,48 @@ function AverageTierView({
   stats: StreamerTierStats;
 }) {
   const rowCount = Math.max(1, tiers.length);
-  const avgByItem = new Map<string, number>();
-  for (const it of stats.items) {
-    let sum = 0;
-    let cnt = 0;
-    for (const [k, v] of Object.entries(it.distribution)) {
-      sum += Number(k) * v;
-      cnt += v;
-    }
-    if (cnt > 0) avgByItem.set(it.itemId, sum / cnt);
-  }
+  const statByItem = new Map(stats.items.map((s) => [s.itemId, s]));
 
-  const rows = tiers.map((tier, idx) => {
-    const items = [...avgByItem.entries()]
-      .filter(([, avg]) => Math.min(rowCount - 1, Math.max(0, Math.round(avg))) === idx)
-      .map(([itemId, avg]) => ({ itemId, avg, item: itemsById.get(itemId) }))
-      .sort((a, b) => a.avg - b.avg);
-    return { tier, items };
-  });
+  /** 분포 → "S 3표, A 1표" 형태 툴팁 */
+  const tooltip = (dist: Record<string, number>): string => {
+    const parts = Object.entries(dist)
+      .filter(([, v]) => v > 0)
+      .sort((a, b) => Number(a[0]) - Number(b[0]))
+      .map(([k, v]) => `${tiers[Number(k)]?.label ?? `#${k}`}: ${v}표`);
+    return parts.length ? parts.join(', ') : '투표 없음';
+  };
+
+  // 최다 득표 행이 1개면 배치, 2개 이상이면 동률(미분류), 0표면 미투표(미분류).
+  const rowsItems: Array<Array<{ itemId: string; item: TierItem | undefined }>> = tiers.map(() => []);
+  const unclassified: Array<{ itemId: string; item: TierItem | undefined; kind: UnplacedKind; dist: Record<string, number> }> = [];
+
+  for (const itemId of itemsById.keys()) {
+    if (isTierSpacerId(itemId)) continue;
+    const item = itemsById.get(itemId);
+    const dist = statByItem.get(itemId)?.distribution ?? {};
+    const entries = Object.entries(dist).filter(([, v]) => v > 0);
+    if (entries.length === 0) {
+      unclassified.push({ itemId, item, kind: 'none', dist });
+      continue;
+    }
+    const max = Math.max(...entries.map(([, v]) => v));
+    const winners = entries.filter(([, v]) => v === max);
+    if (winners.length === 1) {
+      const row = Math.min(rowCount - 1, Math.max(0, Number(winners[0]![0])));
+      rowsItems[row]!.push({ itemId, item });
+    } else {
+      unclassified.push({ itemId, item, kind: 'tie', dist });
+    }
+  }
 
   return (
     <div className="min-h-0 flex-1 overflow-auto p-2">
+      <p className="mb-2 px-1 text-[11px] text-zinc-400">
+        시청자 최다 득표 행에 배치 · 1위 동률(⚡)·미투표는 아래 미분류에 모여요. 카드에 마우스를 올리면 분포가 보여요. (제출 {stats.totalSubmissions}명)
+      </p>
+
       <div className="flex flex-col gap-1">
-        {rows.map(({ tier, items }) => (
+        {tiers.map((tier, idx) => (
           <div key={tier.id} className="flex items-stretch gap-1">
             <div
               className="flex w-14 shrink-0 items-center justify-center rounded-l-md text-center text-sm font-bold"
@@ -359,32 +380,71 @@ function AverageTierView({
               {tier.label}
             </div>
             <div className="flex min-h-[3.5rem] flex-1 flex-wrap gap-1 rounded-r-md bg-zinc-100 p-1 dark:bg-zinc-800">
-              {items.map(({ itemId, avg, item }) => (
-                <div key={itemId} className="relative h-14 w-14">
-                  {item?.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={picktyImageDisplaySrc(item.imageUrl)}
-                      alt={item.name || itemId}
-                      className="h-14 w-14 rounded object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-14 w-14 items-center justify-center rounded bg-zinc-200 p-0.5 text-center text-[9px] leading-tight text-zinc-500 dark:bg-zinc-700">
-                      {item?.name || itemId}
-                    </div>
-                  )}
-                  <span className="absolute bottom-0 right-0 rounded-tl bg-black/60 px-1 text-[9px] text-white">
-                    {avg.toFixed(1)}
-                  </span>
-                </div>
+              {rowsItems[idx]!.map(({ itemId, item }) => (
+                <AverageCard
+                  key={itemId}
+                  itemId={itemId}
+                  item={item}
+                  title={tooltip(statByItem.get(itemId)?.distribution ?? {})}
+                />
               ))}
             </div>
           </div>
         ))}
       </div>
-      <p className="mt-2 px-1 text-center text-[11px] text-zinc-400">
-        뱃지 숫자 = 시청자 평균 행 위치(0 = 최상단). 표본 {stats.totalSubmissions}명.
-      </p>
+
+      <div className="mt-3">
+        <div className="mb-1 px-1 text-xs font-semibold text-zinc-500">미분류 {unclassified.length}개</div>
+        <div className="flex flex-wrap gap-1 rounded-md border border-dashed border-zinc-300 p-2 dark:border-zinc-700">
+          {unclassified.length === 0 ? (
+            <span className="px-1 py-2 text-[11px] text-zinc-400">모든 아이템이 배치됐어요.</span>
+          ) : (
+            unclassified.map(({ itemId, item, kind, dist }) => (
+              <AverageCard
+                key={itemId}
+                itemId={itemId}
+                item={item}
+                title={kind === 'tie' ? `의견 대립 — ${tooltip(dist)}` : '투표 없음'}
+                badge={kind === 'tie' ? '⚡' : undefined}
+              />
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AverageCard({
+  itemId,
+  item,
+  title,
+  badge,
+}: {
+  itemId: string;
+  item: TierItem | undefined;
+  title: string;
+  badge?: string;
+}) {
+  return (
+    <div className="relative h-14 w-14" title={title}>
+      {item?.imageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={picktyImageDisplaySrc(item.imageUrl)}
+          alt={item.name || itemId}
+          className="h-14 w-14 rounded object-cover"
+        />
+      ) : (
+        <div className="flex h-14 w-14 items-center justify-center rounded bg-zinc-200 p-0.5 text-center text-[9px] leading-tight text-zinc-500 dark:bg-zinc-700">
+          {item?.name || itemId}
+        </div>
+      )}
+      {badge ? (
+        <span className="absolute -right-1 -top-1 rounded-full bg-amber-400 px-1 text-[10px] leading-tight text-white shadow">
+          {badge}
+        </span>
+      ) : null}
     </div>
   );
 }

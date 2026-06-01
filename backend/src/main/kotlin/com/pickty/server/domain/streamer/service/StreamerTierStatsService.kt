@@ -13,8 +13,7 @@ import java.util.UUID
  * 티어표 스트리머 모드 — 시청자 완성본 1인 1제출 집계.
  *
  * 행(row)이 템플릿마다 자유롭기에 고정 등급 대신 **rowIndex(0=최상단) 분포**만 카운트한다.
- * 가중 평균 위치( Σ(rowIndex × 표수) ÷ 총 표수 )는 행 순서를 아는 프론트가 계산한다.
- * 방장 화면은 [MIN_SAMPLE] 미만이면 평균 뷰를 가린다.
+ * 배치(최빈값)·동률 판정은 행 순서를 아는 프론트가 분포를 보고 수행한다.
  */
 @Service
 class StreamerTierStatsService(
@@ -54,10 +53,8 @@ class StreamerTierStatsService(
             }
         }
         items.sortBy { it.itemId }
-        val total = totalSubmissions(sessionId)
         return TierStatsResponse(
-            totalSubmissions = total,
-            minSampleReached = total >= MIN_SAMPLE,
+            totalSubmissions = totalSubmissions(sessionId),
             items = items,
         )
     }
@@ -70,6 +67,5 @@ class StreamerTierStatsService(
 
     companion object {
         const val SUBMIT_TTL_SECONDS = 12L * 60 * 60
-        const val MIN_SAMPLE = 10L
     }
 }

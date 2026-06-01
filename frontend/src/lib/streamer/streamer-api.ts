@@ -121,7 +121,6 @@ export interface StreamerTierItemStat {
 
 export interface StreamerTierStats {
   totalSubmissions: number;
-  minSampleReached: boolean;
   items: StreamerTierItemStat[];
 }
 
@@ -137,7 +136,6 @@ export async function fetchTierStats(sessionId: string, hostToken: string): Prom
   }
   const raw = (await res.json()) as {
     totalSubmissions: number | string;
-    minSampleReached: boolean;
     items: Array<{
       itemId: string;
       distribution: Record<string, number | string>;
@@ -146,7 +144,6 @@ export async function fetchTierStats(sessionId: string, hostToken: string): Prom
   };
   return {
     totalSubmissions: Number(raw.totalSubmissions) || 0,
-    minSampleReached: !!raw.minSampleReached,
     items: (raw.items ?? []).map((it) => ({
       itemId: it.itemId,
       sampleCount: Number(it.sampleCount) || 0,

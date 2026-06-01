@@ -131,7 +131,5 @@ data class TierItemStat(
 
 data class TierStatsResponse(
     val totalSubmissions: Long,
-    /** 최소 표본 수(10) 도달 여부 — 미달 시 프론트는 평균 뷰를 가린다. */
-    val minSampleReached: Boolean,
     val items: List<TierItemStat>,
 )
