@@ -5,12 +5,14 @@ import com.pickty.server.domain.streamer.dto.CreatedStreamerSessionResponse
 import com.pickty.server.domain.streamer.dto.FallbackHostTokenResponse
 import com.pickty.server.domain.streamer.dto.IssueSseTicketResponse
 import com.pickty.server.domain.streamer.dto.StartQuickVoteRequest
+import com.pickty.server.domain.streamer.dto.TierStatsResponse
 import com.pickty.server.domain.streamer.dto.UpdateCurrentMatchRequest
 import com.pickty.server.domain.streamer.enums.StreamerSessionStatus
 import com.pickty.server.domain.streamer.service.StreamerFinishService
 import com.pickty.server.domain.streamer.service.StreamerSessionStateService
 import com.pickty.server.domain.streamer.service.StreamerSseManager
 import com.pickty.server.domain.streamer.service.StreamerSseTicketService
+import com.pickty.server.domain.streamer.service.StreamerTierStatsService
 import com.pickty.server.domain.streamer.web.StreamerHttpSupport
 import com.pickty.server.global.security.resolveUserIdOrThrow
 import jakarta.servlet.http.HttpServletRequest
@@ -45,6 +47,7 @@ class StreamerHostController(
     private val sseManager: StreamerSseManager,
     private val sseTicketService: StreamerSseTicketService,
     private val finishService: StreamerFinishService,
+    private val tierStatsService: StreamerTierStatsService,
 ) {
 
     @PostMapping
@@ -53,7 +56,12 @@ class StreamerHostController(
         authentication: Authentication?,
     ): ResponseEntity<CreatedStreamerSessionResponse> {
         val userId = resolveUserIdOrThrow(authentication)
-        val created = sessionStateService.createSession(body.templateType, body.templateId, userId)
+        val created = sessionStateService.createSession(
+            templateType = body.templateType,
+            templateId = body.templateId,
+            hostUserId = userId,
+            boardConfigJson = body.boardConfig?.toString(),
+        )
         return ResponseEntity.status(HttpStatus.CREATED).body(
             CreatedStreamerSessionResponse(
                 sessionId = created.sessionId,
@@ -124,6 +132,15 @@ class StreamerHostController(
         sseManager.markDirty(sessionId)
         sseManager.close(sessionId)
         return ResponseEntity.ok(mapOf("status" to StreamerSessionStatus.FINISHED.name))
+    }
+
+    @GetMapping("/{sessionId}/tier-stats")
+    fun tierStats(
+        @PathVariable sessionId: UUID,
+        request: HttpServletRequest,
+    ): ResponseEntity<TierStatsResponse> {
+        StreamerHttpSupport.requireHostToken(sessionStateService, sessionId, request)
+        return ResponseEntity.ok(tierStatsService.loadStats(sessionId))
     }
 
     @PostMapping("/{sessionId}/ticket")

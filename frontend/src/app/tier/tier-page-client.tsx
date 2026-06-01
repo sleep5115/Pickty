@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { TierBoard } from '@/components/tier/tier-board';
+import { StreamerModeLaunchBanner } from '@/components/streamer/streamer-mode-launch-banner';
 import { ImagePreviewModal } from '@/components/tier/image-preview-modal';
 import { CommentSection } from '@/components/interaction/comment-section';
 import { PopularTierResults } from '@/components/tier/popular-tier-results';
@@ -432,6 +433,12 @@ function TierPageInner({ routeTemplateId }: { routeTemplateId?: string }) {
           </div>
         </div>
       </div>
+
+      {templateId ? (
+        <div className="shrink-0 px-2">
+          <StreamerModeLaunchBanner templateId={templateId} templateType="TIER" />
+        </div>
+      ) : null}
 
       <TierBoard
         dragSelectRef={dragSelectRef}

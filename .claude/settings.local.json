@@ -27,7 +27,11 @@
       "Bash(echo.)",
       "PowerShell(winget install *)",
       "PowerShell(docker compose *)",
-      "PowerShell(docker start pickty-postgres *)"
+      "PowerShell(docker start pickty-postgres *)",
+      "PowerShell(& \"backend\\\\gradlew.bat\" -p backend compileKotlin --console=plain 2>&1 | Select-Object -Last 30)",
+      "PowerShell(& npx --prefix frontend tsc --noEmit -p frontend\\\\tsconfig.json)",
+      "PowerShell(if \\(Test-Path \"frontend\\\\package.json\"\\) { $pkg = Get-Content \"frontend\\\\package.json\" -Raw | ConvertFrom-Json; $pkg.scripts.lint })",
+      "PowerShell(npm *)"
     ]
   }
 }

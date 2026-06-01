@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Radio } from 'lucide-react';
 import { useAuthPersistHydrated } from '@/lib/hooks/use-auth-persist-hydrated';
@@ -10,8 +10,18 @@ import { useStreamerHostMatchSync } from '@/lib/hooks/use-streamer-host-match-sy
 import { useStreamerHostAutoFinish } from '@/lib/hooks/use-streamer-host-auto-finish';
 import { useStreamerHostStore } from '@/lib/store/streamer-host-store';
 import { clearHostToken, loadHostToken, saveHostToken } from '@/lib/streamer/host-token-storage';
-import { fetchFallbackHostToken, fetchStreamerStatusOnce } from '@/lib/streamer/streamer-api';
+import {
+  fetchFallbackHostToken,
+  fetchStreamerStatusOnce,
+  fetchTierStats,
+  finishStreamerSession,
+  type StreamerTemplateType,
+  type StreamerTierStats,
+} from '@/lib/streamer/streamer-api';
 import { WorldCupSessionClient } from '@/app/worldcup/templates/[id]/worldcup-session-client';
+import { TierBoard } from '@/components/tier/tier-board';
+import { useTierStore, type TierItem } from '@/lib/store/tier-store';
+import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
 
 interface HostClientProps {
   sessionId: string;
@@ -35,6 +45,7 @@ export function HostClient({ sessionId }: HostClientProps) {
 
   const [hostToken, setHostToken] = useState<string | null>(null);
   const [templateId, setTemplateId] = useState<string | null>(null);
+  const [templateType, setTemplateType] = useState<StreamerTemplateType | null>(null);
   const [recovery, setRecovery] = useState<RecoveryStatus>('idle');
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
 
@@ -88,6 +99,7 @@ export function HostClient({ sessionId }: HostClientProps) {
       const status = await fetchStreamerStatusOnce(sessionId).catch(() => null);
       if (!status || cancelled) return;
       setTemplateId(status.templateId);
+      setTemplateType(status.templateType);
     })();
     return () => {
       cancelled = true;
@@ -162,7 +174,11 @@ export function HostClient({ sessionId }: HostClientProps) {
     <div className="flex min-h-0 flex-1 flex-col">
       <HostStatusBar sessionId={sessionId} sseConnected={sseConnected} />
       <div className="flex min-h-0 flex-1 flex-col">
-        <WorldCupSessionClient templateId={templateId} />
+        {templateType === 'TIER' ? (
+          hostToken ? <TierHostClient sessionId={sessionId} hostToken={hostToken} /> : null
+        ) : (
+          <WorldCupSessionClient templateId={templateId} />
+        )}
       </div>
     </div>
   );
@@ -197,6 +213,178 @@ function HostStatusBar({ sessionId, sseConnected }: { sessionId: string; sseConn
       >
         {copied ? '복사됨!' : '시청자 참여 링크 복사'}
       </button>
+    </div>
+  );
+}
+
+/**
+ * 티어 세션 방장 — 본인 티어표(TierBoard) 편집 + 시청자 평균 티어표 토글 비교.
+ * 통계는 5초 폴링. 평균 위치는 행별 분포에서 프론트가 가중평균(Σ(rowIndex×표수)/총표수)으로 계산.
+ */
+function TierHostClient({ sessionId, hostToken }: { sessionId: string; hostToken: string }) {
+  const tiers = useTierStore((s) => s.tiers);
+  const pool = useTierStore((s) => s.pool);
+  const [stats, setStats] = useState<StreamerTierStats | null>(null);
+  const [showAverage, setShowAverage] = useState(false);
+  const [finishing, setFinishing] = useState(false);
+  const [finished, setFinished] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const poll = async () => {
+      try {
+        const s = await fetchTierStats(sessionId, hostToken);
+        if (!cancelled) setStats(s);
+      } catch {
+        /* 일시 실패는 다음 tick 재시도 */
+      }
+      if (!cancelled) timer = setTimeout(poll, 5000);
+    };
+    void poll();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [sessionId, hostToken]);
+
+  const itemsById = useMemo(() => {
+    const m = new Map<string, TierItem>();
+    for (const it of [...pool, ...tiers.flatMap((t) => t.items)]) m.set(it.id, it);
+    return m;
+  }, [pool, tiers]);
+
+  const total = stats?.totalSubmissions ?? 0;
+
+  async function handleFinish() {
+    if (finishing) return;
+    if (!window.confirm('세션을 종료하면 시청자 참여가 마감되고 통계가 저장됩니다. 종료할까요?')) return;
+    setFinishing(true);
+    try {
+      await finishStreamerSession(sessionId, hostToken);
+      clearHostToken(sessionId);
+      setFinished(true);
+    } catch {
+      window.alert('세션 종료에 실패했어요. 잠시 후 다시 시도해 주세요.');
+    } finally {
+      setFinishing(false);
+    }
+  }
+
+  if (finished) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center text-sm text-zinc-600 dark:text-zinc-300">
+        <div className="text-3xl">📊</div>
+        <p className="font-semibold">세션을 종료했어요.</p>
+        <p className="text-zinc-500">시청자 통계가 저장됐습니다.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-zinc-200 bg-amber-50 px-3 py-2 text-xs dark:border-white/10 dark:bg-amber-950/30">
+        <span className="font-medium text-amber-800 dark:text-amber-200">시청자 제출 {total}명</span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowAverage((v) => !v)}
+            className="rounded-full border border-amber-400 bg-white px-3 py-1 text-[11px] font-semibold text-amber-700 hover:bg-amber-100 dark:bg-amber-950 dark:text-amber-200"
+          >
+            {showAverage ? '내 티어표 보기' : '시청자 평균 보기'}
+          </button>
+          <button
+            type="button"
+            onClick={handleFinish}
+            disabled={finishing}
+            className="rounded-full border border-rose-300 bg-white px-3 py-1 text-[11px] font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50 dark:bg-rose-950/40 dark:text-rose-300"
+          >
+            {finishing ? '종료 중…' : '세션 종료'}
+          </button>
+        </div>
+      </div>
+      {showAverage ? (
+        stats && stats.minSampleReached ? (
+          <AverageTierView tiers={tiers} itemsById={itemsById} stats={stats} />
+        ) : (
+          <div className="flex flex-1 items-center justify-center p-8 text-center text-sm text-zinc-500">
+            데이터 수집 중 ({total}/10) — 10명 이상 제출하면 평균 티어표가 열려요.
+          </div>
+        )
+      ) : (
+        <TierBoard variant="template-preview" allowLabelImageUpload={false} />
+      )}
+    </div>
+  );
+}
+
+function AverageTierView({
+  tiers,
+  itemsById,
+  stats,
+}: {
+  tiers: Array<{ id: string; label: string; color: string; textColor?: string }>;
+  itemsById: Map<string, TierItem>;
+  stats: StreamerTierStats;
+}) {
+  const rowCount = Math.max(1, tiers.length);
+  const avgByItem = new Map<string, number>();
+  for (const it of stats.items) {
+    let sum = 0;
+    let cnt = 0;
+    for (const [k, v] of Object.entries(it.distribution)) {
+      sum += Number(k) * v;
+      cnt += v;
+    }
+    if (cnt > 0) avgByItem.set(it.itemId, sum / cnt);
+  }
+
+  const rows = tiers.map((tier, idx) => {
+    const items = [...avgByItem.entries()]
+      .filter(([, avg]) => Math.min(rowCount - 1, Math.max(0, Math.round(avg))) === idx)
+      .map(([itemId, avg]) => ({ itemId, avg, item: itemsById.get(itemId) }))
+      .sort((a, b) => a.avg - b.avg);
+    return { tier, items };
+  });
+
+  return (
+    <div className="min-h-0 flex-1 overflow-auto p-2">
+      <div className="flex flex-col gap-1">
+        {rows.map(({ tier, items }) => (
+          <div key={tier.id} className="flex items-stretch gap-1">
+            <div
+              className="flex w-14 shrink-0 items-center justify-center rounded-l-md text-center text-sm font-bold"
+              style={{ backgroundColor: tier.color, color: tier.textColor ?? '#111827' }}
+            >
+              {tier.label}
+            </div>
+            <div className="flex min-h-[3.5rem] flex-1 flex-wrap gap-1 rounded-r-md bg-zinc-100 p-1 dark:bg-zinc-800">
+              {items.map(({ itemId, avg, item }) => (
+                <div key={itemId} className="relative h-14 w-14">
+                  {item?.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={picktyImageDisplaySrc(item.imageUrl)}
+                      alt={item.name || itemId}
+                      className="h-14 w-14 rounded object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-14 w-14 items-center justify-center rounded bg-zinc-200 p-0.5 text-center text-[9px] leading-tight text-zinc-500 dark:bg-zinc-700">
+                      {item?.name || itemId}
+                    </div>
+                  )}
+                  <span className="absolute bottom-0 right-0 rounded-tl bg-black/60 px-1 text-[9px] text-white">
+                    {avg.toFixed(1)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="mt-2 px-1 text-center text-[11px] text-zinc-400">
+        뱃지 숫자 = 시청자 평균 행 위치(0 = 최상단). 표본 {stats.totalSubmissions}명.
+      </p>
     </div>
   );
 }
