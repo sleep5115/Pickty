@@ -107,6 +107,49 @@ class StreamerValkeyConfig {
     }
 
     /**
+     * 티어표 시청자 완성본 1인 1제출 + 아이템별 등급 카운트.
+     * 같은 visitorKey가 이미 제출했으면 0 반환(집계 미반영), 신규면 모든 아이템 HINCRBY 후 1 반환.
+     * KEYS[1] = tierSubmittedVoters set
+     * ARGV[1] = visitorKey
+     * ARGV[2] = TTL seconds
+     * ARGV[3] = tierStatsItem 키 prefix (예: "streamer:session:{id}:tier-stats:")
+     * ARGV[4] = placement 쌍 개수 N
+     * ARGV[5..] = itemId1, grade1, itemId2, grade2 ...
+     *
+     * 단일 Valkey 인스턴스(Lightsail) 가정 — Lua 내부에서 키를 동적 구성한다.
+     */
+    @Bean
+    fun streamerTierSubmitScript(): DefaultRedisScript<Long> {
+        val script = DefaultRedisScript<Long>()
+        script.setScriptText(
+            """
+            local voters = KEYS[1]
+            local visitor = ARGV[1]
+            local ttl = tonumber(ARGV[2])
+            local prefix = ARGV[3]
+            local n = tonumber(ARGV[4])
+            local added = redis.call('SADD', voters, visitor)
+            if added == 0 then
+              return 0
+            end
+            redis.call('EXPIRE', voters, ttl)
+            local i = 1
+            while i <= n do
+              local itemId = ARGV[4 + (i * 2) - 1]
+              local grade = ARGV[4 + (i * 2)]
+              local k = prefix .. itemId
+              redis.call('HINCRBY', k, grade, 1)
+              redis.call('EXPIRE', k, ttl)
+              i = i + 1
+            end
+            return 1
+            """.trimIndent(),
+        )
+        script.resultType = Long::class.java
+        return script
+    }
+
+    /**
      * SSE 티켓 검증 즉시 파기 (GETDEL). 존재 시 hostToken 반환, 없으면 nil.
      * KEYS[1] = sseTicket key
      */

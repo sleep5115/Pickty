@@ -85,10 +85,22 @@ class StreamerFinishService(
             .entries(StreamerValkeyKeys.quickVoteResults(sessionId))
             .mapValues { it.value.toLongOrNull() ?: 0L }
 
+        val tierStatsPrefix = StreamerValkeyKeys.tierStatsPrefix(sessionId)
+        val tierStats = dependentKeys.filter { it.startsWith(tierStatsPrefix) }
+            .associate { fullKey ->
+                val itemId = fullKey.removePrefix(tierStatsPrefix)
+                val entries = redisTemplate.opsForHash<String, String>().entries(fullKey)
+                itemId to entries.mapValues { it.value.toLongOrNull() ?: 0L }
+            }
+        val tierSubmissions = redisTemplate.opsForSet()
+            .size(StreamerValkeyKeys.tierSubmittedVoters(sessionId)) ?: 0L
+
         return mapOf(
             "schemaVersion" to 1,
             "matches" to matches,
             "quickVoteResults" to quickVoteResults,
+            "tierStats" to tierStats,
+            "tierSubmissions" to tierSubmissions,
         )
     }
 

@@ -20,8 +20,11 @@ object StreamerValkeyKeys {
     fun quickVoteVoters(sessionId: UUID, itemId: String): String =
         "streamer:session:$sessionId:voted-users:quick-vote:$itemId"
 
+    fun tierStatsPrefix(sessionId: UUID): String =
+        "streamer:session:$sessionId:tier-stats:"
+
     fun tierStatsItem(sessionId: UUID, itemId: String): String =
-        "streamer:session:$sessionId:tier-stats:$itemId"
+        tierStatsPrefix(sessionId) + itemId
 
     fun tierSubmittedVoters(sessionId: UUID): String =
         "streamer:session:$sessionId:voted-users:tier-submit"

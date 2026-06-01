@@ -32,6 +32,7 @@ class StreamerSessionStateService(
         templateType: StreamerTemplateType,
         templateId: UUID,
         hostUserId: Long,
+        boardConfigJson: String? = null,
     ): CreatedSession {
         val sessionId = UUID.randomUUID()
         val hostToken = "h-" + UUID.randomUUID()
@@ -49,6 +50,9 @@ class StreamerSessionStateService(
             StreamerSessionMeta.F_LAST_ACTIVE_TIME to now.toString(),
             StreamerSessionMeta.F_STARTED_AT to now.toString(),
         )
+        if (!boardConfigJson.isNullOrBlank()) {
+            hash[StreamerSessionMeta.F_BOARD_CONFIG] = boardConfigJson
+        }
 
         redisTemplate.executePipelined { conn ->
             val ser = redisTemplate.stringSerializer

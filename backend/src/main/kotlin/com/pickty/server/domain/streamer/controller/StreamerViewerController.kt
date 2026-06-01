@@ -2,16 +2,21 @@ package com.pickty.server.domain.streamer.controller
 
 import com.pickty.server.domain.streamer.dto.CurrentMatchPayload
 import com.pickty.server.domain.streamer.dto.StreamerSessionStatusResponse
+import com.pickty.server.domain.streamer.dto.TierSubmitRequest
+import com.pickty.server.domain.streamer.dto.TierSubmitResponse
 import com.pickty.server.domain.streamer.dto.WorldcupVoteRequest
 import com.pickty.server.domain.streamer.dto.WorldcupVoteResponse
+import com.pickty.server.domain.streamer.enums.StreamerTemplateType
 import com.pickty.server.domain.streamer.service.StreamerActiveUserCounter
 import com.pickty.server.domain.streamer.service.StreamerPollBackoff
 import com.pickty.server.domain.streamer.service.StreamerSessionStateService
 import com.pickty.server.domain.streamer.service.StreamerSseManager
+import com.pickty.server.domain.streamer.service.StreamerTierStatsService
 import com.pickty.server.domain.streamer.service.StreamerVoteService
 import com.pickty.server.domain.streamer.web.StreamerHttpSupport
 import com.pickty.server.global.util.Sha256Hex
 import com.pickty.server.global.web.ClientIpResolver
+import tools.jackson.databind.ObjectMapper
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
@@ -40,7 +45,9 @@ class StreamerViewerController(
     private val sessionStateService: StreamerSessionStateService,
     private val activeUserCounter: StreamerActiveUserCounter,
     private val voteService: StreamerVoteService,
+    private val tierStatsService: StreamerTierStatsService,
     private val sseManager: StreamerSseManager,
+    private val objectMapper: ObjectMapper,
 ) {
 
     @GetMapping("/{sessionId}/status")
@@ -81,6 +88,7 @@ class StreamerViewerController(
             quickVoteItemId = meta.quickVoteItemId,
             nextPollIntervalSeconds = nextInterval,
             activeUserCount = activeCount,
+            boardConfig = meta.boardConfigJson?.let { objectMapper.readTree(it) },
         )
 
         return ResponseEntity.ok()
@@ -119,6 +127,33 @@ class StreamerViewerController(
                 accepted = accepted,
                 duplicate = !accepted,
                 votes = votes,
+            ),
+        )
+    }
+
+    @PostMapping("/{sessionId}/tier-submit")
+    fun submitTier(
+        @PathVariable sessionId: UUID,
+        @Valid @RequestBody body: TierSubmitRequest,
+        request: HttpServletRequest,
+    ): ResponseEntity<TierSubmitResponse> {
+        val meta = sessionStateService.getMeta(sessionId)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "session not found")
+        if (meta.templateType != StreamerTemplateType.TIER) {
+            throw ResponseStatusException(HttpStatus.CONFLICT, "not a tier session")
+        }
+
+        val visitorKey = voteService.visitorKey(ClientIpResolver.resolve(request), body.visitorId)
+        val placements = body.placements.map { it.itemId to it.rowIndex }
+        val accepted = tierStatsService.submit(sessionId, placements, visitorKey)
+        if (accepted) {
+            sseManager.markDirty(sessionId)
+        }
+        return ResponseEntity.ok(
+            TierSubmitResponse(
+                accepted = accepted,
+                duplicate = !accepted,
+                totalSubmissions = tierStatsService.totalSubmissions(sessionId),
             ),
         )
     }

@@ -22,6 +22,8 @@ data class StreamerSessionMeta(
     val quickVoteItemId: String?,
     val lastActiveTime: Long,
     val startedAt: Long,
+    /** 티어 모드 — 방장이 세션 생성 시 올린 커스텀 보드 구성(JSON 원문). 월드컵은 null. */
+    val boardConfigJson: String?,
 ) {
     fun currentMatchPair(): Pair<String, String>? {
         val l = currentMatchLeftId
@@ -43,6 +45,7 @@ data class StreamerSessionMeta(
         const val F_QUICK_VOTE_ITEM_ID = "quickVoteItemId"
         const val F_LAST_ACTIVE_TIME = "lastActiveTime"
         const val F_STARTED_AT = "startedAt"
+        const val F_BOARD_CONFIG = "boardConfig"
 
         fun fromHash(sessionId: UUID, hash: Map<String, String>): StreamerSessionMeta? {
             if (hash.isEmpty()) return null
@@ -67,6 +70,7 @@ data class StreamerSessionMeta(
                 quickVoteItemId = hash[F_QUICK_VOTE_ITEM_ID]?.takeIf { it.isNotEmpty() },
                 lastActiveTime = hash[F_LAST_ACTIVE_TIME]?.toLongOrNull() ?: 0L,
                 startedAt = hash[F_STARTED_AT]?.toLongOrNull() ?: 0L,
+                boardConfigJson = hash[F_BOARD_CONFIG]?.takeIf { it.isNotEmpty() },
             )
         }
     }

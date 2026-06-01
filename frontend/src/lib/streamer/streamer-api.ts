@@ -1,8 +1,10 @@
 import { apiFetch } from '@/lib/api-fetch';
 import { PUBLIC_API_BASE_URL } from '@/lib/public-site-config';
+import type { TemplateBoardConfig } from '@/lib/template-board-config';
 
 export type StreamerTemplateType = 'TIER' | 'WORLDCUP';
 export type StreamerSessionStatus = 'READY' | 'PLAYING' | 'FINISHED' | 'EXPIRED_FINISHED';
+export type StreamerGrade = 'S' | 'A' | 'B' | 'C' | 'D';
 
 export interface CurrentMatch {
   leftId: string;
@@ -28,6 +30,8 @@ export interface StreamerStatus {
   quickVoteItemId: string | null;
   nextPollIntervalSeconds: number;
   activeUserCount: number;
+  /** 티어 모드 — 방장이 세션에 올린 커스텀 보드 구성. 시청자는 이 보드로 플레이. 월드컵은 null. */
+  boardConfig?: TemplateBoardConfig | null;
 }
 
 /** 200/304 모두 다음 폴링 가이드 헤더를 함께 전달 */
@@ -41,15 +45,16 @@ export interface PollStatusResult {
   version: number;
 }
 
-/** 방장 — 세션 생성 (로그인 필수) */
+/** 방장 — 세션 생성 (로그인 필수). 티어 모드는 방장 커스텀 보드 구성을 함께 올린다. */
 export async function createStreamerSession(
   templateType: StreamerTemplateType,
   templateId: string,
+  boardConfig?: TemplateBoardConfig,
 ): Promise<CreatedStreamerSession> {
   const res = await apiFetch('/api/v1/streamer/sessions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ templateType, templateId }),
+    body: JSON.stringify({ templateType, templateId, ...(boardConfig ? { boardConfig } : {}) }),
   });
   if (!res.ok) {
     const t = await res.text();
@@ -105,6 +110,51 @@ export async function finishStreamerSession(sessionId: string, hostToken: string
     const t = await res.text();
     throw new Error(t || `세션 종료 실패 (${res.status})`);
   }
+}
+
+export interface StreamerTierItemStat {
+  itemId: string;
+  /** rowIndex(문자열) → 표수. */
+  distribution: Record<string, number>;
+  sampleCount: number;
+}
+
+export interface StreamerTierStats {
+  totalSubmissions: number;
+  minSampleReached: boolean;
+  items: StreamerTierItemStat[];
+}
+
+/** 방장 — 티어 시청자 통계(행별 분포) 조회 */
+export async function fetchTierStats(sessionId: string, hostToken: string): Promise<StreamerTierStats> {
+  const res = await apiFetch(`/api/v1/streamer/sessions/${encodeURIComponent(sessionId)}/tier-stats`, {
+    method: 'GET',
+    headers: { 'X-Host-Token': hostToken },
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(t || `통계 조회 실패 (${res.status})`);
+  }
+  const raw = (await res.json()) as {
+    totalSubmissions: number | string;
+    minSampleReached: boolean;
+    items: Array<{
+      itemId: string;
+      distribution: Record<string, number | string>;
+      sampleCount: number | string;
+    }>;
+  };
+  return {
+    totalSubmissions: Number(raw.totalSubmissions) || 0,
+    minSampleReached: !!raw.minSampleReached,
+    items: (raw.items ?? []).map((it) => ({
+      itemId: it.itemId,
+      sampleCount: Number(it.sampleCount) || 0,
+      distribution: Object.fromEntries(
+        Object.entries(it.distribution ?? {}).map(([k, v]) => [k, Number(v) || 0]),
+      ),
+    })),
+  };
 }
 
 /** 방장 — SSE 연결용 단기 1회용 티켓 발급 */
@@ -202,6 +252,41 @@ export async function castWorldcupVote(
     votes[k] = Number.isFinite(n) ? n : 0;
   }
   return { accepted: !!row.accepted, duplicate: !!row.duplicate, votes };
+}
+
+/** 시청자 — 티어표 완성본 제출. placements = 아이템별 배치 행 인덱스(0=최상단). */
+export async function submitTier(
+  sessionId: string,
+  body: { placements: { itemId: string; rowIndex: number }[]; visitorId: string },
+): Promise<{ accepted: boolean; duplicate: boolean; totalSubmissions: number }> {
+  const res = await fetch(
+    `${PUBLIC_API_BASE_URL}/api/v1/streamer/sessions/${encodeURIComponent(sessionId)}/tier-submit`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'omit',
+      body: JSON.stringify(body),
+    },
+  );
+  if (res.status === 409) {
+    throw new Error('티어 세션이 아니에요.');
+  }
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(t || `제출 실패 (${res.status})`);
+  }
+  const row = (await res.json()) as {
+    accepted: boolean;
+    duplicate: boolean;
+    totalSubmissions: number | string;
+  };
+  const total =
+    typeof row.totalSubmissions === 'number' ? row.totalSubmissions : Number(row.totalSubmissions);
+  return {
+    accepted: !!row.accepted,
+    duplicate: !!row.duplicate,
+    totalSubmissions: Number.isFinite(total) ? total : 0,
+  };
 }
 
 /** SSE 연결 URL — EventSource에 직접 넘긴다 */

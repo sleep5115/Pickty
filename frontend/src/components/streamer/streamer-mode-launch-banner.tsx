@@ -7,16 +7,22 @@ import { useAuthStore } from '@/lib/store/auth-store';
 import { useAuthPersistHydrated } from '@/lib/hooks/use-auth-persist-hydrated';
 import { createStreamerSession } from '@/lib/streamer/streamer-api';
 import { saveHostToken } from '@/lib/streamer/host-token-storage';
+import { useTierStore } from '@/lib/store/tier-store';
+import {
+  buildTemplateBoardConfigFromEditorState,
+  type TemplateBoardConfig,
+} from '@/lib/template-board-config';
 
 interface Props {
   templateId: string;
+  templateType?: 'WORLDCUP' | 'TIER';
 }
 
 /**
- * 월드컵 BracketSelect 상단에 노출되는 스트리머 모드 진입 배너.
+ * 월드컵 BracketSelect / 티어표 상세 상단에 노출되는 스트리머 모드 진입 배너.
  * 클릭 → POST /sessions → localStorage 보관 → /streamer/host/{sessionId} 로 이동.
  */
-export function StreamerModeLaunchBanner({ templateId }: Props) {
+export function StreamerModeLaunchBanner({ templateId, templateType = 'WORLDCUP' }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const authHydrated = useAuthPersistHydrated();
@@ -35,7 +41,12 @@ export function StreamerModeLaunchBanner({ templateId }: Props) {
     setError(null);
     setBusy(true);
     try {
-      const created = await createStreamerSession('WORLDCUP', templateId);
+      let boardConfig: TemplateBoardConfig | undefined;
+      if (templateType === 'TIER') {
+        const s = useTierStore.getState();
+        boardConfig = buildTemplateBoardConfigFromEditorState(s.tiers, s.workspaceBoardSurface);
+      }
+      const created = await createStreamerSession(templateType, templateId, boardConfig);
       saveHostToken(created.sessionId, created.hostToken);
       router.push(`/streamer/host/${created.sessionId}`);
     } catch (err) {
@@ -51,7 +62,11 @@ export function StreamerModeLaunchBanner({ templateId }: Props) {
           <Radio className="size-4" aria-hidden />
           <div>
             <div className="font-semibold">스트리머 모드</div>
-            <div className="text-xs opacity-80">시청자들이 실시간으로 같이 투표하는 방을 만들어 보세요.</div>
+            <div className="text-xs opacity-80">
+              {templateType === 'TIER'
+                ? '시청자들이 만든 티어표의 평균을 모아 내 티어표와 비교해 보세요.'
+                : '시청자들이 실시간으로 같이 투표하는 방을 만들어 보세요.'}
+            </div>
           </div>
         </div>
         <button

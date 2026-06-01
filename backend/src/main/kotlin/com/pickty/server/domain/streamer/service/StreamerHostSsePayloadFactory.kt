@@ -10,7 +10,6 @@ import java.util.UUID
  * 방장 SSE에 흘려보낼 페이로드 빌더.
  * - 현재 매치(left/right) 식별자는 메타 hash에 이미 분리 저장되어 있어 추가 파싱 없음
  * - 매치 득표 카운트 1회 HGETALL로 묶음
- * - 퀵투표 결과는 Phase 2 이후 추가
  */
 @Service
 class StreamerHostSsePayloadFactory(
