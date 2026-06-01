@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.data.redis.core.ScanOptions
 import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.stereotype.Service
+import tools.jackson.databind.ObjectMapper
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
@@ -22,6 +23,7 @@ class StreamerFinishService(
     private val sessionStateService: StreamerSessionStateService,
     private val redisTemplate: StringRedisTemplate,
     private val resultPersister: StreamerResultPersister,
+    private val objectMapper: ObjectMapper,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -43,7 +45,7 @@ class StreamerFinishService(
 
     private fun persistAndPurge(meta: StreamerSessionMeta, reason: StreamerFinishReason) {
         val dependentKeys = scanDependentKeys(meta.sessionId)
-        val summary = buildSummary(meta.sessionId, dependentKeys)
+        val summary = buildSummary(meta, dependentKeys)
         try {
             resultPersister.persistIfAbsent(
                 meta = meta,
@@ -73,7 +75,8 @@ class StreamerFinishService(
         return keys
     }
 
-    private fun buildSummary(sessionId: UUID, dependentKeys: List<String>): Map<String, Any?> {
+    private fun buildSummary(meta: StreamerSessionMeta, dependentKeys: List<String>): Map<String, Any?> {
+        val sessionId = meta.sessionId
         val matchPrefix = "streamer:session:$sessionId:match:"
         val matches = dependentKeys.filter { it.startsWith(matchPrefix) }
             .associate { fullKey ->
@@ -95,12 +98,15 @@ class StreamerFinishService(
         val tierSubmissions = redisTemplate.opsForSet()
             .size(StreamerValkeyKeys.tierSubmittedVoters(sessionId)) ?: 0L
 
+        val boardConfig = meta.boardConfigJson?.let { objectMapper.readTree(it) }
         return mapOf(
             "schemaVersion" to 1,
+            "templateType" to meta.templateType.name,
             "matches" to matches,
             "quickVoteResults" to quickVoteResults,
             "tierStats" to tierStats,
             "tierSubmissions" to tierSubmissions,
+            "boardConfig" to boardConfig,
         )
     }
 

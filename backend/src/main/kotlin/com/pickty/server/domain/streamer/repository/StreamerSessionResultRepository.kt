@@ -6,4 +6,6 @@ import java.util.UUID
 
 interface StreamerSessionResultRepository : JpaRepository<StreamerSessionResult, Long> {
     fun existsBySessionId(sessionId: UUID): Boolean
+    fun findByHostUserIdOrderByFinishedAtDesc(hostUserId: Long): List<StreamerSessionResult>
+    fun findByIdAndHostUserId(id: Long, hostUserId: Long): StreamerSessionResult?
 }
