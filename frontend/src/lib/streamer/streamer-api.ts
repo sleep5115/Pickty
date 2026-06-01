@@ -154,6 +154,49 @@ export async function fetchTierStats(sessionId: string, hostToken: string): Prom
   };
 }
 
+export interface StreamerResultListItem {
+  id: number;
+  templateType: StreamerTemplateType;
+  templateId: string;
+  finishReason: 'HOST_FINISHED' | 'SWEEPER_EXPIRED';
+  tierSubmissions: number;
+  startedAt: string;
+  finishedAt: string;
+}
+
+export interface StreamerResultDetail {
+  id: number;
+  templateType: StreamerTemplateType;
+  templateId: string;
+  finishReason: string;
+  startedAt: string;
+  finishedAt: string;
+  /** 저장된 summary — tierStats(아이템별 rowIndex 분포)·boardConfig·tierSubmissions 등. */
+  summary: Record<string, unknown>;
+}
+
+/** 내 스트리밍 결과 목록 (로그인 필수) */
+export async function fetchMyStreamingResults(): Promise<StreamerResultListItem[]> {
+  const res = await apiFetch('/api/v1/streamer/results/my', { method: 'GET' });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(t || `결과 목록 조회 실패 (${res.status})`);
+  }
+  return (await res.json()) as StreamerResultListItem[];
+}
+
+/** 내 스트리밍 결과 상세 (로그인 + 본인 소유) */
+export async function fetchStreamingResultDetail(id: number | string): Promise<StreamerResultDetail> {
+  const res = await apiFetch(`/api/v1/streamer/results/${encodeURIComponent(String(id))}`, {
+    method: 'GET',
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(t || `결과 조회 실패 (${res.status})`);
+  }
+  return (await res.json()) as StreamerResultDetail;
+}
+
 /** 방장 — SSE 연결용 단기 1회용 티켓 발급 */
 export async function issueSseTicket(sessionId: string, hostToken: string): Promise<{ ticketId: string; expiresInSeconds: number }> {
   const res = await apiFetch(`/api/v1/streamer/sessions/${encodeURIComponent(sessionId)}/ticket`, {

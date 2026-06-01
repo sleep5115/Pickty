@@ -1,5 +1,6 @@
 package com.pickty.server.domain.streamer.dto
 
+import com.pickty.server.domain.streamer.enums.StreamerFinishReason
 import com.pickty.server.domain.streamer.enums.StreamerSessionStatus
 import com.pickty.server.domain.streamer.enums.StreamerTemplateType
 import jakarta.validation.Valid
@@ -9,6 +10,7 @@ import jakarta.validation.constraints.NotEmpty
 import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Size
 import tools.jackson.databind.JsonNode
+import java.time.LocalDateTime
 import java.util.UUID
 
 data class CreateStreamerSessionRequest(
@@ -132,4 +134,26 @@ data class TierItemStat(
 data class TierStatsResponse(
     val totalSubmissions: Long,
     val items: List<TierItemStat>,
+)
+
+/** 내 스트리밍 결과 목록 항목. */
+data class StreamerResultListItem(
+    val id: Long,
+    val templateType: StreamerTemplateType,
+    val templateId: UUID,
+    val finishReason: StreamerFinishReason,
+    val tierSubmissions: Long,
+    val startedAt: LocalDateTime,
+    val finishedAt: LocalDateTime,
+)
+
+/** 결과 상세 — 저장된 summary(boardConfig·tierStats 등) 전체를 담는다. */
+data class StreamerResultDetail(
+    val id: Long,
+    val templateType: StreamerTemplateType,
+    val templateId: UUID,
+    val finishReason: StreamerFinishReason,
+    val startedAt: LocalDateTime,
+    val finishedAt: LocalDateTime,
+    val summary: Map<String, Any?>,
 )

@@ -98,6 +98,8 @@ class SecurityConfig(
                     // (나머지 방장 제어는 X-Host-Token 헤더로 서비스 레이어 검증)
                     .requestMatchers(HttpMethod.POST, "/api/v1/streamer/sessions").authenticated()
                     .requestMatchers(HttpMethod.GET, "/api/v1/streamer/sessions/*/fallback-token").authenticated()
+                    // 내 스트리밍 결과 조회는 로그인 + 본인 소유만
+                    .requestMatchers("/api/v1/streamer/results/**").authenticated()
                     // AI 자동 생성
                     .requestMatchers("/api/v1/ai/**").authenticated()
                     .requestMatchers(HttpMethod.GET, "/api/v1/admin/**").authenticated()

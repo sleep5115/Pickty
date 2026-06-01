@@ -182,6 +182,14 @@ export function GNB() {
                   >
                     내 템플릿
                   </Link>
+                  <Link
+                    href="/streamer/results/my"
+                    role="menuitem"
+                    onClick={() => setAccountOpen(false)}
+                    className={accountLinkClass}
+                  >
+                    내 스트리밍
+                  </Link>
                   <div className="my-1 border-t border-slate-100 dark:border-zinc-800" />
                   <button
                     type="button"
@@ -282,6 +290,13 @@ export function GNB() {
                       className="rounded-lg px-3 py-2.5 text-sm text-slate-600 transition-colors hover:bg-slate-100 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
                     >
                       내 템플릿
+                    </Link>
+                    <Link
+                      href="/streamer/results/my"
+                      onClick={() => setMenuOpen(false)}
+                      className="rounded-lg px-3 py-2.5 text-sm text-slate-600 transition-colors hover:bg-slate-100 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
+                    >
+                      내 스트리밍
                     </Link>
                     <button
                       type="button"
