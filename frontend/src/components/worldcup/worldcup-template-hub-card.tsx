@@ -61,6 +61,29 @@ function WorldCupTemplateHubFrozenGifThumb({
   );
 }
 
+/** 단일 URL 한 장 — GIF면 정지 프레임으로 동결, 그 외는 그대로. 부모(relative)를 꽉 채움. */
+function WorldCupTemplateHubSingleThumb({
+  url,
+  title,
+}: {
+  url: string;
+  title: string;
+}) {
+  if (!isLikelyAnimatedGifRasterUrl(url)) {
+    return (
+      <div className="absolute inset-0 min-h-0 w-full">
+        <TierItemTileImages imageUrl={url} alt={`${title} 썸네일`} />
+      </div>
+    );
+  }
+
+  return <WorldCupTemplateHubFrozenGifThumb key={url} thumbnailUrl={url} title={title} />;
+}
+
+/**
+ * `thumbnailUrl`에 콤마가 있으면 랭킹 1·2위 다중 썸네일 → 좌우 반반(50:50) 분할 렌더,
+ * 없으면 기존처럼 한 장을 가득 채워 렌더 (기획서 6.1).
+ */
 function WorldCupTemplateHubThumbnail({
   thumbnailUrl,
   title,
@@ -68,15 +91,25 @@ function WorldCupTemplateHubThumbnail({
   thumbnailUrl: string;
   title: string;
 }) {
-  if (!isLikelyAnimatedGifRasterUrl(thumbnailUrl)) {
+  const parts = thumbnailUrl
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (parts.length >= 2) {
     return (
-      <div className="absolute inset-0 min-h-0 w-full">
-        <TierItemTileImages imageUrl={thumbnailUrl} alt={`${title} 썸네일`} />
+      <div className="absolute inset-0 flex">
+        <div className="relative h-full w-1/2 overflow-hidden border-r border-white/30 dark:border-black/30">
+          <WorldCupTemplateHubSingleThumb url={parts[0]!} title={title} />
+        </div>
+        <div className="relative h-full w-1/2 overflow-hidden">
+          <WorldCupTemplateHubSingleThumb url={parts[1]!} title={title} />
+        </div>
       </div>
     );
   }
 
-  return <WorldCupTemplateHubFrozenGifThumb key={thumbnailUrl} thumbnailUrl={thumbnailUrl} title={title} />;
+  return <WorldCupTemplateHubSingleThumb url={parts[0] ?? thumbnailUrl} title={title} />;
 }
 
 const PLAY_URL_ORIGIN = 'https://pickty.app';

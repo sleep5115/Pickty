@@ -121,3 +121,10 @@ pickty:
       cx: ${GOOGLE_SEARCH_CX:}
     youtube:
       data-api-key: ${YOUTUBE_DATA_API_KEY:}
+    # 월드컵 자동 생성 스케줄러 (KST 5:30) — 유튜브 일일 쿼터 예산 내에서 여러 주제 자동 생성
+    auto-generator:
+      enabled: true
+      # 스케줄러가 하루에 쓸 유튜브 search 호출 상한(아이템 1개 = 1회). 무료 한도 ≈ 100.
+      youtube-daily-quota: 100
+      # 자동 생성 월드컵의 작성자(ADMIN) users.id
+      creator-id: 2

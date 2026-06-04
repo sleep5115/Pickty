@@ -5,6 +5,7 @@ import com.pickty.server.domain.interaction.enums.ReactionType
 import com.pickty.server.domain.interaction.service.MyReactionService
 import com.pickty.server.domain.tier.dto.TemplateItemPayload
 import com.pickty.server.domain.tier.enums.TemplateStatus
+import com.pickty.server.domain.worldcup.WorldCupThumbnails
 import com.pickty.server.domain.worldcup.dto.CreateWorldCupTemplateRequest
 import com.pickty.server.domain.worldcup.dto.PatchWorldCupTemplateMetaResponse
 import com.pickty.server.domain.worldcup.dto.UpdateWorldCupTemplateMetaRequest
@@ -169,8 +170,12 @@ class WorldCupTemplateService(
             }
         }
 
+    /**
+     * 플레이 누적 전 초기 대표 썸네일 — 앞쪽 두 아이템의 이미지를 콤마로 연결(기획서 6.1).
+     * 유튜브 아이템은 watch URL → img.youtube.com 썸네일로 변환. 이미지 1개뿐이면 콤마 없이 단일 URL.
+     */
     private fun inferThumbnail(items: List<TemplateItemPayload>): String? =
-        items.firstNotNullOfOrNull { it.imageUrl?.trim()?.takeIf { u -> u.isNotEmpty() } }
+        WorldCupThumbnails.joinTop2(items.map { it.imageUrl })
 
     private fun normalizeThumbnailUrl(raw: String?): String? =
         raw?.trim()?.takeIf { it.isNotEmpty() }
