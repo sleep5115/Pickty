@@ -31,7 +31,10 @@
       "PowerShell(& \"backend\\\\gradlew.bat\" -p backend compileKotlin --console=plain 2>&1 | Select-Object -Last 30)",
       "PowerShell(& npx --prefix frontend tsc --noEmit -p frontend\\\\tsconfig.json)",
       "PowerShell(if \\(Test-Path \"frontend\\\\package.json\"\\) { $pkg = Get-Content \"frontend\\\\package.json\" -Raw | ConvertFrom-Json; $pkg.scripts.lint })",
-      "PowerShell(npm *)"
+      "PowerShell(npm *)",
+      "PowerShell($j = \\(Get-Command java -ErrorAction SilentlyContinue\\); if \\($j\\) { $j.Source; java -version } else { \"no java in PATH\"; \"JAVA_HOME=$env:JAVA_HOME\" })",
+      "Bash(node -e \"const s=require\\('./package.json'\\).scripts; console.log\\(JSON.stringify\\(s,null,2\\)\\)\")",
+      "Bash(node *)"
     ]
   }
 }

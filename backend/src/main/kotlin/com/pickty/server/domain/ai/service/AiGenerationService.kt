@@ -60,8 +60,44 @@ class AiGenerationService(
         rows
     }
 
+    /**
+     * 자동 생성 스케줄러용 — 기존 주제(템플릿 제목 등)와 겹치지 않는 새 이상형 월드컵 주제 1개와,
+     * 그 주제에 자연스럽게 속하는 아이템 수를 함께 받는다. (억지 패딩 없이 주제 규모를 따르기 위함)
+     */
+    fun generateTopic(excludedTitles: List<String>): GeneratedTopic {
+        val excluded = normalizeExistingItemNames(excludedTitles)
+        val payload = callGeminiForTopic(excluded)
+        val title = payload.title.trim()
+        require(title.isNotEmpty()) { "Gemini returned empty topic title" }
+        return GeneratedTopic(title = title, itemCount = payload.itemCount.coerceIn(2, 100))
+    }
+
     private fun normalizeExistingItemNames(raw: List<String>): List<String> =
         raw.map { it.trim() }.filter { it.isNotEmpty() }.distinct().take(200)
+
+    private fun callGeminiForTopic(excludedTitles: List<String>): GeminiTopicPayload {
+        val avoid = if (excludedTitles.isNotEmpty()) {
+            val json = objectMapper.writeValueAsString(excludedTitles)
+            "\n\nThese topics already exist — your topic MUST be clearly different (not a reworded duplicate). EXISTING TOPICS: $json"
+        } else {
+            ""
+        }
+
+        val promptText = """
+            You are planning a new "이상형 월드컵" (an image/video elimination-bracket popularity poll) for a Korean UGC platform.
+            Propose exactly ONE fresh, fun topic that Korean users would enjoy. Write the title in Korean.
+            Also estimate how many distinct, well-known, individually web-searchable items naturally belong to this topic
+            (example: "좋아하는 알파벳 월드컵" → 26). Be realistic and do NOT pad the number — only count items that genuinely exist for the topic.$avoid
+
+            Return ONLY valid JSON (no markdown) with this shape:
+            {
+              "title": "<a worldcup title in Korean, under 80 characters>",
+              "itemCount": <integer between 2 and 100>
+            }
+        """.trimIndent()
+
+        return objectMapper.readValue<GeminiTopicPayload>(callGemini(promptText))
+    }
 
     private fun callGeminiForPrompt(
         prompt: String,
@@ -98,6 +134,14 @@ class AiGenerationService(
             The "items" array must contain exactly $count strings.
         """.trimIndent()
 
+        return objectMapper.readValue<GeminiItemsPayload>(callGemini(promptText))
+    }
+
+    /**
+     * Gemini generateContent 호출 → 응답 텍스트(마크다운 펜스 제거)까지 반환.
+     * 쿼터 소진은 [AiQuotaExhaustedException], 그 외 HTTP 오류는 재시도 없이 즉시 전파한다.
+     */
+    private fun callGemini(promptText: String): String {
         val uri = UriComponentsBuilder.fromUriString(GEMINI_GENERATE_CONTENT_URI)
             .queryParam("key", geminiApiKey)
             .build()
@@ -148,7 +192,7 @@ class AiGenerationService(
             .ifBlank { "(empty response body)" }
     }
 
-    private fun executeGeminiPost(uri: URI, jsonPayload: String): GeminiItemsPayload {
+    private fun executeGeminiPost(uri: URI, jsonPayload: String): String {
         aiApiUsageService.recordGeminiGenerateContentCall()
         val response = restClient.post()
             .uri(uri)
@@ -163,13 +207,23 @@ class AiGenerationService(
         val text = (parts?.firstOrNull() as? Map<*, *>)?.get("text") as? String
             ?: throw IllegalStateException("Empty Gemini response")
 
-        val cleanText = text.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
-        val payload = objectMapper.readValue<GeminiItemsPayload>(cleanText)
-        return payload
+        return text.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
     }
+
+    /** 스케줄러가 사용하는 주제 생성 결과 — 제목과 그 주제의 자연스러운 아이템 수. */
+    data class GeneratedTopic(
+        val title: String,
+        val itemCount: Int,
+    )
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     private data class GeminiItemsPayload(
         val items: List<String> = emptyList(),
+    )
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private data class GeminiTopicPayload(
+        val title: String = "",
+        val itemCount: Int = 0,
     )
 }

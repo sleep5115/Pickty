@@ -1,6 +1,7 @@
 package com.pickty.server.domain.worldcup.service
 
 import com.pickty.server.domain.tier.enums.TemplateStatus
+import com.pickty.server.domain.worldcup.WorldCupThumbnails
 import com.pickty.server.domain.worldcup.dto.WorldCupRankingPageResponse
 import com.pickty.server.domain.worldcup.dto.WorldCupRankingRowResponse
 import com.pickty.server.domain.worldcup.dto.WorldCupResultSubmitRequest
@@ -61,6 +62,45 @@ class WorldCupStatService(
         if (rows <= 0) {
             throw ResponseStatusException(HttpStatus.CONFLICT, "통계 반영에 실패했습니다.")
         }
+
+        // 통계 반영 후 누적 랭킹 1·2위 아이템으로 대표 썸네일 갱신 (기획서 6.2).
+        // upsertIncrement(clearAutomatically=true)가 영속성 컨텍스트를 비우므로 템플릿을 다시 로드한다.
+        refreshTopRankThumbnail(templateId)
+    }
+
+    /** 누적 랭킹 상위 2개 아이템 이미지를 `url1,url2` 콤마 포맷으로 `thumbnailUrl`에 반영. */
+    private fun refreshTopRankThumbnail(templateId: UUID) {
+        val tpl = worldCupTemplateRepository.findById(templateId).orElse(null) ?: return
+        val templateItemIds = parseTemplateItemIds(tpl.items)
+        if (templateItemIds.isEmpty()) return
+
+        val imageByItemId = imageUrlByItemId(tpl.items)
+        if (imageByItemId.isEmpty()) return
+
+        val statsByItemId =
+            worldCupItemStatRepository.findAllByTemplate_Id(templateId).associateBy { it.itemId }
+        val rankedMediaUrls =
+            templateItemIds
+                .map { snapshotFromStatOrEmpty(it, statsByItemId[it]) }
+                .sortedWith(
+                    compareByDescending<RankingStatSnapshot> { it.finalWinCount }
+                        .thenByDescending { winRateSortKey(it.matchCount, it.winCount) }
+                        .thenBy { it.itemId },
+                )
+                .map { imageByItemId[it.itemId] }
+
+        val thumbnail = WorldCupThumbnails.joinTop2(rankedMediaUrls) ?: return
+        tpl.thumbnailUrl = thumbnail // 관리 상태 엔티티 — 트랜잭션 커밋 시 dirty checking 으로 반영
+    }
+
+    private fun imageUrlByItemId(items: List<Map<String, Any?>>): Map<Long, String> {
+        val out = HashMap<Long, String>()
+        for (m in items) {
+            val id = parseItemIdFromMap(m) ?: continue
+            val url = (m["imageUrl"] as? String)?.trim()?.takeIf { it.isNotEmpty() } ?: continue
+            out.putIfAbsent(id, url)
+        }
+        return out
     }
 
     private fun applyStatRow(templateId: UUID, row: WorldCupStatSubmitRow, startBracket: Int) {
