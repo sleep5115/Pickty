@@ -118,6 +118,24 @@ class R2ImageStorageService(
                 "file content does not match declared image type",
             )
         }
+        return putImageBytes(bytes, canonical)
+    }
+
+    /**
+     * 서버측에서 생성·압축한 JPEG 바이트를 R2에 저장(자동 생성 템플릿 이미지 영속화용).
+     * 외부에서 받은 이미지를 다운로드·재인코딩한 뒤 호출하므로 매직바이트만 재확인한다.
+     */
+    fun storeCompressedJpeg(jpegBytes: ByteArray): String {
+        if (jpegBytes.isEmpty()) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "empty image")
+        }
+        if (!magicBytesMatchImageContentType(jpegBytes, "image/jpeg")) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "not a valid JPEG")
+        }
+        return putImageBytes(jpegBytes, "image/jpeg")
+    }
+
+    private fun putImageBytes(bytes: ByteArray, canonical: String): String {
         val ext = fileExtensionForCanonicalType(canonical)
         val storedName = "${UUID.randomUUID()}$ext"
         val put = PutObjectRequest.builder()

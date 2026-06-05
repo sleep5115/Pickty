@@ -34,7 +34,9 @@
       "PowerShell(npm *)",
       "PowerShell($j = \\(Get-Command java -ErrorAction SilentlyContinue\\); if \\($j\\) { $j.Source; java -version } else { \"no java in PATH\"; \"JAVA_HOME=$env:JAVA_HOME\" })",
       "Bash(node -e \"const s=require\\('./package.json'\\).scripts; console.log\\(JSON.stringify\\(s,null,2\\)\\)\")",
-      "Bash(node *)"
+      "Bash(node *)",
+      "Bash(cd /c/Users/Administrator/CursorProjects/Pickty_Workspace/Pickty)",
+      "Bash(ls backend/src/main/kotlin/com/pickty/server/global/)"
     ]
   }
 }
