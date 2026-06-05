@@ -72,8 +72,49 @@ class AiGenerationService(
         return GeneratedTopic(title = title, itemCount = payload.itemCount.coerceIn(2, 100))
     }
 
+    /**
+     * 이미지 자동 생성 배치용 — **위키백과에 자유 이미지가 있을 법한 주제**로 유도한다.
+     * 반환 `title`은 분류어("월드컵"/"티어표")가 없는 **주제 문구**이며, 호출 측이 종류에 맞게 접미어를 붙인다.
+     */
+    fun generateImageTopic(excludedTitles: List<String>): GeneratedTopic {
+        val excluded = normalizeExistingItemNames(excludedTitles)
+        val payload = callGeminiForImageTopic(excluded)
+        val title = payload.title.trim()
+        require(title.isNotEmpty()) { "Gemini returned empty image topic" }
+        return GeneratedTopic(title = title, itemCount = payload.itemCount.coerceIn(2, 100))
+    }
+
     private fun normalizeExistingItemNames(raw: List<String>): List<String> =
         raw.map { it.trim() }.filter { it.isNotEmpty() }.distinct().take(200)
+
+    private fun callGeminiForImageTopic(excludedTitles: List<String>): GeminiTopicPayload {
+        val avoid = if (excludedTitles.isNotEmpty()) {
+            val json = objectMapper.writeValueAsString(excludedTitles)
+            "\n\nThese subjects already exist — yours MUST be clearly different. EXISTING: $json"
+        } else {
+            ""
+        }
+
+        val promptText = """
+            Propose ONE subject for a Korean image-based popularity poll (이상형 월드컵 / 티어표).
+            CRITICAL: every item in this subject must be an individually notable entity that almost certainly has
+            its OWN Korean Wikipedia (ko.wikipedia.org) article containing a FREELY-LICENSED photo.
+            GOOD subjects: real people (운동선수, 배우, 솔로 가수, 정치인), animal species(동물 품종), foods(음식),
+            countries/cities, landmarks, classic/old films.
+            AVOID: copyrighted fictional characters (애니·게임·웹툰 캐릭터), idol group members, brand-new memes,
+            niche/obscure items, or anything unlikely to have a free Wikipedia photo.
+            Write the subject in Korean WITHOUT a trailing "월드컵"/"티어표" word.
+            Estimate how many such items genuinely exist (be realistic, do NOT pad).$avoid
+
+            Return ONLY valid JSON (no markdown):
+            {
+              "title": "<subject phrase in Korean, under 60 characters>",
+              "itemCount": <integer between 2 and 100>
+            }
+        """.trimIndent()
+
+        return objectMapper.readValue<GeminiTopicPayload>(callGemini(promptText))
+    }
 
     private fun callGeminiForTopic(excludedTitles: List<String>): GeminiTopicPayload {
         val avoid = if (excludedTitles.isNotEmpty()) {
