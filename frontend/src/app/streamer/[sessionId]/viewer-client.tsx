@@ -15,6 +15,7 @@ import { fetchWorldCupTemplate } from '@/lib/worldcup/worldcup-template-api';
 import { parseWorldCupItemsPayload } from '@/lib/worldcup/worldcup-template-items';
 import type { WorldCupItem } from '@/lib/store/worldcup-store';
 import { picktyImageDisplaySrc } from '@/lib/pickty-image-url';
+import { parseYoutubeVideoId, getYoutubeThumbnailUrl } from '@/lib/worldcup/worldcup-media-url';
 import { TierBoard } from '@/components/tier/tier-board';
 import { useTierStore, isTierSpacerId } from '@/lib/store/tier-store';
 import { getTemplate, templatePayloadToTierItems } from '@/lib/tier-api';
@@ -292,6 +293,11 @@ function Candidate({
   highlighted: boolean;
   onPick: () => void;
 }) {
+  // 유튜브 후보는 watch URL이라 그대로 <img>에 꽂으면 엑박 — img.youtube.com 썸네일로 변환.
+  const raw = item?.imageUrl?.trim();
+  const videoId = raw ? parseYoutubeVideoId(raw) : null;
+  const thumbSrc = raw ? (videoId ? getYoutubeThumbnailUrl(videoId, 'hq') : picktyImageDisplaySrc(raw)) : null;
+
   return (
     <button
       type="button"
@@ -303,9 +309,9 @@ function Candidate({
         locked ? 'opacity-80' : 'hover:border-zinc-400 hover:shadow-md',
       ].join(' ')}
     >
-      {item?.imageUrl ? (
+      {thumbSrc ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={picktyImageDisplaySrc(item.imageUrl)} alt={item.name || itemId} className="h-2/3 w-full rounded-xl object-cover" />
+        <img src={thumbSrc} alt={item?.name || itemId} className="h-2/3 w-full rounded-xl object-cover" />
       ) : (
         <div className="flex h-2/3 w-full items-center justify-center rounded-xl bg-zinc-100 text-zinc-400">
           ?
