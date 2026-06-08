@@ -25,6 +25,26 @@ export function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: mergeCors({}) });
 }
 
+/**
+ * 외부 임의 URL 프록시(`?url=`)는 우리 사이트(캔버스/외부이미지)에서 온 요청만 허용한다.
+ * 오픈 프록시 어뷰징(대역폭 증폭·제3자 우회 스크래핑) 방지 — Origin/Referer 호스트로 판정.
+ * 우리 페이지의 same-origin fetch는 Referer를 보내고, 외부 스크립트·curl은 못 보내거나 다른 호스트라 차단된다.
+ */
+const TRUSTED_CALLER_HOSTS = new Set(['pickty.app', 'www.pickty.app', 'localhost', '127.0.0.1']);
+
+function isTrustedCaller(request: NextRequest): boolean {
+  for (const header of ['origin', 'referer']) {
+    const value = request.headers.get(header);
+    if (!value) continue;
+    try {
+      if (TRUSTED_CALLER_HOSTS.has(new URL(value).hostname.toLowerCase())) return true;
+    } catch {
+      /* malformed header — ignore */
+    }
+  }
+  return false;
+}
+
 function isBlockedHostname(host: string): boolean {
   const h = host.toLowerCase().trim();
   if (!h) return true;
@@ -132,6 +152,13 @@ async function handleExternalImageProxy(urlString: string): Promise<NextResponse
 export async function GET(request: NextRequest) {
   const urlParam = request.nextUrl.searchParams.get('url')?.trim();
   if (urlParam) {
+    // 외부 임의 URL 프록시는 우리 사이트 발신만 허용(오픈 프록시 어뷰징 차단). `?key=`(우리 R2 객체)는 예외.
+    if (!isTrustedCaller(request)) {
+      return new NextResponse('Forbidden', {
+        status: 403,
+        headers: mergeCors({ 'Content-Type': 'text/plain; charset=utf-8' }),
+      });
+    }
     return handleExternalImageProxy(urlParam);
   }
 
