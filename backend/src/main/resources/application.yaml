@@ -121,15 +121,15 @@ pickty:
       cx: ${GOOGLE_SEARCH_CX:}
     youtube:
       data-api-key: ${YOUTUBE_DATA_API_KEY:}
-    # 자동 생성 스케줄러
+    # 자동 생성 스케줄러 (시간대는 각 스케줄러의 @Scheduled cron 참고 — 미국 새벽/Gemini 503 회피 위해 KST 저녁대)
     auto-generator:
-      # 유튜브 월드컵 배치 (KST 5:30) — 유튜브 일일 쿼터 예산 내에서 여러 주제 자동 생성
+      # 유튜브 월드컵 배치 (KST 18:47) — 유튜브 일일 쿼터 예산 내에서 여러 주제 자동 생성
       enabled: true
       # 스케줄러가 하루에 쓸 유튜브 search 호출 상한(아이템 1개 = 1회). 무료 한도 ≈ 100.
       youtube-daily-quota: 100
       # 자동 생성 템플릿의 작성자(ADMIN) users.id — 유튜브·이미지 배치 공용
       creator-id: 2
-      # 이미지 배치 (KST 5:00) — Wikimedia 이미지로 티어 1개 + 월드컵 1개 생성.
-      # Gemini는 5:30 유튜브 배치와 일일 20회를 공유하므로, 먼저 돌아 쿼터를 선점하도록 5:00에 둔다.
+      # 이미지 배치 (KST 18:13) — Wikimedia 이미지로 티어 1개 + 월드컵 1개 생성.
+      # Gemini 일일 20회를 유튜브 배치와 공유하므로 먼저(18:13) 돌아 선점하되 일부만 쓰고 멈춘다.
       image:
         enabled: true

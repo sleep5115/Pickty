@@ -36,7 +36,9 @@
       "Bash(node -e \"const s=require\\('./package.json'\\).scripts; console.log\\(JSON.stringify\\(s,null,2\\)\\)\")",
       "Bash(node *)",
       "Bash(cd /c/Users/Administrator/CursorProjects/Pickty_Workspace/Pickty)",
-      "Bash(ls backend/src/main/kotlin/com/pickty/server/global/)"
+      "Bash(ls backend/src/main/kotlin/com/pickty/server/global/)",
+      "Bash(awk '{print $1}')",
+      "Read(//c/Users/Administrator/.ssh/**)"
     ]
   }
 }

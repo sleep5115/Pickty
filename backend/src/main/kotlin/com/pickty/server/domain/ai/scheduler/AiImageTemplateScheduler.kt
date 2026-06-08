@@ -2,6 +2,7 @@ package com.pickty.server.domain.ai.scheduler
 
 import com.pickty.server.domain.ai.dto.AiAutoGenerateRequest
 import com.pickty.server.domain.ai.dto.AiMediaType
+import com.pickty.server.domain.ai.service.AiApiUsageService
 import com.pickty.server.domain.ai.service.AiGenerationService
 import com.pickty.server.domain.tier.dto.CreateTemplateRequest
 import com.pickty.server.domain.tier.dto.TemplateItemPayload
@@ -20,17 +21,21 @@ import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 
 /**
- * 매일 KST 5:00, **Wikimedia 이미지**로 티어 1개 + 월드컵 1개를 자동 생성한다.
+ * 매일 KST 18:13, **Wikimedia 이미지**로 티어 1개 + 월드컵 1개를 자동 생성한다.
  *
  * 흐름(각 종류별): Gemini로 위키 친화 주제·아이템 → Wikimedia 이미지 검색 →
  * 받은 이미지를 다운로드·압축해 R2에 영속화([RemoteImageFetcher] + [R2ImageStorageService]) →
  * Pickty 호스팅 URL로 템플릿 생성. 외부 API는 트랜잭션 밖에서 끝내고 `create`에서만 영속화한다.
  *
- * Gemini 일일 20회를 유튜브 월드컵 배치(5:30)와 공유하므로 더 이른 5:00에 두어 쿼터를 선점한다.
+ * - 시간대: KST 18:13(= UTC 09:13, 미국 새벽)이라 Gemini 글로벌 과부하(503)를 덜 맞는다. 정각·30분은 회피.
+ * - 한 종류가 16개를 못 채우면(Wikimedia 커버리지 미스) 다른 주제로 몇 번 더 시도한다(단발 취약성 제거).
+ * - Gemini 일일 20회를 유튜브 배치(18:47)와 공유하므로, 이미지(검색 유입 가치 ↑)가 먼저 돌아 쿼터를 선점하되
+ *   [IMAGE_BATCH_GEMINI_CAP]까지만 쓰고 멈춰 유튜브 배치·수동 생성용 여유를 남긴다.
  */
 @Component
 class AiImageTemplateScheduler(
     private val aiGenerationService: AiGenerationService,
+    private val aiApiUsageService: AiApiUsageService,
     private val tierTemplateService: TierTemplateService,
     private val worldCupTemplateService: WorldCupTemplateService,
     private val tierTemplateRepository: TierTemplateRepository,
@@ -44,7 +49,7 @@ class AiImageTemplateScheduler(
 
     private enum class Kind { WORLDCUP, TIER }
 
-    @Scheduled(cron = "0 0 5 * * *", zone = "Asia/Seoul")
+    @Scheduled(cron = "0 13 18 * * *", zone = "Asia/Seoul")
     fun generateDaily() {
         if (!enabled) {
             log.info("AI image template generator disabled; skipping run")
@@ -63,22 +68,41 @@ class AiImageTemplateScheduler(
         }
     }
 
+    /**
+     * 16개를 채우는 주제가 나올 때까지 최대 [MAX_TOPIC_ATTEMPTS]회 다른 주제로 시도한다.
+     * 단, Gemini 일일 사용량이 [IMAGE_BATCH_GEMINI_CAP]에 도달하면 더 시작하지 않는다(20회 보호).
+     */
     private fun generateOne(kind: Kind, excluded: MutableList<String>) {
-        val topic = aiGenerationService.generateImageTopic(excluded)
-        excluded.add(topic.title)
+        repeat(MAX_TOPIC_ATTEMPTS) { attempt ->
+            val geminiUsed = aiApiUsageService.getTodayUsagePt().gemini
+            if (geminiUsed >= IMAGE_BATCH_GEMINI_CAP) {
+                log.info(
+                    "AI image generator: Gemini usage {} ≥ cap {}; stop attempting {} (preserve budget)",
+                    geminiUsed, IMAGE_BATCH_GEMINI_CAP, kind,
+                )
+                return
+            }
 
-        val items = buildImageItems(topic.title, minOf(topic.itemCount, MAX_ITEMS))
-        if (items.size < MIN_ITEMS) {
+            val topic = aiGenerationService.generateImageTopic(excluded)
+            excluded.add(topic.title)
+
+            val items = buildImageItems(topic.title, minOf(topic.itemCount, MAX_ITEMS))
+            if (items.size >= MIN_ITEMS) {
+                persist(kind, topic.title, items)
+                return
+            }
             log.info(
-                "AI image generator: subject '{}' yielded only {} items with images (<{}); skipping {}",
-                topic.title, items.size, MIN_ITEMS, kind,
+                "AI image generator: subject '{}' yielded only {} items with images (<{}); attempt {}/{} for {}",
+                topic.title, items.size, MIN_ITEMS, attempt + 1, MAX_TOPIC_ATTEMPTS, kind,
             )
-            return
         }
+        log.info("AI image generator: gave up on {} after {} topic attempts", kind, MAX_TOPIC_ATTEMPTS)
+    }
 
+    private fun persist(kind: Kind, subject: String, items: List<TemplateItemPayload>) {
         when (kind) {
             Kind.WORLDCUP -> {
-                val title = "$TITLE_PREFIX${topic.title} 월드컵".take(MAX_TITLE_LEN)
+                val title = "$TITLE_PREFIX$subject 월드컵".take(MAX_TITLE_LEN)
                 val saved = worldCupTemplateService.create(
                     CreateWorldCupTemplateRequest(
                         title = title,
@@ -92,7 +116,7 @@ class AiImageTemplateScheduler(
                 log.info("AI image generator: created worldcup '{}' ({}) with {} items", saved.title, saved.id, items.size)
             }
             Kind.TIER -> {
-                val title = "$TITLE_PREFIX${topic.title} 티어표".take(MAX_TITLE_LEN)
+                val title = "$TITLE_PREFIX$subject 티어표".take(MAX_TITLE_LEN)
                 val saved = tierTemplateService.create(
                     CreateTemplateRequest(
                         title = title,
@@ -157,6 +181,10 @@ class AiImageTemplateScheduler(
     companion object {
         private const val MIN_ITEMS = 16
         private const val MAX_ITEMS = 100
+        // 한 종류(티어/월드컵)당 16개 채우는 주제가 나올 때까지 다른 주제로 재시도하는 최대 횟수.
+        private const val MAX_TOPIC_ATTEMPTS = 3
+        // 이미지 배치가 쓸 Gemini 일일 호출 상한(전체 20). 초과 전에 멈춰 유튜브 배치·수동 생성용 여유 확보.
+        private const val IMAGE_BATCH_GEMINI_CAP = 12L
         private const val MAX_ITEM_NAME_LEN = 100
         private const val MAX_TITLE_LEN = 100
         private const val RECENT_TITLE_LIMIT = 150
