@@ -34,7 +34,9 @@ class WorldCupAutoGeneratorScheduler(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    @Scheduled(cron = "0 30 5 * * *", zone = "Asia/Seoul")
+    // KST 18:47 (= UTC 09:47) — 미국 새벽(PT 02:47)이라 Gemini 글로벌 과부하(503)를 덜 맞는 시간대.
+    // 정각·30분은 트래픽이 몰리기 쉬워 어중간한 분(:47)으로 둔다. 이미지 배치(18:13)보다 뒤에 돌린다.
+    @Scheduled(cron = "0 47 18 * * *", zone = "Asia/Seoul")
     fun generateDaily() {
         if (!enabled) {
             log.info("WorldCup auto-generator disabled; skipping run")

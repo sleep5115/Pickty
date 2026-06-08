@@ -38,6 +38,10 @@ class AiGenerationService(
             "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent"
 
         private const val CANDIDATES_PER_ITEM = 10
+
+        /** 일시적 5xx(특히 503 UNAVAILABLE "high demand") 재시도 횟수·백오프. 일일 쿼터 소진은 재시도 안 함. */
+        private const val GEMINI_TRANSIENT_RETRIES = 2
+        private const val GEMINI_RETRY_BASE_MS = 2000L
     }
 
     fun autoGenerate(request: AiAutoGenerateRequest): List<AiAutoGenerateItemResponse> = runBlocking {
@@ -119,7 +123,8 @@ class AiGenerationService(
     private fun callGeminiForTopic(excludedTitles: List<String>): GeminiTopicPayload {
         val avoid = if (excludedTitles.isNotEmpty()) {
             val json = objectMapper.writeValueAsString(excludedTitles)
-            "\n\nThese topics already exist — your topic MUST be clearly different (not a reworded duplicate). EXISTING TOPICS: $json"
+            "\n\nThese titles already exist. Your topic AND its title style MUST be clearly different from them — " +
+                "not just a different subject, but a different phrasing/format too. EXISTING TITLES: $json"
         } else {
             ""
         }
@@ -127,6 +132,9 @@ class AiGenerationService(
         val promptText = """
             You are planning a new "이상형 월드컵" (an image/video elimination-bracket popularity poll) for a Korean UGC platform.
             Propose exactly ONE fresh, fun topic that Korean users would enjoy. Write the title in Korean.
+            Vary the title's wording and structure — do NOT default to a fixed pattern like "최애 ○○ 월드컵" or always
+            opening with the same word (최애/최고/인기). Use diverse, natural, catchy Korean phrasings (e.g. "추억의 ○○",
+            "역대 ○○ TOP", "인생 ○○", "○○ 끝판왕", or just the subject itself) — make titles feel human and varied, not templated.
             Also estimate how many distinct, well-known, individually web-searchable items naturally belong to this topic
             (example: "좋아하는 알파벳 월드컵" → 26). Be realistic and do NOT pad the number — only count items that genuinely exist for the topic.$avoid
 
@@ -180,7 +188,8 @@ class AiGenerationService(
 
     /**
      * Gemini generateContent 호출 → 응답 텍스트(마크다운 펜스 제거)까지 반환.
-     * 쿼터 소진은 [AiQuotaExhaustedException], 그 외 HTTP 오류는 재시도 없이 즉시 전파한다.
+     * 쿼터 소진은 [AiQuotaExhaustedException]로 즉시 실패, 일시적 5xx(503 등)는 짧은 백오프로 재시도,
+     * 그 외 HTTP 오류는 즉시 전파한다.
      */
     private fun callGemini(promptText: String): String {
         val uri = UriComponentsBuilder.fromUriString(GEMINI_GENERATE_CONTENT_URI)
@@ -191,20 +200,38 @@ class AiGenerationService(
         val escapedPrompt = objectMapper.writeValueAsString(promptText)
         val jsonPayload = """{"contents":[{"parts":[{"text":$escapedPrompt}]}]}"""
 
-        try {
-            return executeGeminiPost(uri, jsonPayload)
-        } catch (e: RestClientResponseException) {
-            val responseSummary = summarizeGeminiError(e)
-            if (isGeminiQuotaExhaustedResponse(e)) {
+        var attempt = 0
+        while (true) {
+            try {
+                return executeGeminiPost(uri, jsonPayload)
+            } catch (e: RestClientResponseException) {
+                val responseSummary = summarizeGeminiError(e)
+                // 일일 쿼터 소진은 재시도 무의미 — 즉시 실패.
+                if (isGeminiQuotaExhaustedResponse(e)) {
+                    log.warn(
+                        "Gemini daily quota exhausted HTTP {} — fast-fail, no retry: {}",
+                        e.statusCode.value(),
+                        responseSummary,
+                    )
+                    throw AiQuotaExhaustedException()
+                }
+                // 503 등 일시적 5xx 과부하는 짧은 백오프로 재시도(무인 배치가 일시 블립에 통째로 죽지 않도록).
+                if (e.statusCode.is5xxServerError && attempt < GEMINI_TRANSIENT_RETRIES) {
+                    attempt++
+                    val backoffMs = GEMINI_RETRY_BASE_MS * (1L shl (attempt - 1))
+                    log.warn(
+                        "Gemini HTTP {} transient — retry {}/{} after {}ms: {}",
+                        e.statusCode.value(), attempt, GEMINI_TRANSIENT_RETRIES, backoffMs, responseSummary,
+                    )
+                    Thread.sleep(backoffMs)
+                    continue
+                }
                 log.warn(
-                    "Gemini daily quota exhausted HTTP {} — fast-fail, no retry: {}",
-                    e.statusCode.value(),
-                    responseSummary,
+                    "Gemini HTTP {} — giving up after {} attempt(s): {}",
+                    e.statusCode.value(), attempt + 1, responseSummary,
                 )
-                throw AiQuotaExhaustedException()
+                throw e
             }
-            log.warn("Gemini HTTP {} — fast-fail, no retry: {}", e.statusCode.value(), responseSummary)
-            throw e
         }
     }
 
