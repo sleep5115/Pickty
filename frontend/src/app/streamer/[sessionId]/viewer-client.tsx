@@ -62,10 +62,8 @@ function WorldcupViewerClient({ sessionId }: ViewerClientProps) {
   const [itemsById, setItemsById] = useState<Map<string, WorldCupItem>>(new Map());
   const [templateLoaded, setTemplateLoaded] = useState(false);
 
-  const role = useStreamerViewerStore((s) => s.role);
   const status = useStreamerViewerStore((s) => s.status);
   const votedByMatch = useStreamerViewerStore((s) => s.votedByMatch);
-  const setRole = useStreamerViewerStore((s) => s.setRole);
   const setStatus = useStreamerViewerStore((s) => s.setStatus);
   const recordVote = useStreamerViewerStore((s) => s.recordVote);
   const resetForSession = useStreamerViewerStore((s) => s.resetForSession);
@@ -101,7 +99,7 @@ function WorldcupViewerClient({ sessionId }: ViewerClientProps) {
 
   useStreamerStatusPolling({
     sessionId,
-    enabled: !!role,
+    enabled: true,
     onStatus: (snap: StreamerStatus) => setStatus(snap),
   });
 
@@ -140,28 +138,6 @@ function WorldcupViewerClient({ sessionId }: ViewerClientProps) {
     }
   }
 
-  if (!role) {
-    return <EntrySelector onPick={setRole} />;
-  }
-
-  if (role === 'personal_play') {
-    return (
-      <div className="mx-auto flex max-w-md flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
-        <h2 className="text-lg font-semibold">나만의 플레이는 준비 중이에요</h2>
-        <p className="text-sm text-zinc-500">
-          이 모드는 Phase 2에서 제공됩니다. 그때까지는 &lsquo;방장과 함께 투표하기&rsquo;로 참여해 주세요!
-        </p>
-        <button
-          type="button"
-          onClick={() => setRole('host_vote')}
-          className="rounded-full bg-zinc-900 px-4 py-2 text-sm text-white"
-        >
-          방장과 함께 투표하기로 전환
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-4 p-4">
       <header className="flex items-center justify-between text-sm text-zinc-500">
@@ -184,39 +160,6 @@ function WorldcupViewerClient({ sessionId }: ViewerClientProps) {
           onVote={handleVote}
         />
       )}
-    </div>
-  );
-}
-
-function EntrySelector({ onPick }: { onPick: (role: 'host_vote' | 'personal_play') => void }) {
-  return (
-    <div className="mx-auto flex w-full max-w-lg flex-1 flex-col items-center justify-center gap-5 p-6 text-center">
-      <h1 className="text-2xl font-bold">어떻게 참여하시겠어요?</h1>
-      <p className="text-sm text-zinc-500">
-        방송 화면에 맞춰 표만 던지거나, 본인의 결과도 같이 만들 수 있어요.
-      </p>
-      <div className="grid w-full gap-3">
-        <button
-          type="button"
-          onClick={() => onPick('host_vote')}
-          className="rounded-2xl border border-zinc-200 bg-white p-4 text-left shadow-sm hover:border-zinc-400"
-        >
-          <div className="text-base font-semibold">방장과 함께 투표하기</div>
-          <div className="mt-1 text-xs text-zinc-500">
-            방장의 진행에 맞춰 1초 만에 표만 던집니다. 모바일 추천.
-          </div>
-        </button>
-        <button
-          type="button"
-          onClick={() => onPick('personal_play')}
-          className="rounded-2xl border border-zinc-200 bg-white p-4 text-left shadow-sm hover:border-zinc-400"
-        >
-          <div className="text-base font-semibold">나만의 플레이 완성하기</div>
-          <div className="mt-1 text-xs text-zinc-500">
-            (Phase 2 예정) 직접 월드컵/티어표를 끝까지 진행하면 방장 통계에 가중치로 반영됩니다.
-          </div>
-        </button>
-      </div>
     </div>
   );
 }
