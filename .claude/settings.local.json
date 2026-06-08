@@ -38,7 +38,11 @@
       "Bash(cd /c/Users/Administrator/CursorProjects/Pickty_Workspace/Pickty)",
       "Bash(ls backend/src/main/kotlin/com/pickty/server/global/)",
       "Bash(awk '{print $1}')",
-      "Read(//c/Users/Administrator/.ssh/**)"
+      "Read(//c/Users/Administrator/.ssh/**)",
+      "Bash(ls backend/src/main/kotlin/com/pickty/server/domain/streamer/)",
+      "Bash(ls backend/src/main/kotlin/com/pickty/server/domain/streamer/controller)",
+      "Bash(ls backend/src/main/kotlin/com/pickty/server/domain/streamer/service)",
+      "Bash(npx eslint *)"
     ]
   }
 }
