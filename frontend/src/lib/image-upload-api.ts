@@ -20,6 +20,11 @@ export type UploadPicktyImagesOptions = {
    * 기본 동작은 이후 throw 로 해당 배치 중단 — imageUrls[i] 정렬을 깨지 않기 위함.
    */
   onImageFailure?: (detail: { file: File; phase: 'compress' | 'upload'; error: unknown }) => void;
+  /**
+   * 업로드 대상 엔드포인트. 기본은 로그인 필수인 `/api/v1/images`.
+   * 겜생프로필처럼 비회원 업로드가 필요한 경우 `/api/v1/profile/images` 등으로 덮어쓴다.
+   */
+  endpoint?: string;
 };
 
 function webpUploadName(original: File): string {
@@ -97,6 +102,7 @@ export async function uploadPicktyImages(
     throw new Error('업로드할 파일이 없습니다.');
   }
   const originals = files.map((f, i) => coerceToNamedFileForUpload(f, i));
+  const endpoint = options?.endpoint ?? '/api/v1/images';
 
   const headers: Record<string, string> = {};
   if (accessToken) {
@@ -124,7 +130,7 @@ export async function uploadPicktyImages(
     fd.append('files', compressed[i]!);
     let res: Response;
     try {
-      res = await apiFetch('/api/v1/images', {
+      res = await apiFetch(endpoint, {
         method: 'POST',
         headers,
         body: fd,

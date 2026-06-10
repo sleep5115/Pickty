@@ -16,10 +16,10 @@ import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 
 /**
- * 매일 KST 5:30, 유튜브 Data API 일일 무료 쿼터가 남아 있는 만큼 서로 다른 주제의 이상형 월드컵을 자동 생성한다.
+ * 매일 KST 18:47, 유튜브 Data API 일일 무료 쿼터 범위 안에서 이상형 월드컵을 **하루 1개** 자동 생성한다.
  *
- * 한 주제는 자연 아이템 수만큼만 만들고(억지 패딩 없음), 남은 예산으로 다음 주제를 이어서 생성한다.
- * 외부 API(Gemini 주제/아이템 생성, 유튜브 검색)는 트랜잭션 밖에서 끝낸 뒤, 영속화는 메서드 단위
+ * 한 주제는 자연 아이템 수만큼만 만들고(억지 패딩 없음), 약한 주제(아이템 부족)는 버리고 다음 주제로 넘어가
+ * 한 개를 성공시키면 멈춘다. 외부 API(Gemini 주제/아이템 생성, 유튜브 검색)는 트랜잭션 밖에서 끝낸 뒤, 영속화는 메서드 단위
  * `@Transactional`인 [WorldCupTemplateService.create] 에서만 일어나도록 한다(커넥션 풀 점유 방지).
  */
 @Component
@@ -128,6 +128,7 @@ class WorldCupAutoGeneratorScheduler(
                     "WorldCup auto-generator: created '{}' ({}) with {} items; remainingBudget={}",
                     saved.title, saved.id, items.size, remaining,
                 )
+                if (created >= MAX_TEMPLATES_PER_RUN) break // 하루 1개만 — 첫 성공 후 종료
             } catch (e: AiQuotaExhaustedException) {
                 log.warn("WorldCup auto-generator: Gemini quota exhausted mid-run; stopping", e)
                 break
@@ -163,6 +164,8 @@ class WorldCupAutoGeneratorScheduler(
     companion object {
         private const val MIN_ITEMS = 16
         private const val MAX_ITEMS = 100
+        // 하루 생성 상한. 유튜브 비중을 낮추려고 1개로 제한(약한 주제는 건너뛰며 MAX_TOPICS_PER_RUN까지 재시도).
+        private const val MAX_TEMPLATES_PER_RUN = 1
         private const val MAX_TOPICS_PER_RUN = 20
         private const val MAX_CONSECUTIVE_FAILURES = 3
         private const val MAX_ITEM_NAME_LEN = 100
