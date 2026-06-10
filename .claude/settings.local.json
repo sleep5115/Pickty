@@ -62,7 +62,8 @@
       "PowerShell($cands = @\\(\"$env:LOCALAPPDATA\\\\Programs\",\"C:\\\\Program Files\",\"C:\\\\Users\\\\Administrator\\\\.jdks\",\"C:\\\\Users\\\\Administrator\\\\.gradle\"\\); foreach \\($c in $cands\\) { if \\(Test-Path $c\\) { Get-ChildItem -Path $c -Recurse -Filter 'java.exe' -ErrorAction SilentlyContinue | Select-Object -First 5 -ExpandProperty FullName } })",
       "PowerShell($env:JAVA_HOME = \"C:\\\\Users\\\\Administrator\\\\.jdks\\\\corretto-25.0.2\"; cd C:\\\\Users\\\\Administrator\\\\CursorProjects\\\\Pickty_Workspace\\\\Pickty\\\\backend; .\\\\gradlew.bat compileKotlin -q --console=plain 2>&1 | Select-Object -Last 30)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" --max-time 4 http://localhost:3002/)",
-      "Bash(curl *)"
+      "Bash(curl *)",
+      "PowerShell(claude *)"
     ]
   }
 }
