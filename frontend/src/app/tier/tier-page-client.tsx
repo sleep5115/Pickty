@@ -322,6 +322,12 @@ function TierPageInner({ routeTemplateId }: { routeTemplateId?: string }) {
 
   return (
     <div ref={dragSelectRef} className="flex flex-col select-none bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100">
+      {templateId ? (
+        <div className="shrink-0 px-2 pb-3">
+          <StreamerModeLaunchBanner templateId={templateId} templateType="TIER" />
+        </div>
+      ) : null}
+
       <header className="shrink-0 flex items-center justify-between gap-2 px-2 py-2 bg-slate-100 dark:bg-zinc-950 border-y border-slate-200 dark:border-zinc-800">
         <span className="text-sm font-semibold text-slate-700 dark:text-zinc-300 shrink-0">템플릿</span>
         {templateBanner ? (
@@ -433,12 +439,6 @@ function TierPageInner({ routeTemplateId }: { routeTemplateId?: string }) {
           </div>
         </div>
       </div>
-
-      {templateId ? (
-        <div className="shrink-0 px-2">
-          <StreamerModeLaunchBanner templateId={templateId} templateType="TIER" />
-        </div>
-      ) : null}
 
       <TierBoard
         dragSelectRef={dragSelectRef}
