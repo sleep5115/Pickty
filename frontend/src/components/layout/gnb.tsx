@@ -3,11 +3,13 @@
 import { startTransition, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutGrid, List, MessagesSquare, Trophy } from 'lucide-react';
+import { Gamepad2, LayoutGrid, List, MessagesSquare, Trophy } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useTierStore } from '@/lib/store/tier-store';
 import { logoutSession } from '@/lib/auth-session';
+import { apiFetch } from '@/lib/api-fetch';
+import { isPicktyAdminRole } from '@/lib/user-role';
 
 const NAV_LINKS = [
   {
@@ -35,6 +37,12 @@ const NAV_LINKS = [
     Icon: Trophy,
     isActive: (p: string) => p.startsWith('/worldcup'),
   },
+  {
+    href: '/profile',
+    label: '프로필',
+    Icon: Gamepad2,
+    isActive: (p: string) => p.startsWith('/profile'),
+  },
 ] as const;
 
 export function GNB() {
@@ -43,6 +51,7 @@ export function GNB() {
   const { accessToken, logout } = useAuthStore();
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const accountRef = useRef<HTMLDivElement>(null);
 
@@ -85,6 +94,22 @@ export function GNB() {
     });
   }, [pathname]);
 
+  useEffect(() => {
+    if (!accessToken) {
+      setIsAdmin(false);
+      return;
+    }
+    void apiFetch('/api/v1/user/me', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((u: { role?: string } | null) => setIsAdmin(isPicktyAdminRole(u?.role)))
+      .catch(() => setIsAdmin(false));
+  }, [accessToken]);
+
+  // 게임 프로필(겜생) 기능은 게임 API 연동 전까지 ADMIN 에게만 노출.
+  const navLinks = NAV_LINKS.filter((l) => l.href !== '/profile' || isAdmin);
+
   const accountLinkClass =
     'block w-full text-left text-sm px-3 py-2 rounded-lg text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors';
 
@@ -104,7 +129,7 @@ export function GNB() {
             role="navigation"
             aria-label="주요 메뉴"
           >
-            {NAV_LINKS.map(({ href, label, Icon, isActive }) => {
+            {navLinks.map(({ href, label, Icon, isActive }) => {
               const active = isActive(pathname);
               return (
                 <Link
@@ -190,6 +215,16 @@ export function GNB() {
                   >
                     내 스트리밍
                   </Link>
+                  {isAdmin && (
+                    <Link
+                      href="/profile/my"
+                      role="menuitem"
+                      onClick={() => setAccountOpen(false)}
+                      className={accountLinkClass}
+                    >
+                      내 프로필
+                    </Link>
+                  )}
                   <div className="my-1 border-t border-slate-100 dark:border-zinc-800" />
                   <button
                     type="button"
@@ -246,7 +281,7 @@ export function GNB() {
           {menuOpen && (
             <div className="absolute left-0 right-0 top-14 border-b border-slate-200 bg-white/98 shadow-lg backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-950/98">
               <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-1 px-4 py-2 sm:px-6 md:px-8">
-                {NAV_LINKS.map(({ href, label, Icon, isActive }) => {
+                {navLinks.map(({ href, label, Icon, isActive }) => {
                   const active = isActive(pathname);
                   return (
                     <Link
@@ -298,6 +333,15 @@ export function GNB() {
                     >
                       내 스트리밍
                     </Link>
+                    {isAdmin && (
+                      <Link
+                        href="/profile/my"
+                        onClick={() => setMenuOpen(false)}
+                        className="rounded-lg px-3 py-2.5 text-sm text-slate-600 transition-colors hover:bg-slate-100 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
+                      >
+                        내 프로필
+                      </Link>
+                    )}
                     <button
                       type="button"
                       onClick={handleLogout}
