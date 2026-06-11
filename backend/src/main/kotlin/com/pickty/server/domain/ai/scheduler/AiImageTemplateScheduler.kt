@@ -11,6 +11,7 @@ import com.pickty.server.domain.tier.repository.TierTemplateRepository
 import com.pickty.server.domain.tier.service.TierTemplateService
 import com.pickty.server.domain.upload.service.R2ImageStorageService
 import com.pickty.server.domain.upload.service.RemoteImageFetcher
+import com.pickty.server.domain.upload.support.Thumbnail2x2Composer
 import com.pickty.server.domain.worldcup.dto.CreateWorldCupTemplateRequest
 import com.pickty.server.domain.worldcup.repository.WorldCupTemplateRepository
 import com.pickty.server.domain.worldcup.service.WorldCupTemplateService
@@ -49,6 +50,12 @@ class AiImageTemplateScheduler(
 
     private enum class Kind { WORLDCUP, TIER }
 
+    private data class ImageItemsResult(
+        val items: List<TemplateItemPayload>,
+        /** 앞쪽 최대 4개 아이템의 압축 JPEG — 티어 2×2 콜라주 썸네일 합성용 */
+        val thumbnailJpegs: List<ByteArray>,
+    )
+
     @Scheduled(cron = "0 13 18 * * *", zone = "Asia/Seoul")
     fun generateDaily() {
         if (!enabled) {
@@ -86,20 +93,21 @@ class AiImageTemplateScheduler(
             val topic = aiGenerationService.generateImageTopic(excluded)
             excluded.add(topic.title)
 
-            val items = buildImageItems(topic.title, minOf(topic.itemCount, MAX_ITEMS))
-            if (items.size >= MIN_ITEMS) {
-                persist(kind, topic.title, items)
+            val result = buildImageItems(topic.title, minOf(topic.itemCount, MAX_ITEMS))
+            if (result.items.size >= MIN_ITEMS) {
+                persist(kind, topic.title, result)
                 return
             }
             log.info(
                 "AI image generator: subject '{}' yielded only {} items with images (<{}); attempt {}/{} for {}",
-                topic.title, items.size, MIN_ITEMS, attempt + 1, MAX_TOPIC_ATTEMPTS, kind,
+                topic.title, result.items.size, MIN_ITEMS, attempt + 1, MAX_TOPIC_ATTEMPTS, kind,
             )
         }
         log.info("AI image generator: gave up on {} after {} topic attempts", kind, MAX_TOPIC_ATTEMPTS)
     }
 
-    private fun persist(kind: Kind, subject: String, items: List<TemplateItemPayload>) {
+    private fun persist(kind: Kind, subject: String, result: ImageItemsResult) {
+        val items = result.items
         when (kind) {
             Kind.WORLDCUP -> {
                 val title = "$TITLE_PREFIX$subject 월드컵".take(MAX_TITLE_LEN)
@@ -123,7 +131,8 @@ class AiImageTemplateScheduler(
                         description = null,
                         items = items,
                         parentTemplateId = null,
-                        thumbnailUrl = items.first().imageUrl,
+                        // 수동 생성과 동일한 2×2 콜라주 규칙. 합성 실패 시에만 첫 아이템 이미지로 폴백.
+                        thumbnailUrl = composeTierThumbnailUrl(result.thumbnailJpegs) ?: items.first().imageUrl,
                         boardConfig = null,
                     ),
                     creatorId = creatorId,
@@ -137,11 +146,12 @@ class AiImageTemplateScheduler(
      * 주제로 아이템 이름을 생성하고, 각 아이템의 Wikimedia 이미지를 다운로드·압축해 R2에 저장한 뒤
      * Pickty 호스팅 URL을 바인딩한다. 이미지가 없거나 저장에 실패한 아이템은 버린다.
      */
-    private fun buildImageItems(subject: String, requestCount: Int): List<TemplateItemPayload> {
+    private fun buildImageItems(subject: String, requestCount: Int): ImageItemsResult {
         val rows = aiGenerationService.autoGenerate(
             AiAutoGenerateRequest(prompt = subject, mediaType = AiMediaType.PHOTO, count = requestCount),
         )
         val items = ArrayList<TemplateItemPayload>()
+        val thumbnailJpegs = ArrayList<ByteArray>(4)
         var id = 1
         for (row in rows) {
             val sourceUrl = row.candidates.firstOrNull()?.url?.trim()?.takeIf { it.isNotEmpty() } ?: continue
@@ -152,6 +162,9 @@ class AiImageTemplateScheduler(
                 log.warn("AI image generator: R2 store failed for item '{}'", row.name, e)
                 continue
             }
+            if (thumbnailJpegs.size < 4) {
+                thumbnailJpegs.add(jpeg)
+            }
             items.add(
                 TemplateItemPayload(
                     id = id++,
@@ -160,7 +173,18 @@ class AiImageTemplateScheduler(
                 ),
             )
         }
-        return items
+        return ImageItemsResult(items, thumbnailJpegs)
+    }
+
+    /** 앞쪽 4개 아이템 JPEG로 2×2 콜라주를 합성·R2 영속화해 공개 URL 반환. 합성·저장 실패 시 null. */
+    private fun composeTierThumbnailUrl(thumbnailJpegs: List<ByteArray>): String? {
+        val composite = Thumbnail2x2Composer.composeJpeg(thumbnailJpegs) ?: return null
+        return try {
+            r2ImageStorageService.publicUrlForStoredName(r2ImageStorageService.storeCompressedJpeg(composite))
+        } catch (e: Exception) {
+            log.warn("AI image generator: tier thumbnail composite store failed", e)
+            null
+        }
     }
 
     /** 중복 주제 방지 — 최근 티어·월드컵 ACTIVE 제목에서 접두/접미어를 떼어 비교 대상으로. */

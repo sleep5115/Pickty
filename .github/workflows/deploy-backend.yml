@@ -39,6 +39,8 @@ jobs:
             if [ ! -f ~/Pickty/deploy/lightsail/application-secrets.yaml ]; then exit 1; fi
             docker compose -f deploy/lightsail/docker-compose.api.yml down --remove-orphans
             docker compose -f deploy/lightsail/docker-compose.api.yml up -d --build
+            # 빌드 캐시 누적 방지 — 최신 10GB만 유지 (2026-06 디스크 79% 사건 재발 방지)
+            docker builder prune -af --max-used-space 10GB
         env:
           SSL_CERT: ${{ secrets.SSL_CERT }}
           SSL_KEY: ${{ secrets.SSL_KEY }}
