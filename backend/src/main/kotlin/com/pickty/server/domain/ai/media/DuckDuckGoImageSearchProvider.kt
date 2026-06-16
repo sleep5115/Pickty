@@ -30,7 +30,7 @@ import kotlinx.coroutines.sync.withLock
  * 기본 이미지 검색 엔진으로 동작하도록 [Order] 값을 가장 낮게(=우선순위 높음) 지정한다.
  */
 @Component
-@Order(1)
+@Order(50)
 class DuckDuckGoImageSearchProvider : MediaSearchService {
 
     private val log = LoggerFactory.getLogger(javaClass)

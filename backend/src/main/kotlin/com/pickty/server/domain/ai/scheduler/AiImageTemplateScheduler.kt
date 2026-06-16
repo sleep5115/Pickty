@@ -6,7 +6,6 @@ import com.pickty.server.domain.ai.service.AiApiUsageService
 import com.pickty.server.domain.ai.service.AiGenerationService
 import com.pickty.server.domain.tier.dto.CreateTemplateRequest
 import com.pickty.server.domain.tier.dto.TemplateItemPayload
-import com.pickty.server.domain.tier.enums.TemplateStatus
 import com.pickty.server.domain.tier.repository.TierTemplateRepository
 import com.pickty.server.domain.tier.service.TierTemplateService
 import com.pickty.server.domain.upload.service.R2ImageStorageService
@@ -22,14 +21,14 @@ import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 
 /**
- * 매일 KST 18:13, **Wikimedia 이미지**로 티어 1개 + 월드컵 1개를 자동 생성한다.
+ * 매일 KST 18:13, Pixabay/Pexels 중심 이미지로 티어 1개 + 월드컵 1개를 자동 생성한다.
  *
- * 흐름(각 종류별): Gemini로 위키 친화 주제·아이템 → Wikimedia 이미지 검색 →
+ * 흐름(각 종류별): Gemini로 가벼운 실물 주제·아이템 → Pixabay/Pexels 이미지 검색 →
  * 받은 이미지를 다운로드·압축해 R2에 영속화([RemoteImageFetcher] + [R2ImageStorageService]) →
  * Pickty 호스팅 URL로 템플릿 생성. 외부 API는 트랜잭션 밖에서 끝내고 `create`에서만 영속화한다.
  *
  * - 시간대: KST 18:13(= UTC 09:13, 미국 새벽)이라 Gemini 글로벌 과부하(503)를 덜 맞는다. 정각·30분은 회피.
- * - 한 종류가 16개를 못 채우면(Wikimedia 커버리지 미스) 다른 주제로 몇 번 더 시도한다(단발 취약성 제거).
+ * - 한 종류가 16개를 못 채우면(이미지 커버리지 미스) 다른 주제로 몇 번 더 시도한다(단발 취약성 제거).
  * - Gemini 일일 20회를 유튜브 배치(18:47)와 공유하므로, 이미지(검색 유입 가치 ↑)가 먼저 돌아 쿼터를 선점하되
  *   [IMAGE_BATCH_GEMINI_CAP]까지만 쓰고 멈춰 유튜브 배치·수동 생성용 여유를 남긴다.
  */
@@ -143,7 +142,7 @@ class AiImageTemplateScheduler(
     }
 
     /**
-     * 주제로 아이템 이름을 생성하고, 각 아이템의 Wikimedia 이미지를 다운로드·압축해 R2에 저장한 뒤
+     * 주제로 아이템 이름을 생성하고, 각 아이템의 검색 이미지를 다운로드·압축해 R2에 저장한 뒤
      * Pickty 호스팅 URL을 바인딩한다. 이미지가 없거나 저장에 실패한 아이템은 버린다.
      */
     private fun buildImageItems(subject: String, requestCount: Int): ImageItemsResult {
@@ -187,11 +186,11 @@ class AiImageTemplateScheduler(
         }
     }
 
-    /** 중복 주제 방지 — 최근 티어·월드컵 ACTIVE 제목에서 접두/접미어를 떼어 비교 대상으로. */
+    /** 중복 주제 방지 — 최근 AI 생성 제목(삭제 포함)에서 접두/접미어를 떼어 비교 대상으로. */
     private fun recentSubjects(): List<String> {
-        val tier = tierTemplateRepository.findAllByTemplateStatusOrderByCreatedAtDesc(TemplateStatus.ACTIVE)
+        val tier = tierTemplateRepository.findAllByTitleStartingWithOrderByCreatedAtDesc(TITLE_PREFIX)
             .map { it.title }
-        val worldcup = worldCupTemplateRepository.findAllByTemplateStatusOrderByCreatedAtDesc(TemplateStatus.ACTIVE)
+        val worldcup = worldCupTemplateRepository.findAllByTitleStartingWithOrderByCreatedAtDesc(TITLE_PREFIX)
             .map { it.title }
         return (tier + worldcup)
             .asSequence()
