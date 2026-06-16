@@ -3,6 +3,7 @@ package com.pickty.server.domain.ai.scheduler
 import com.pickty.server.domain.ai.dto.AiAutoGenerateRequest
 import com.pickty.server.domain.ai.dto.AiMediaType
 import com.pickty.server.domain.ai.service.AiApiUsageService
+import com.pickty.server.domain.ai.service.AiGenerationService.ImageTopicKind
 import com.pickty.server.domain.ai.service.AiGenerationService
 import com.pickty.server.domain.tier.dto.CreateTemplateRequest
 import com.pickty.server.domain.tier.dto.TemplateItemPayload
@@ -89,7 +90,10 @@ class AiImageTemplateScheduler(
                 return
             }
 
-            val topic = aiGenerationService.generateImageTopic(excluded)
+            val topic = aiGenerationService.generateImageTopic(
+                excludedTitles = excluded,
+                targetKind = if (kind == Kind.WORLDCUP) ImageTopicKind.WORLDCUP else ImageTopicKind.TIER,
+            )
             excluded.add(topic.title)
 
             val result = buildImageItems(topic.title, minOf(topic.itemCount, MAX_ITEMS))

@@ -77,12 +77,12 @@ class AiGenerationService(
     }
 
     /**
-     * 이미지 자동 생성 배치용 — **위키백과에 자유 이미지가 있을 법한 주제**로 유도한다.
+     * 이미지 자동 생성 배치용 — Pixabay/Pexels에서 찾기 쉬운 가벼운 주제로 유도한다.
      * 반환 `title`은 분류어("월드컵"/"티어표")가 없는 **주제 문구**이며, 호출 측이 종류에 맞게 접미어를 붙인다.
      */
-    fun generateImageTopic(excludedTitles: List<String>): GeneratedTopic {
+    fun generateImageTopic(excludedTitles: List<String>, targetKind: ImageTopicKind): GeneratedTopic {
         val excluded = normalizeExistingItemNames(excludedTitles)
-        val payload = callGeminiForImageTopic(excluded)
+        val payload = callGeminiForImageTopic(excluded, targetKind)
         val title = payload.title.trim()
         require(title.isNotEmpty()) { "Gemini returned empty image topic" }
         return GeneratedTopic(title = title, itemCount = payload.itemCount.coerceIn(2, 100))
@@ -91,22 +91,36 @@ class AiGenerationService(
     private fun normalizeExistingItemNames(raw: List<String>): List<String> =
         raw.map { it.trim() }.filter { it.isNotEmpty() }.distinct().take(200)
 
-    private fun callGeminiForImageTopic(excludedTitles: List<String>): GeminiTopicPayload {
+    private fun callGeminiForImageTopic(excludedTitles: List<String>, targetKind: ImageTopicKind): GeminiTopicPayload {
         val avoid = if (excludedTitles.isNotEmpty()) {
             val json = objectMapper.writeValueAsString(excludedTitles)
             "\n\nThese subjects already exist — yours MUST be clearly different. EXISTING: $json"
         } else {
             ""
         }
+        val peopleRule = when (targetKind) {
+            ImageTopicKind.TIER -> """
+                PEOPLE RULE: do NOT create people-ranking tier list subjects. Avoid celebrities, idols, athletes,
+                politicians, historical figures, activists, religious figures, minors, or any real-person ranking.
+            """.trimIndent()
+            ImageTopicKind.WORLDCUP -> """
+                PEOPLE RULE: people-based subjects are allowed ONLY when they are light preference polls about
+                entertainment or sports (for example actors, singers, idols, variety-show people, athletes).
+                Still avoid politicians, presidents, historical figures, activists, religious figures, crime/tragedy
+                related people, minors-focused subjects, or any moral/achievement ranking. If reliable Pixabay/Pexels
+                photos are unlikely for the people, prefer a non-person subject instead.
+            """.trimIndent()
+        }
 
         val promptText = """
             Propose ONE light, low-risk subject for a Korean image-based popularity poll (이상형 월드컵 / 티어표).
+            Target format: ${targetKind.label}.
             CRITICAL: every item should be easy to find as a safe stock/public photo on Pixabay or Pexels.
             GOOD subjects: foods, desserts, drinks, animals, plants, flowers, travel destinations, natural scenery,
             landmarks, countries/cities, vehicles, sports types, musical instruments, household objects, hobbies.
-            AVOID completely: people or rankings of people, politicians, presidents, historical figures, activists,
-            independence movement figures, celebrities, athletes, religion, war, crime, tragedy, disease, disasters,
-            national/ethnic superiority, cultural heritage rankings, copyrighted fictional characters, brands, memes.
+            $peopleRule
+            AVOID completely: religion, war, crime, tragedy, disease, disasters, national/ethnic superiority,
+            cultural heritage rankings, copyrighted fictional characters, brands, memes.
             Keep the tone playful and casual, like YouTube auto-generated topics, not encyclopedic or educational.
             Write the subject in Korean WITHOUT a trailing "월드컵"/"티어표" word.
             Estimate how many such items genuinely exist (be realistic, do NOT pad).$avoid
@@ -277,6 +291,11 @@ class AiGenerationService(
             ?: throw IllegalStateException("Empty Gemini response")
 
         return text.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
+    }
+
+    enum class ImageTopicKind(val label: String) {
+        WORLDCUP("월드컵"),
+        TIER("티어표"),
     }
 
     /** 스케줄러가 사용하는 주제 생성 결과 — 제목과 그 주제의 자연스러운 아이템 수. */

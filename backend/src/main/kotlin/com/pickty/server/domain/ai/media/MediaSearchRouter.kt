@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component
  * `supports(mediaType)`가 true인 전략을 [Order] 우선순위대로 순회하며 호출한다.
  * 어떤 전략이 비어 있지 않은 결과를 반환하면 즉시 채택하고, 비어 있으면 다음 전략을 시도한다.
  *
- * 이미지 검색의 경우 DuckDuckGo → Google(Custom Search; 내부적으로 Bing 폴백) 순으로 시도되며,
+ * 이미지 검색의 경우 Pixabay → Pexels → DuckDuckGo 순으로 시도되며,
  * 외부 서비스가 차단·장애·쿼터 소진으로 빈 결과를 내도 다음 전략으로 자동 복구된다.
  */
 @Component
