@@ -12,6 +12,8 @@ interface WorldCupTemplateRepository : JpaRepository<WorldCupTemplate, UUID> {
 
     fun findAllByTemplateStatusOrderByCreatedAtDesc(templateStatus: TemplateStatus): List<WorldCupTemplate>
 
+    fun findAllByTitleStartingWithOrderByCreatedAtDesc(prefix: String): List<WorldCupTemplate>
+
     fun findAllByCreatorIdAndTemplateStatusOrderByCreatedAtDesc(
         creatorId: Long,
         templateStatus: TemplateStatus,

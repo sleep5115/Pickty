@@ -15,6 +15,8 @@ interface TierTemplateRepository : JpaRepository<TierTemplate, UUID> {
 
     fun findAllByTemplateStatusOrderByCreatedAtDesc(templateStatus: TemplateStatus): List<TierTemplate>
 
+    fun findAllByTitleStartingWithOrderByCreatedAtDesc(prefix: String): List<TierTemplate>
+
     fun findAllByCreatorIdAndTemplateStatusOrderByCreatedAtDesc(
         creatorId: Long,
         templateStatus: TemplateStatus,

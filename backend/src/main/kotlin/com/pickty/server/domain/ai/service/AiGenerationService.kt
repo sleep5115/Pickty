@@ -100,13 +100,14 @@ class AiGenerationService(
         }
 
         val promptText = """
-            Propose ONE subject for a Korean image-based popularity poll (이상형 월드컵 / 티어표).
-            CRITICAL: every item in this subject must be an individually notable entity that almost certainly has
-            its OWN Korean Wikipedia (ko.wikipedia.org) article containing a FREELY-LICENSED photo.
-            GOOD subjects: real people (운동선수, 배우, 솔로 가수, 정치인), animal species(동물 품종), foods(음식),
-            countries/cities, landmarks, classic/old films.
-            AVOID: copyrighted fictional characters (애니·게임·웹툰 캐릭터), idol group members, brand-new memes,
-            niche/obscure items, or anything unlikely to have a free Wikipedia photo.
+            Propose ONE light, low-risk subject for a Korean image-based popularity poll (이상형 월드컵 / 티어표).
+            CRITICAL: every item should be easy to find as a safe stock/public photo on Pixabay or Pexels.
+            GOOD subjects: foods, desserts, drinks, animals, plants, flowers, travel destinations, natural scenery,
+            landmarks, countries/cities, vehicles, sports types, musical instruments, household objects, hobbies.
+            AVOID completely: people or rankings of people, politicians, presidents, historical figures, activists,
+            independence movement figures, celebrities, athletes, religion, war, crime, tragedy, disease, disasters,
+            national/ethnic superiority, cultural heritage rankings, copyrighted fictional characters, brands, memes.
+            Keep the tone playful and casual, like YouTube auto-generated topics, not encyclopedic or educational.
             Write the subject in Korean WITHOUT a trailing "월드컵"/"티어표" word.
             Estimate how many such items genuinely exist (be realistic, do NOT pad).$avoid
 

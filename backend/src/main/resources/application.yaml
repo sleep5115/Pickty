@@ -119,6 +119,10 @@ pickty:
     google-search:
       api-key: ${GOOGLE_SEARCH_API_KEY:}
       cx: ${GOOGLE_SEARCH_CX:}
+    pixabay:
+      api-key: ${PIXABAY_API_KEY:}
+    pexels:
+      api-key: ${PEXELS_API_KEY:}
     youtube:
       data-api-key: ${YOUTUBE_DATA_API_KEY:}
     # 자동 생성 스케줄러 (시간대는 각 스케줄러의 @Scheduled cron 참고 — 미국 새벽/Gemini 503 회피 위해 KST 저녁대)
@@ -129,7 +133,7 @@ pickty:
       youtube-daily-quota: 100
       # 자동 생성 템플릿의 작성자(ADMIN) users.id — 유튜브·이미지 배치 공용
       creator-id: 2
-      # 이미지 배치 (KST 18:13) — Wikimedia 이미지로 티어 1개 + 월드컵 1개 생성.
+      # 이미지 배치 (KST 18:13) — Pixabay/Pexels 중심 이미지로 티어 1개 + 월드컵 1개 생성.
       # Gemini 일일 20회를 유튜브 배치와 공유하므로 먼저(18:13) 돌아 선점하되 일부만 쓰고 멈춘다.
       image:
         enabled: true

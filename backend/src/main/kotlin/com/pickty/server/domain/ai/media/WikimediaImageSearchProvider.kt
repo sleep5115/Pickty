@@ -21,10 +21,10 @@ import java.util.concurrent.Semaphore
  *  2) 없으면 검색 결과 중 **제목 핵심어가 항목명에 포함**되는 첫 이미지(그룹·동음이의 오매칭 방지).
  *  3) 둘 다 없으면 빈 결과 → 호출 측에서 해당 아이템을 버린다.
  *
- * PHOTO 1순위([Order] 0)로 두어 DuckDuckGo(@Order 1)보다 먼저 시도된다.
+ * PHOTO 마지막 공식 fallback. Pixabay/Pexels가 비어 있을 때만 시도한다.
  */
 @Component
-@Order(0)
+@Order(20)
 class WikimediaImageSearchProvider : MediaSearchService {
 
     private val log = LoggerFactory.getLogger(javaClass)
