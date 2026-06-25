@@ -95,7 +95,7 @@ export function TemplateCard({
                   : 'line-clamp-2 text-slate-500 dark:text-zinc-500'
               }
             >
-              {descTrimmed ?? '설명 없음'}
+              {descTrimmed ?? ''}
             </p>
           </div>
         </div>
